@@ -1,6 +1,24 @@
 #include <iostream>
 #include <Eigen/Dense>
+#include <opencv2/core.hpp>
+// #include <opencv2/imgproc.hpp>
 
+// void test(){
+//   cv::FileStorage fs("calibration_data.yaml", cv::FileStorage::READ);
+//   cv::Mat cameraMatrix, distCoeffs, undistortMap_x, undistortMap_y;
+//   fs["cameraMatrix"] >> cameraMatrix;
+//   fs["distCoeffs"] >> distCoeffs;
+//   fs["undistortMap_x"] >> undistortMap_x;
+//   fs["undistortMap_y"] >> undistortMap_y;
+//   fs.release();
+
+//   // Now use these maps with cv::remap
+//   cv::Mat inputImage = cv::imread("your_image.png");
+//   cv::Mat undistortedImage;
+//   cv::remap(inputImage, undistortedImage, undistortMap_x, undistortMap_y, cv::INTER_LINEAR);
+// }
+
+using Eigen::MatrixXd;
 
 int main(int argc, char** argv)
 {
@@ -14,6 +32,11 @@ int main(int argc, char** argv)
 
   // Read events, user buffers?
 
-
+  MatrixXd m(2,2);
+  m(0,0) = 3;
+  m(1,0) = 2.5;
+  m(0,1) = -1;
+  m(1,1) = m(1,0) + m(0,1);
+  std::cout << m << std::endl;
 
 }
