@@ -1,7 +1,9 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <opencv2/core.hpp>
-// #include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>  // For image display
+#include <opencv2/imgproc.hpp>  // For image processing
+#include "camera.hpp"
 
 // void test(){
 //   cv::FileStorage fs("calibration_data.yaml", cv::FileStorage::READ);
@@ -24,6 +26,9 @@ int main(int argc, char** argv)
 {
   // Parse input arguemnts?
 
+  // Create a camera object
+  CameraInfo camera1;
+  std::cout << "Camera1 width: " << camera1.width << std::endl;
   // Define/Load camera calibration parameters
 
   // Create a UDP or file reader for event data. Multi threaded?

@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/my_executable.dir/src/main.cpp.o -o my_executable  -Wl,-rpath,/home/fredrik/KEX/STEREO/3party/opencv_src/lib ../3party/opencv_src/lib/libopencv_highgui.so.4.6.0 ../3party/opencv_src/lib/libopencv_imgcodecs.so.4.6.0 ../3party/opencv_src/lib/libopencv_imgproc.so.4.6.0 ../3party/opencv_src/lib/libopencv_core.so.4.6.0 

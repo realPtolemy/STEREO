@@ -28,38 +28,31 @@ if (NOT IS_DIRECTORY ${EIGEN3_INCLUDE_DIR})
 
 endif()
 
-
-
-FetchContent_Declare(
-        opencv
-        GIT_REPOSITORY https://github.com/opencv/opencv.git
-        GIT_TAG 4.6.0
-        #SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
-)
-
 set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
 set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
 message(STATUS "OpenCV_INSTALL_DIR: ${OpenCV_INSTALL_DIR}")
 
-#FetchContent_MakeAvailable(opencv)
-
 # Ensure OpenCV is built and installed inside the project
 if(NOT EXISTS ${OpenCV_INSTALL_DIR})
+
+    # Ifall skit inte funkar flytta ut fetch utanför if satsen
+    # Alltså härifrån
+    message(STATUS "Fetching OpenCV...")
+
+    FetchContent_Declare(
+            opencv
+            GIT_REPOSITORY https://github.com/opencv/opencv.git
+            GIT_TAG 4.6.0
+            SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
+    )
+    FetchContent_GetProperties(opencv)
+    if (NOT opencv_POPULATED)
+        FetchContent_Populate(opencv)
+    endif()
+    # Till hit
+
     file(MAKE_DIRECTORY ${OpenCV_INSTALL_DIR})
     message(STATUS "Building and installing OpenCV...")
-
-    # Configure OpenCV
-    # execute_process(
-    #     COMMAND ${CMAKE_COMMAND}
-    #         -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
-    #         -B ${OpenCV_BUILD_DIR}
-    #         -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
-    #         -DBUILD_SHARED_LIBS=ON
-    #         -DBUILD_TESTS=OFF
-    #         -DBUILD_EXAMPLES=OFF
-    #         -DWITH_IPP=OFF
-    #         -DWITH_TBB=ON
-    # )
 
     execute_process(
         COMMAND ${CMAKE_COMMAND}
@@ -71,7 +64,7 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
             -DBUILD_EXAMPLES=OFF
             -DWITH_IPP=OFF
             -DWITH_TBB=ON
-            -DBUILD_LIST=core,imgproc
+            -DBUILD_LIST=core,imgproc,highgui
     )
 
     # Build OpenCV
@@ -85,11 +78,4 @@ endif()
 set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
 find_package(OpenCV REQUIRED)
 
-# Create the executable
-add_executable(my_executable src/main.cpp)
-
-# Link OpenCV to the executable
-target_include_directories(my_executable PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS})
-# Link Eigen to your target (this should happen after executable definition)
-target_include_directories(my_executable PRIVATE ${EIGEN3_INCLUDE_DIR})
+add_subdirectory(app)
