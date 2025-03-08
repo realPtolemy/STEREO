@@ -49,6 +49,18 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
     message(STATUS "Building and installing OpenCV...")
 
     # Configure OpenCV
+    # execute_process(
+    #     COMMAND ${CMAKE_COMMAND}
+    #         -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
+    #         -B ${OpenCV_BUILD_DIR}
+    #         -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
+    #         -DBUILD_SHARED_LIBS=ON
+    #         -DBUILD_TESTS=OFF
+    #         -DBUILD_EXAMPLES=OFF
+    #         -DWITH_IPP=OFF
+    #         -DWITH_TBB=ON
+    # )
+
     execute_process(
         COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
@@ -59,6 +71,7 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
             -DBUILD_EXAMPLES=OFF
             -DWITH_IPP=OFF
             -DWITH_TBB=ON
+            -DBUILD_LIST=core,imgproc
     )
 
     # Build OpenCV
