@@ -2,3 +2,4 @@
 /build
 /3party
 CMakeCache.txt
+/app/CMakeFiles/*

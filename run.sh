@@ -3,7 +3,7 @@
 BUILD_DIR="build"
 EXECUTABLE="./app/my_executable"
 
-if [ $1 = "clean" ]; then
+if [ -n "$1" ] && [ $1 = "clean" ]; then
     echo "Cleaning build directory."
     rm -rf $BUILD_DIR
 fi
