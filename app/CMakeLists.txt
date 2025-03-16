@@ -1,5 +1,6 @@
+file(GLOB SOURCES "src/mapper/*.cpp" "src/tracker/*.cpp" "main.cpp")
 
-set(SOURCES src/main.cpp)
+message(STATUS "SOURCES: ${SOURCES}")
 
 add_executable(my_executable ${SOURCES})
 
@@ -8,4 +9,4 @@ target_include_directories(my_executable PRIVATE
     ${OpenCV_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
 )
-target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS})
+target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS} cartesian3dgrid)

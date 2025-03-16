@@ -78,4 +78,13 @@ endif()
 set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
 find_package(OpenCV REQUIRED)
 
+set(Cnpy_DIR ${Cnpy_INSTALL_DIR}/lib/cmake)
+
+# Behöver ZLIB för att bygga CNPY
+add_subdirectory(cartesian3dgrid)
 add_subdirectory(app)
+
+
+# add_executable(my_project main.cpp)
+# target_include_directories(my_project PRIVATE ${Cnpy_INSTALL_DIR}/include)
+# target_link_libraries(my_project PRIVATE cnpy)

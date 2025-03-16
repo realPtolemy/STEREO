@@ -3,15 +3,18 @@
 
 #include <vector>
 #include <Eigen/Dense>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
+
+#include <iostream>
 
 // Simpel kamera defintion
 // Updatera detta med mer relevant information, som projektet går framåt
 struct CameraInfo {
-    double fx, fy;  // Focal lengths
-    double cx, cy;  // Principal point
+    // Ska kamera matrisen vara från Eigen eller openCV?
+    Eigen::Matrix3d K;  // Camera matrix
     std::vector<double> distortion;  // Distortion coefficients
-    // Kommer behöva, K matrix, R matrix, T matrix and maybe some other stuff
-
+    // Kommer behöva, R matris, T matris och P matris
     const unsigned int width = 100; // Ändra till deras korrekta värden
     const unsigned int height = 100; // Detta kanske man kan göra när man updaterar med kalibreringsdata
 };
@@ -23,10 +26,12 @@ typedef Eigen::Vector3d Keypoint;
 class PinholeCameraModel {
 private:
     CameraInfo camera_info;
+    void readYAML(const std::string& filename, CameraInfo &camera);
+
 public:
     PinholeCameraModel();
-    PinholeCameraModel(const CameraInfo& camera_info);
-    ~PinholeCameraModel();
+    PinholeCameraModel(const std::string& filename, CameraInfo &camera);
+    // ~PinholeCameraModel();
 
     // Project a 3D point to a 2D point
     Keypoint projectPoint(const Point& point3d);

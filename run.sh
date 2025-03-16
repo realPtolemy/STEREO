@@ -1,7 +1,7 @@
 #!/bin/sh
 
 BUILD_DIR="build"
-EXECUTABLE="./app/my_executable"
+EXECUTABLE="./build/app/my_executable"
 
 if [ -n "$1" ] && [ $1 = "clean" ]; then
     echo "Cleaning build directory."
@@ -19,6 +19,8 @@ cd $BUILD_DIR
 cmake ..
 
 cmake --build .
+
+cd ..
 
 if [ -f $EXECUTABLE ]; then
     echo "Executable found."
