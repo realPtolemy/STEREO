@@ -33,4 +33,11 @@ void PinholeCameraModel::readYAML(const std::string& filename, CameraInfo &camer
         distCoeffs.at<double>(3),
         distCoeffs.at<double>(4)
     };
+
+    // Inital values, these are updated with the help of the tracking module!
+    camera.R = Eigen::Matrix3d::Identity();
+    camera.T = Eigen::Vector3d::Zero();
+    camera.P = Eigen::Matrix<double, 3, 4>::Zero();
+    camera.P.block<3,3>(0,0) = camera.K;  // Top-left 3x3 block is K
+    camera.P.block<3,1>(0,3) = camera.K * camera.T; // Last column is K*T, which is zero here
 }

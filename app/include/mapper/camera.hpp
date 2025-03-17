@@ -13,8 +13,10 @@
 struct CameraInfo {
     // Ska kamera matrisen vara från Eigen eller openCV?
     Eigen::Matrix3d K;  // Camera matrix
+    Eigen::Matrix3d R;  // Rotation matrix
+    Eigen::Vector3d T;  // Translation matrix
+    Eigen::Matrix<double, 3, 4> P;  // Projection matrix, K*[R|T]. Behövs denna?
     std::vector<double> distortion;  // Distortion coefficients
-    // Kommer behöva, R matris, T matris och P matris
     const unsigned int width = 100; // Ändra till deras korrekta värden
     const unsigned int height = 100; // Detta kanske man kan göra när man updaterar med kalibreringsdata
 };
