@@ -160,6 +160,7 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
             -DBUILD_TESTS=OFF
             -DBUILD_EXAMPLES=OFF
             -DCMAKE_BUILD_TYPE=None
+            -DWITH_LZ4=ON # Force add LZ4 to install, required by PCL library
     )
     execute_process(COMMAND ${CMAKE_COMMAND} --build ${FLANN_BUILD_DIR})
     execute_process(COMMAND ${CMAKE_COMMAND} --install ${FLANN_BUILD_DIR})
