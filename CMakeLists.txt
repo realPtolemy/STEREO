@@ -3,36 +3,40 @@ project(MyProject)
 
 include(FetchContent)
 
-set(EIGEN3_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/3party/Eigen_src")
-set(OpenCV_VERSION 4.6.0)  # Change to the version you want
+# ================ Eigen ================
+set(EIGEN3_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/Eigen_src)
+set(EIGEN3_BUILD_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
+if (NOT IS_DIRECTORY ${EIGEN3_INSTALL_DIR})
+    message(STATUS "Fetching Eigen...")
+    file(MAKE_DIRECTORY ${EIGEN3_INSTALL_DIR})
 
-# If EIGEN3_INCLUDE_DIR is not defined in the environment, donwload it
-if (NOT IS_DIRECTORY ${EIGEN3_INCLUDE_DIR})
-    file(MAKE_DIRECTORY ${EIGEN3_INCLUDE_DIR})
-
-    # Declare Eigen as a dependency
     FetchContent_Declare(
         eigen
         GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-        GIT_TAG 3.4.0  # Specify the Eigen version you want
+        GIT_TAG 3.4.0
     )
 
     FetchContent_GetProperties(eigen)
     if (NOT eigen_POPULATED)
         FetchContent_Populate(eigen)
-
-        # Copy the fetched Eigen source to the desired location
-        file(COPY ${eigen_SOURCE_DIR}/Eigen DESTINATION ${EIGEN3_INCLUDE_DIR})
+        execute_process(
+            COMMAND ${CMAKE_COMMAND}
+            -S ${eigen_SOURCE_DIR}
+            -B ${CMAKE_BINARY_DIR}/_deps/eigen-build
+            -DCMAKE_INSTALL_PREFIX=${EIGEN3_INSTALL_DIR}
+            -DBUILD_TESTING=OFF
+        )
+        execute_process(COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/_deps/eigen-build)
+        execute_process(COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}/_deps/eigen-build)
 
     endif()
-
+    message(STATUS "Eigen fetched and installed.")
 endif()
 
+# ================ OpenCV ================
 set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
 set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
-message(STATUS "OpenCV_INSTALL_DIR: ${OpenCV_INSTALL_DIR}")
-
-# Ensure OpenCV is built and installed inside the project
+set(OpenCV_VERSION 4.6.0)
 if(NOT EXISTS ${OpenCV_INSTALL_DIR})
     message(STATUS "Fetching OpenCV...")
 
@@ -69,12 +73,113 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
     execute_process(COMMAND ${CMAKE_COMMAND} --install ${OpenCV_BUILD_DIR})
 endif()
 
+# ================ PCL DEPENDECIES ================
+# ================ Boost ================
+find_package(Boost REQUIRED COMPONENTS filesystem system iostreams)
+
+# If Boost is not found, attempt to install it
+if (NOT Boost_FOUND)
+    message(STATUS "Boost not found. Attempting to install required components...")
+
+    if (UNIX AND NOT APPLE)  # Linux (Ubuntu, Debian, Fedora, Arch)
+        execute_process(COMMAND sudo apt update)  # Ubuntu/Debian
+        execute_process(COMMAND sudo apt install -y libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev)  # Ubuntu/Debian
+        execute_process(COMMAND sudo dnf install -y boost-filesystem boost-system boost-iostreams)  # Fedora
+        execute_process(COMMAND sudo pacman -S --noconfirm boost-libs)  # Arch Linux
+    elseif (APPLE)  # macOS (Homebrew)
+        execute_process(COMMAND brew install boost-filesystem boost-system boost-iostreams)
+    elseif (WIN32)  # Windows (Vcpkg/MSYS2)
+        execute_process(COMMAND vcpkg install boost-filesystem boost-system boost-iostreams)
+        set(Boost_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows/share/boost")
+    else()
+        message(FATAL_ERROR "Unsupported operating system. Please install Boost manually.")
+    endif()
+
+    # Re-run find_package(Boost) after installation
+    find_package(Boost REQUIRED COMPONENTS filesystem system iostreams)
+
+    if (NOT Boost_FOUND)
+        message(FATAL_ERROR "Failed to install Boost. Please install it manually.")
+    endif()
+endif()
+message(STATUS "Boost successfully found at: ${Boost_INCLUDE_DIRS}")
+
+# ==================== Ensure pkg-config is Installed ====================
+find_program(PKG_CONFIG_EXECUTABLE pkg-config)
+
+if(NOT PKG_CONFIG_EXECUTABLE)
+    message(STATUS "pkg-config not found. Attempting to install it...")
+
+    if(UNIX AND NOT APPLE)  # Linux (Ubuntu, Debian, Fedora, Arch)
+        execute_process(COMMAND sudo apt update)  # Ubuntu/Debian
+        execute_process(COMMAND sudo apt install -y pkg-config)  # Ubuntu/Debian
+        execute_process(COMMAND sudo dnf install -y pkgconf)  # Fedora
+        execute_process(COMMAND sudo pacman -S --noconfirm pkgconf)  # Arch Linux
+    elseif(APPLE)  # macOS (Homebrew)
+        execute_process(COMMAND brew install pkg-config)
+    elseif(WIN32)  # Windows (MSYS2)
+        execute_process(COMMAND pacman -S --noconfirm mingw-w64-x86_64-pkg-config)
+    else()
+        message(FATAL_ERROR "Unsupported operating system. Please install pkg-config manually.")
+    endif()
+
+    find_program(PKG_CONFIG_EXECUTABLE pkg-config)  # Check again after installation
+
+    if(NOT PKG_CONFIG_EXECUTABLE)
+        message(FATAL_ERROR "Failed to install pkg-config. Please install it manually.")
+    endif()
+endif()
+
+#================ FLANN ================
+set(FLANN_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/flann-build)
+set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
+
+if(NOT EXISTS ${FLANN_INSTALL_DIR})
+    message(STATUS "Fetching FLANN...")
+    file(MAKE_DIRECTORY ${FLANN_INSTALL_DIR})
+    FetchContent_Declare(
+        flann
+        GIT_REPOSITORY https://github.com/flann-lib/flann.git
+        GIT_TAG master
+        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/flann-src
+    )
+    FetchContent_GetProperties(flann)
+    if (NOT flann_POPULATED)
+        FetchContent_Populate(flann)
+    endif()
+    message(STATUS "Building and installing FLANN...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND}
+            -S ${CMAKE_BINARY_DIR}/_deps/flann-src
+            -B ${FLANN_BUILD_DIR}
+            -DCMAKE_INSTALL_PREFIX=${FLANN_INSTALL_DIR}
+            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_STATIC_LIBS=ON
+            -DBUILD_TESTS=OFF
+            -DBUILD_EXAMPLES=OFF
+            -DCMAKE_BUILD_TYPE=None
+    )
+    execute_process(COMMAND ${CMAKE_COMMAND} --build ${FLANN_BUILD_DIR})
+    execute_process(COMMAND ${CMAKE_COMMAND} --install ${FLANN_BUILD_DIR})
+endif()
+
+# # Ensure CMake knows where FLANN is installed
+set(FLANN_DIR ${FLANN_INSTALL_DIR}/lib/cmake/flann)
+set(FLANN_INCLUDE_DIR ${FLANN_INSTALL_DIR}/include)
+# set(FLANN_LIBRARY ${FLANN_INSTALL_DIR}/lib/libflann_cpp.a)
+
+set(ENV{PKG_CONFIG_PATH} "${FLANN_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -llz4")
+# target_link_libraries(pcl_compute_hausdorff lz4)
+
+# find_package(LZ4 REQUIRED)
+# ================ PCL ================
 set(PCL_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/pcl-build)
 set(PCL_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/pcl_src)
 message(STATUS "PCL_INSTALL_DIR: ${PCL_INSTALL_DIR}")
 
 if(NOT EXISTS ${PCL_INSTALL_DIR})
-
+    file(MAKE_DIRECTORY ${PCL_INSTALL_DIR})
     FetchContent_Declare(
         pcl
         GIT_REPOSITORY https://github.com/PointCloudLibrary/pcl.git
@@ -85,20 +190,43 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
     if (NOT pcl_POPULATED)
         FetchContent_Populate(pcl)
     endif()
-    # file(MAKE_DIRECTORY ${PCL_INSTALL_DIR})
     message(STATUS "Building and installing PCL...")
     execute_process(
         COMMAND ${CMAKE_COMMAND}
-        -S ${CMAKE_BINARY_DIR}/_deps/pcl-src
-        -B ${PCL_BUILD_DIR}
-        -DCMAKE_INSTALL_PREFIX=${PCL_INSTALL_DIR}
-        -DEIGEN3_INCLUDE_DIR=${EIGEN3_INCLUDE_DIR}
-        -DBUILD_SHARED_LIBS=OFF
-        -DBUILD_TESTS=OFF
-        -DCMAKE_BUILD_TYPE=None
-        -DBUILD_GPU=OFF
-        -DBUILD_apps=OFF
-        -DBUILD_examples=OFF
+            -S ${CMAKE_BINARY_DIR}/_deps/pcl-src
+            -B ${PCL_BUILD_DIR}
+            -DCMAKE_INSTALL_PREFIX=${PCL_INSTALL_DIR}
+            -DEigen3_DIR=${EIGEN3_INSTALL_DIR}/share/eigen3/cmake
+            -DCMAKE_BUILD_TYPE=None
+            -DPCL_BUILD_TOOLS=OFF
+            # Enable only necessary PCL modules
+            -DPCL_BUILD_COMMON=ON
+            -DPCL_BUILD_IO=ON
+            -DPCL_BUILD_FILTERS=ON
+            -DPCL_BUILD_KDTREE=ON
+            -DPCL_BUILD_OCTREE=ON
+
+            # Disable VTK and visualization modules
+            -DWITH_VTK=OFF
+            -DWITH_QT=OFF
+            -DWITH_QHULL=OFF
+            -DWITH_PNG=OFF
+            -DWITH_OPENGL=OFF
+            -DWITH_LIBUSB=OFF
+            -DWITH_OPENNI=OFF
+            -DWITH_PCAP=OFF
+            -DWITH_OPENNI2=OFF
+            -DWITH_CUDA=OFF
+            -DWITH_ENSENSO=OFF
+            -DWITH_DAVIDSDK=OFF
+            -DWITH_DSSDK=OFF
+            -DWITH_RSSDK=OFF
+            -DWITH_RSSDK2=OFF
+
+            # Disable other unnecessary modules
+            -DPCL_BUILD_APPS=OFF
+            -DPCL_BUILD_EXAMPLES=OFF
+            -DPCL_BUILD_TESTS=OFF
     )
 
     execute_process(COMMAND ${CMAKE_COMMAND} --build ${PCL_BUILD_DIR})
@@ -107,7 +235,7 @@ endif()
 
 # Set OpenCV_DIR dynamically so CMake can find OpenCV
 set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
-set(PCL_DIR ${PCL_INSTALL_DIR}/lib/cmake/pcl)
+# set(PCL_DIR ${PCL_INSTALL_DIR}/lib/cmake/pcl)
 find_package(OpenCV REQUIRED)
 # find_package(PCL REQUIRED)
 

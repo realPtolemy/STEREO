@@ -16,15 +16,15 @@ fi
 
 cd $BUILD_DIR
 
-cmake ..
+cmake -G "Unix Makefiles" ..
 
 cmake --build .
 
 cd ..
 
-if [ -f $EXECUTABLE ]; then
-    echo "Executable found."
-    $EXECUTABLE
-else
-    echo "Executable not found."
-fi
+# if [ -f $EXECUTABLE ]; then
+#     echo "Executable found."
+#     $EXECUTABLE
+# else
+#     echo "Executable not found."
+# fi

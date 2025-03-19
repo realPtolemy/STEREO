@@ -1,5 +1,5 @@
 #include <cartesian3dgrid/cartesian3dgrid.h>
-#include <pcl/point_types.h>
+// #include <pcl/point_types.h>
 /*
 Struct ShapeDSI is taken from https://github.com/tub-rip/dvs_mcemvs
 */
