@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(MyProject)
 
 include(FetchContent)
@@ -35,6 +35,28 @@ if (NOT IS_DIRECTORY ${EIGEN3_INSTALL_DIR})
     message(STATUS "Eigen fetched and installed.")
 endif()
 
+# ================ Protobuf ================
+find_package(Protobuf QUIET)
+if(NOT Protobuf_FOUND)
+    message(STATUS "Protobuf not found. Attempting to install it...")
+    if(UNIX AND NOT APPLE)  # Linux
+        execute_process(COMMAND sudo apt update)
+        execute_process(COMMAND sudo apt install -y libprotobuf-dev protobuf-compiler)
+    elseif(APPLE)  # macOS
+        execute_process(COMMAND brew install protobuf)
+    elseif(WIN32)  # Windows
+        execute_process(COMMAND vcpkg install protobuf)
+        set(Protobuf_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows/share/protobuf")
+    else()
+        message(FATAL_ERROR "Unsupported OS. Install Protobuf manually.")
+    endif()
+    find_package(Protobuf REQUIRED)
+    if(NOT Protobuf_FOUND)
+        message(FATAL_ERROR "Failed to install Protobuf.")
+    endif()
+endif()
+message(STATUS "Protobuf found: ${Protobuf_LIBRARIES}, ${Protobuf_INCLUDE_DIRS}, Protoc: ${Protobuf_PROTOC_EXECUTABLE}")
+
 # ================ OpenCV ================
 set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
 set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
@@ -64,8 +86,17 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
             -DBUILD_TESTS=OFF
             -DBUILD_EXAMPLES=OFF
             -DWITH_IPP=OFF
+            -DWITH_QUIRC=OFF
             -DWITH_TBB=ON
             -DBUILD_LIST=core,imgproc,highgui
+            -DWITH_PROTOBUF=ON
+            -DProtobuf_LIBRARY=${Protobuf_LIBRARIES}
+            -DProtobuf_INCLUDE_DIR=${Protobuf_INCLUDE_DIRS}
+            -DProtobuf_PROTOC_EXECUTABLE=${Protobuf_PROTOC_EXECUTABLE}
+            # Ensure OpenCV doesn't build its own Protobuf
+            -DBUILD_opencv_python2=OFF
+            -DBUILD_opencv_python3=OFF
+            -DBUILD_PROTOBUF=OFF
     )
 
     # Build OpenCV
@@ -132,6 +163,49 @@ if(NOT PKG_CONFIG_EXECUTABLE)
     endif()
 endif()
 
+# ================ LZ4 ================
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(LZ4 QUIET liblz4)
+    if(LZ4_FOUND)
+        message(STATUS "LZ4 via pkg-config: ${LZ4_LIBRARIES}, ${LZ4_INCLUDE_DIRS}")
+        # Ensure full path for linking
+        find_library(LZ4_FULL_PATH NAMES lz4 liblz4 HINTS ${LZ4_LIBRARY_DIRS} /opt/homebrew/lib)
+        if(LZ4_FULL_PATH)
+            set(LZ4_LIBRARIES ${LZ4_FULL_PATH})
+        endif()
+    endif()
+endif()
+
+if(NOT LZ4_FOUND)
+    find_path(LZ4_INCLUDE_DIR lz4.h HINTS /opt/homebrew/include /usr/local/include /usr/include)
+    find_library(LZ4_LIBRARY NAMES lz4 liblz4 HINTS /opt/homebrew/lib /usr/local/lib /usr/lib)
+    if(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+        set(LZ4_LIBRARIES ${LZ4_LIBRARY})
+        set(LZ4_INCLUDE_DIRS ${LZ4_INCLUDE_DIR})
+        set(LZ4_FOUND TRUE)
+    endif()
+endif()
+
+if(NOT LZ4_FOUND)
+    message(STATUS "LZ4 not found. Installing via Homebrew...")
+    execute_process(COMMAND brew install lz4)
+    # Retry detection
+    find_path(LZ4_INCLUDE_DIR lz4.h HINTS /opt/homebrew/include)
+    find_library(LZ4_LIBRARY NAMES lz4 liblz4 HINTS /opt/homebrew/lib)
+    if(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+        set(LZ4_LIBRARIES ${LZ4_LIBRARY})
+        set(LZ4_INCLUDE_DIRS ${LZ4_INCLUDE_DIR})
+        set(LZ4_FOUND TRUE)
+    endif()
+endif()
+
+if(LZ4_FOUND)
+    message(STATUS "LZ4 final config: Libraries=${LZ4_LIBRARIES}, Includes=${LZ4_INCLUDE_DIRS}")
+else()
+    message(FATAL_ERROR "LZ4 not found after installation attempts.")
+endif()
+
 #================ FLANN ================
 set(FLANN_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/flann-build)
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
@@ -175,7 +249,6 @@ set(ENV{PKG_CONFIG_PATH} "${FLANN_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PAT
 # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -llz4")
 # target_link_libraries(pcl_compute_hausdorff lz4)
 
-# find_package(LZ4 REQUIRED)
 # ================ PCL ================
 set(PCL_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/pcl-build)
 set(PCL_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/pcl_src)
@@ -194,12 +267,19 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
         FetchContent_Populate(pcl)
     endif()
     message(STATUS "Building and installing PCL...")
+    message(STATUS "LZ4_LIBRARIES: ${LZ4_LIBRARIES}") # Print path to LZ4 libs for check
+    message(STATUS "CMAKE_SHARED_LINKER_FLAGS: -L/opt/homebrew/lib -llz4") # Print link, if linking is successful, no error
     execute_process(
         COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/pcl-src
             -B ${PCL_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${PCL_INSTALL_DIR}
             -DEigen3_DIR=${EIGEN3_INSTALL_DIR}/share/eigen3/cmake
+            -DFLANN_DIR=${FLANN_INSTALL_DIR}/lib/cmake/flann
+            -DLZ4_LIBRARIES=${LZ4_LIBRARIES}
+            -DLZ4_INCLUDE_DIRS=${LZ4_INCLUDE_DIRS}
+            -DCMAKE_LIBRARY_PATH=${LZ4_LIBRARY_DIRS}
+            "-DCMAKE_SHARED_LINKER_FLAGS=-L/opt/homebrew/lib -llz4"  # Link flag, important...
             -DCMAKE_BUILD_TYPE=None
             -DPCL_BUILD_TOOLS=OFF
             # Enable only necessary PCL modules
@@ -208,7 +288,6 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
             -DPCL_BUILD_FILTERS=ON
             -DPCL_BUILD_KDTREE=ON
             -DPCL_BUILD_OCTREE=ON
-
             # Disable VTK and visualization modules
             -DWITH_VTK=OFF
             -DWITH_QT=OFF
@@ -225,7 +304,6 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
             -DWITH_DSSDK=OFF
             -DWITH_RSSDK=OFF
             -DWITH_RSSDK2=OFF
-
             # Disable other unnecessary modules
             -DPCL_BUILD_APPS=OFF
             -DPCL_BUILD_EXAMPLES=OFF
