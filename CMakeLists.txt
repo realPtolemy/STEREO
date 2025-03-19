@@ -3,6 +3,8 @@ project(MyProject)
 
 include(FetchContent)
 
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/3party)
+
 # ================ Eigen ================
 set(EIGEN3_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/Eigen_src)
 set(EIGEN3_BUILD_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
