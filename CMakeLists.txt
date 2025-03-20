@@ -5,6 +5,37 @@ include(FetchContent)
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/3party)
 
+# ================ Zlib ================
+set(ZLIB_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/zlib_src)
+set(ZLIB_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/zlib-build)
+if(NOT EXISTS ${ZLIB_INSTALL_DIR})
+    message(STATUS "Fetching and building zlib...")
+    FetchContent_Declare(
+        zlib
+        GIT_REPOSITORY https://github.com/madler/zlib.git
+        GIT_TAG v1.3.1
+        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/zlib-src
+    )
+    FetchContent_GetProperties(zlib)
+    if(NOT zlib_POPULATED)
+        FetchContent_Populate(zlib)
+        execute_process(
+            COMMAND ${CMAKE_COMMAND}
+            -S ${CMAKE_BINARY_DIR}/_deps/zlib-src
+            -B ${ZLIB_BUILD_DIR}
+            -DCMAKE_INSTALL_PREFIX=${ZLIB_INSTALL_DIR}
+            -DBUILD_SHARED_LIBS=OFF
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        )
+        execute_process(COMMAND ${CMAKE_COMMAND} --build ${ZLIB_BUILD_DIR})
+        execute_process(COMMAND ${CMAKE_COMMAND} --install ${ZLIB_BUILD_DIR})
+    endif()
+    message(STATUS "Zlib fetched and installed.")
+endif()
+set(ZLIB_ROOT ${ZLIB_INSTALL_DIR})
+find_package(ZLIB REQUIRED)
+
+
 # ================ Eigen ================
 set(EIGEN3_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/Eigen_src)
 set(EIGEN3_BUILD_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
@@ -35,28 +66,6 @@ if (NOT IS_DIRECTORY ${EIGEN3_INSTALL_DIR})
     message(STATUS "Eigen fetched and installed.")
 endif()
 
-# ================ Protobuf ================
-find_package(Protobuf QUIET)
-if(NOT Protobuf_FOUND)
-    message(STATUS "Protobuf not found. Attempting to install it...")
-    if(UNIX AND NOT APPLE)  # Linux
-        execute_process(COMMAND sudo apt update)
-        execute_process(COMMAND sudo apt install -y libprotobuf-dev protobuf-compiler)
-    elseif(APPLE)  # macOS
-        execute_process(COMMAND brew install protobuf)
-    elseif(WIN32)  # Windows
-        execute_process(COMMAND vcpkg install protobuf)
-        set(Protobuf_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows/share/protobuf")
-    else()
-        message(FATAL_ERROR "Unsupported OS. Install Protobuf manually.")
-    endif()
-    find_package(Protobuf REQUIRED)
-    if(NOT Protobuf_FOUND)
-        message(FATAL_ERROR "Failed to install Protobuf.")
-    endif()
-endif()
-message(STATUS "Protobuf found: ${Protobuf_LIBRARIES}, ${Protobuf_INCLUDE_DIRS}, Protoc: ${Protobuf_PROTOC_EXECUTABLE}")
-
 # ================ OpenCV ================
 set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
 set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
@@ -82,6 +91,7 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
             -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
             -B ${OpenCV_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
+            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
             -DBUILD_SHARED_LIBS=OFF
             -DBUILD_TESTS=OFF
             -DBUILD_EXAMPLES=OFF
@@ -232,6 +242,7 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
             -S ${CMAKE_BINARY_DIR}/_deps/flann-src
             -B ${FLANN_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${FLANN_INSTALL_DIR}
+            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
             -DBUILD_SHARED_LIBS=OFF
             -DBUILD_STATIC_LIBS=ON
             -DBUILD_TESTS=OFF
@@ -279,6 +290,7 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
             -DCMAKE_INSTALL_PREFIX=${PCL_INSTALL_DIR}
             -DEigen3_DIR=${EIGEN3_INSTALL_DIR}/share/eigen3/cmake
             -DFLANN_DIR=${FLANN_INSTALL_DIR}/lib/cmake/flann
+            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
             -DLZ4_LIBRARIES=${LZ4_LIBRARIES}
             -DLZ4_INCLUDE_DIRS=${LZ4_INCLUDE_DIRS}
             -DCMAKE_LIBRARY_PATH=${LZ4_LIBRARY_DIRS}
@@ -316,13 +328,39 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
     execute_process(COMMAND ${CMAKE_COMMAND} --build ${PCL_BUILD_DIR})
     execute_process(COMMAND ${CMAKE_COMMAND} --install ${PCL_BUILD_DIR})
 endif()
-
 # Set OpenCV_DIR dynamically so CMake can find OpenCV
 set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
 # set(PCL_DIR ${PCL_INSTALL_DIR}/lib/cmake/pcl)
 set(CMAKE_IGNORE_MISSING_TARGETS ON)
 find_package(OpenCV REQUIRED)
-# find_package(PCL REQUIRED)
+find_package(PCL REQUIRED)
+
+# ================ CNPY ================
+set(CNPY_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/cnpy_src)
+set(CNPY_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/cnpy-build)
+if(NOT EXISTS ${CNPY_INSTALL_DIR})
+    message(STATUS "Fetching CNPY...")
+    FetchContent_Declare(
+        cnpy
+        GIT_REPOSITORY https://github.com/rogersce/cnpy.git
+        GIT_TAG master
+        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/cnpy-src
+    )
+    FetchContent_GetProperties(cnpy)
+    if(NOT cnpy_POPULATED)
+        FetchContent_Populate(cnpy)
+        execute_process(
+            COMMAND ${CMAKE_COMMAND}
+            -S ${CMAKE_BINARY_DIR}/_deps/cnpy-src
+            -B ${CNPY_BUILD_DIR}
+            -DCMAKE_INSTALL_PREFIX=${CNPY_INSTALL_DIR}
+            -DBUILD_SHARED_LIBS=OFF
+            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+        )
+        execute_process(COMMAND ${CMAKE_COMMAND} --build ${CNPY_BUILD_DIR})
+        execute_process(COMMAND ${CMAKE_COMMAND} --install ${CNPY_BUILD_DIR})
+    endif()
+endif()
 
 set(Cnpy_DIR ${Cnpy_INSTALL_DIR}/lib/cmake)
 
