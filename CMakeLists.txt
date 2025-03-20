@@ -81,6 +81,7 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
             -B ${OpenCV_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
             -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+            -DBUILD_OPENEXR=ON
             -DBUILD_SHARED_LIBS=OFF
             -DBUILD_TESTS=OFF
             -DBUILD_EXAMPLES=OFF
@@ -88,7 +89,7 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
             -DWITH_QUIRC=OFF
             -DWITH_GAPI=OFF
             -DWITH_ADE=OFF
-            -DWITH_TBB=ON
+            -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
             -DBUILD_TBB=ON
             -DBUILD_LIST=core,imgproc,highgui
             -DWITH_PROTOBUF=OFF
@@ -121,7 +122,7 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/boost-src
             -B ${BOOST_BUILD_DIR}
-            -DBOOST_INCLUDE_LIBRARIES="filesystem;system;iostreams"
+            #-DBOOST_INCLUDE_LIBRARIES="filesystem;system;iostreams"
             -DBUILD_SHARED_LIBS=OFF
             -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
         )
@@ -161,12 +162,14 @@ if(NOT EXISTS ${LZ4_INSTALL_DIR})
 endif()
 set(LZ4_LIBRARIES ${LZ4_INSTALL_DIR}/lib/liblz4.a)
 set(LZ4_INCLUDE_DIRS ${LZ4_INSTALL_DIR}/include)
+set(ENV{PKG_CONFIG_PATH} "${LZ4_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 
 # ================ FLANN ================
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
 set(FLANN_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/flann-build)
 if(NOT EXISTS ${FLANN_INSTALL_DIR})
     message(STATUS "Fetching FLANN...")
+    file(MAKE_DIRECTORY ${FLANN_INSTALL_DIR})
     FetchContent_Declare(
         flann
         GIT_REPOSITORY https://github.com/flann-lib/flann.git
@@ -176,25 +179,37 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
     FetchContent_GetProperties(flann)
     if(NOT flann_POPULATED)
         FetchContent_Populate(flann)
-        execute_process(
-            COMMAND ${CMAKE_COMMAND}
-            -S ${CMAKE_BINARY_DIR}/_deps/flann-src
-            -B ${FLANN_BUILD_DIR}
-            -DCMAKE_INSTALL_PREFIX=${FLANN_INSTALL_DIR}
-            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-            -DBUILD_SHARED_LIBS=OFF
-            -DBUILD_TESTS=OFF
-            -DBUILD_EXAMPLES=OFF
-        )
-        execute_process(COMMAND ${CMAKE_COMMAND} --build ${FLANN_BUILD_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} --install ${FLANN_BUILD_DIR})
     endif()
+    message(STATUS "Building and installing FLANN...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND}
+        -S ${CMAKE_BINARY_DIR}/_deps/flann-src
+        -B ${FLANN_BUILD_DIR}
+        -DCMAKE_INSTALL_PREFIX=${FLANN_INSTALL_DIR}
+        -DZLIB_ROOT=${ZLIB_INSTALL_DIR}                        # REMOVE?
+        -DCMAKE_BUILD_TYPE=None
+        -DWITH_LZ4=ON                                          # REMOVE?
+        -DBUILD_STATIC_LIBS=ON                                 # REMOVE?
+        -DBUILD_SHARED_LIBS=OFF
+        -DBUILD_TESTS=OFF
+        -DBUILD_EXAMPLES=OFF
+    )
+    execute_process(COMMAND ${CMAKE_COMMAND} --build ${FLANN_BUILD_DIR})
+    execute_process(COMMAND ${CMAKE_COMMAND} --install ${FLANN_BUILD_DIR})
 endif()
 set(FLANN_DIR ${FLANN_INSTALL_DIR}/lib/cmake/flann)
+set(FLANN_INCLUDE_DIR ${FLANN_INSTALL_DIR}/include)
+set(ENV{PKG_CONFIG_PATH} "${FLANN_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 
 # ================ PCL ================
 set(PCL_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/pcl_src)
 set(PCL_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/pcl-build)
+## START OF EXTRA CHECK that LZ4 can be found because of PCL's problematic dependency on LZ4...
+set(LZ4_LIBRARY_PATH "${CMAKE_SOURCE_DIR}/3party/lz4_src/lib/liblz4.a")
+if(NOT EXISTS ${LZ4_LIBRARY_PATH})
+    message(FATAL_ERROR "LZ4 library not found at ${LZ4_LIBRARY_PATH}")
+endif()
+## END OF EXTRA CHECK
 if(NOT EXISTS ${PCL_INSTALL_DIR})
     message(STATUS "Fetching PCL...")
     FetchContent_Declare(
@@ -212,18 +227,21 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
             -B ${PCL_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${PCL_INSTALL_DIR}
             -DEigen3_DIR=${EIGEN3_INSTALL_DIR}/share/eigen3/cmake
-            -DFLANN_DIR=${FLANN_INSTALL_DIR}/lib/cmake/flann
+            -DFLANN_DIR=${FLANN_INSTALL_DIR}/lib/cmake/flann   # REMOVE?
             -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-            -DLZ4_LIBRARIES=${LZ4_LIBRARIES}
-            -DLZ4_INCLUDE_DIRS=${LZ4_INCLUDE_DIRS}
-            -DBOOST_ROOT=${BOOST_INSTALL_DIR}
+            -DLZ4_LIBRARIES=${LZ4_LIBRARIES}                   # REMOVE?
+            -DLZ4_INCLUDE_DIRS=${LZ4_INCLUDE_DIRS}             # REMOVE?
+            -DBOOST_ROOT=${BOOST_INSTALL_DIR}                  # REMOVE?
+           # "-DCMAKE_SHARED_LINKER_FLAGS=-L/opt/homebrew/lib -llz4"  # Link flag, important - without this PCL builder wont find LZ4 lib... not good solution...
+            #"-DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_CURRENT_SORUCE_DIR}/3party/lz4_src/lib/liblz4.a"
+            "-DCMAKE_SHARED_LINKER_FLAGS=${LZ4_LIBRARY_PATH}"  # Full path here
             -DBUILD_SHARED_LIBS=OFF
-            -DPCL_BUILD_TOOLS=OFF
-            -DPCL_BUILD_COMMON=ON
-            -DPCL_BUILD_IO=ON
-            -DPCL_BUILD_FILTERS=ON
-            -DPCL_BUILD_KDTREE=ON
-            -DPCL_BUILD_OCTREE=ON
+            -DPCL_BUILD_TOOLS=OFF                              # REMOVE?
+            -DPCL_BUILD_COMMON=ON                              # REMOVE?
+            -DPCL_BUILD_IO=ON                                  # REMOVE?
+            -DPCL_BUILD_FILTERS=ON                             # REMOVE?
+            -DPCL_BUILD_KDTREE=ON                              # REMOVE?
+            -DPCL_BUILD_OCTREE=ON                              # REMOVE?
             -DWITH_VTK=OFF
             -DWITH_QT=OFF
             -DWITH_QHULL=OFF
@@ -239,9 +257,9 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
             -DWITH_DSSDK=OFF
             -DWITH_RSSDK=OFF
             -DWITH_RSSDK2=OFF
-            -DPCL_BUILD_APPS=OFF
-            -DPCL_BUILD_EXAMPLES=OFF
-            -DPCL_BUILD_TESTS=OFF
+            -DPCL_BUILD_APPS=OFF                               # REMOVE?
+            -DPCL_BUILD_EXAMPLES=OFF                           # REMOVE?
+            -DPCL_BUILD_TESTS=OFF                              # REMOVE?
         )
         execute_process(COMMAND ${CMAKE_COMMAND} --build ${PCL_BUILD_DIR})
         execute_process(COMMAND ${CMAKE_COMMAND} --install ${PCL_BUILD_DIR})
