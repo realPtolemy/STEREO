@@ -11,4 +11,4 @@ target_include_directories(my_executable PRIVATE
     ${PCL_INCLUDE_DIRS}
     ${EIGEN3_INSTALL_DIR}/include/eigen3
 )
-target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS} cartesian3dgrid)
+target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS} cartesian3dgrid ${PCL_LIBRARIES})

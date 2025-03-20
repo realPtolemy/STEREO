@@ -22,9 +22,9 @@ cmake --build . -j$(nproc)
 
 cd ..
 
-# if [ -f $EXECUTABLE ]; then
-#     echo "Executable found."
-#     $EXECUTABLE
-# else
-#     echo "Executable not found."
-# fi
+if [ -f $EXECUTABLE ]; then
+    echo "Executable found."
+    $EXECUTABLE
+else
+    echo "Executable not found."
+fi
