@@ -18,7 +18,7 @@ cd $BUILD_DIR
 
 cmake -G "Unix Makefiles" ..
 
-cmake --build .
+cmake --build . -j$(nproc)
 
 cd ..
 
