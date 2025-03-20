@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 project(MyProject)
 
 include(FetchContent)
@@ -9,15 +9,16 @@ file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/3party)
 set(EIGEN3_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/Eigen_src)
 set(EIGEN3_BUILD_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
 if (NOT IS_DIRECTORY ${EIGEN3_INSTALL_DIR})
-    message(STATUS "Fetching Eigen...")
+    message(STATUS "Fetching and building Eigen...")
     file(MAKE_DIRECTORY ${EIGEN3_INSTALL_DIR})
 
     FetchContent_Declare(
         eigen
         GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
         GIT_TAG 3.4.0
+        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/eigen-src
     )
-
+    
     FetchContent_GetProperties(eigen)
     if (NOT eigen_POPULATED)
         FetchContent_Populate(eigen)
@@ -30,7 +31,6 @@ if (NOT IS_DIRECTORY ${EIGEN3_INSTALL_DIR})
         )
         execute_process(COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/_deps/eigen-build)
         execute_process(COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}/_deps/eigen-build)
-
     endif()
     message(STATUS "Eigen fetched and installed.")
 endif()
@@ -82,21 +82,24 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
             -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
             -B ${OpenCV_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
-            -DBUILD_SHARED_LIBS=off
+            -DBUILD_SHARED_LIBS=OFF
             -DBUILD_TESTS=OFF
             -DBUILD_EXAMPLES=OFF
             -DWITH_IPP=OFF
+            -DBUILD_IPP=OFF
             -DWITH_QUIRC=OFF
+            -DBUILD_QUIRC=OFF
+            -DWITH_GAPI=OFF
+            -DBUILD_GAPI=OFF
+            -DWITH_ADE=OFF
+            -DBUILD_GAPI=OFF
             -DWITH_TBB=ON
+            -DBUILD_TBB=ON
             -DBUILD_LIST=core,imgproc,highgui
-            -DWITH_PROTOBUF=ON
-            -DProtobuf_LIBRARY=${Protobuf_LIBRARIES}
-            -DProtobuf_INCLUDE_DIR=${Protobuf_INCLUDE_DIRS}
-            -DProtobuf_PROTOC_EXECUTABLE=${Protobuf_PROTOC_EXECUTABLE}
-            # Ensure OpenCV doesn't build its own Protobuf
+            -DWITH_PROTOBUF=OFF
+            -DBUILD_PROTOBUF=OFF
             -DBUILD_opencv_python2=OFF
             -DBUILD_opencv_python3=OFF
-            -DBUILD_PROTOBUF=OFF
     )
 
     # Build OpenCV
@@ -317,6 +320,7 @@ endif()
 # Set OpenCV_DIR dynamically so CMake can find OpenCV
 set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
 # set(PCL_DIR ${PCL_INSTALL_DIR}/lib/cmake/pcl)
+set(CMAKE_IGNORE_MISSING_TARGETS ON)
 find_package(OpenCV REQUIRED)
 # find_package(PCL REQUIRED)
 
