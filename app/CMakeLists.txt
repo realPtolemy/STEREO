@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.10)
 project(app)
 
 file(GLOB SOURCES "src/mapper/*.cpp" "src/tracker/*.cpp" "main.cpp")

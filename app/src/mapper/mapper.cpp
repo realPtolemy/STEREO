@@ -11,7 +11,7 @@ Mapper::Mapper()
 
 	EMVS::ShapeDSI dsi_shape(dimX, dimY, dimZ, for_deg, min_depth, max_depth);
 
-	std::vector<event> camera1_events, camera2_events;
+	std::vector<Event> camera1_events, camera2_events;
 	camera1_events.reserve(NUM_EVENTS);
 	camera2_events.reserve(NUM_EVENTS);
 	// std::array<std::thread, 2> threads;
@@ -49,12 +49,12 @@ Mapper::Mapper()
 	threads[1].join();
 }
 
-void dsi_merger(std::vector<event> &camera1_events, std::vector<event> &camera2_events)
+void dsi_merger(std::vector<Event> &camera1_events, std::vector<Event> &camera2_events)
 {
     std::cout << "DSI merger" << std::endl;
 }
 
-void Mapper::local_dsi_csv(const std::string &event_file_path, std::vector<event> &camera_events, int id)
+void Mapper::local_dsi_csv(const std::string &event_file_path, std::vector<Event> &camera_events, int id)
 {
   	// ha en if sats eller #ifdef för att kolla ifall det är udp eller csv
   	std::ifstream event_file(event_file_path);
@@ -63,7 +63,7 @@ void Mapper::local_dsi_csv(const std::string &event_file_path, std::vector<event
 	}
   	std::string line;
   	while (std::getline(event_file, line)) {
-  		event e = parse_line(line);
+		Event e = parse_line(line);
   		camera_events.push_back(e);
   		if (camera_events.size() != NUM_EVENTS){
 			continue;
@@ -100,7 +100,7 @@ void Mapper::local_dsi_csv(const std::string &event_file_path, std::vector<event
   	event_file.close();
 }
 
-event Mapper::parse_line(const std::string& line)
+Event Mapper::parse_line(const std::string& line)
 {
 	std::istringstream ss(line);
 	std::string token;
@@ -108,7 +108,7 @@ event Mapper::parse_line(const std::string& line)
 	while (std::getline(ss, token, ',')) {
 		tokens.push_back(token);
 	}
-	event e;
+	Event e;
 	e.x = std::stoi(tokens[0]);
 	e.y = std::stoi(tokens[1]);
 	e.timestamp = std::stoi(tokens[2]);

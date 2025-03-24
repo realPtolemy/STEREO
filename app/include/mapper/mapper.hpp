@@ -40,9 +40,9 @@ private:
     #define max_depth 5.0
     #define NUM_EVENTS 512
 
-    event parse_line(const std::string& line);
-    void local_dsi_csv(const std::string &event_file_path, std::vector<event> &camera1_events, int id);
-    void dsi_merger(std::vector<event> &camera1_events, std::vector<event> &camera2_events);
+    Event parse_line(const std::string& line);
+    void local_dsi_csv(const std::string &event_file_path, std::vector<Event> &camera1_events, int id);
+    void dsi_merger(std::vector<Event> &camera1_events, std::vector<Event> &camera2_events);
 public:
     Mapper();
 };

@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 
+
 #include <iostream>
 
 // Simpel kamera defintion
@@ -22,8 +23,8 @@ struct CameraInfo {
 };
 
 // Kanske ska vara i en annan fil?
-typedef Eigen::Vector2d Point;
-typedef Eigen::Vector3d Keypoint;
+typedef Eigen::Vector3d Point;
+typedef Eigen::Vector2d Keypoint;
 
 class PinholeCameraModel {
 private:
