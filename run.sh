@@ -24,7 +24,7 @@ if [ "$ACTION" = "clean" ] || [ "$ACTION" = "build" ]; then
     fi
     echo "Running CMake configuration..."
     cd "$BUILD_DIR"
-    cmake -G "Unix Makefiles" ..
+    cmake -G Ninja ..
     cd ..
 fi
 
@@ -32,7 +32,7 @@ fi
 if [ "$ACTION" = "clean" ] || [ "$ACTION" = "build" ] || [ "$ACTION" = "compile" ]; then
     echo "Compiling project..."
     cd "$BUILD_DIR"
-    cmake --build . -j$(nproc)
+    cmake --build .
     cd ..
 fi
 

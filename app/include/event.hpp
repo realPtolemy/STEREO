@@ -2,16 +2,11 @@
 #define EVENT_HPP
 
 #include <cstdint>
-
-struct Time {
-  uint64_t timestamp;
-/*
-  Något här ...
-*/
-};
+#include "tf2/time.hpp"
 
 struct Event {
-  uint64_t timestamp;
+  // uint64_t timestamp;
+  tf2::TimePoint timestamp;
   uint16_t x;
   uint16_t y;
   bool polarity;

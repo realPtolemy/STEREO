@@ -6,3 +6,4 @@ CMakeCache.txt
 /app/CMakeFiles/*
 /data
 /.cache
+/3party_old
