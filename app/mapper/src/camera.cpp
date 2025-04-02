@@ -1,10 +1,8 @@
 #include "mapper/camera.hpp"
 #include "iostream"
 #include <filesystem>
-// Default constructor
 PinholeCameraModel::PinholeCameraModel() {}
 
-// Manual intrinsic init
 PinholeCameraModel::PinholeCameraModel(int width, int height, double fx, double fy, double cx, double cy) {
     camera_info.fx_ = fx;
     camera_info.fy_ = fy;
@@ -22,13 +20,12 @@ PinholeCameraModel::PinholeCameraModel(int width, int height, double fx, double 
     camera_info.Kinv_eigen = camera_info.K_eigen.inverse();
 }
 
-// YAML-based init
 PinholeCameraModel::PinholeCameraModel(const std::string& filename, CameraInfo &camera)
     : camera_info(camera)
 {
     readYAML(filename, camera);
 }
-// YAML loading
+
 void PinholeCameraModel::readYAML(const std::string& filename, CameraInfo& camera) {
     cv::FileStorage fs(filename, cv::FileStorage::READ);
     cv::Mat K, distCoeffs;
@@ -69,14 +66,14 @@ Eigen::Matrix3d PinholeCameraModel::toEigen(const cv::Matx33d& m) const {
     return out;
 }
 
-// Convert Eigen matrix to OpenCV
-cv::Matx33d PinholeCameraModel::toCv(const Eigen::Matrix3d& m) const {
-    cv::Matx33d out;
-    for (int r = 0; r < 3; ++r)
-        for (int c = 0; c < 3; ++c)
-            out(r, c) = m(r, c);
-    return out;
-}
+// // Convert Eigen matrix to OpenCV
+// cv::Matx33d PinholeCameraModel::toCv(const Eigen::Matrix3d& m) const {
+//     cv::Matx33d out;
+//     for (int r = 0; r < 3; ++r)
+//         for (int c = 0; c < 3; ++c)
+//             out(r, c) = m(r, c);
+//     return out;
+// }
 
 cv::Size PinholeCameraModel::fullResolution() const
 {

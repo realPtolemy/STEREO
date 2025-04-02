@@ -33,7 +33,7 @@
 //     const PinholeCameraModel& cam0,
 //     const PinholeCameraModel& cam1,
 //     const PinholeCameraModel& cam2,
-//     const std::shared_ptr<tf::Transformer> tf_,
+//     const std::shared_ptr<tf2::BufferCore> tf_,
 //     const std::vector<Event>& events0,
 //     const std::vector<Event>& events1,
 //     const std::vector<Event>& events2,
@@ -44,7 +44,7 @@
 //     EMVS::MapperEMVS& mapper1,
 //     EMVS::MapperEMVS& mapper2,
 //     const std::string& out_path,
-//     ros::Time ts,
+//     tf2::TimePoint ts,
 //     int fusion_method,
 //     Transformation& T_rv_w
 //     )

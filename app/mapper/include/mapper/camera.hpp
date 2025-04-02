@@ -32,9 +32,6 @@ struct CameraInfo {
     unsigned int width = 100;
     unsigned int height = 100;
 };
-
-
-// Kanske ska vara i en annan fil?
 typedef Eigen::Vector3d Point;
 typedef Eigen::Vector2d Keypoint;
 typedef Eigen::Vector3d BearingVector;
@@ -46,11 +43,13 @@ private:
     CameraInfo camera_info;
 
     Eigen::Matrix3d toEigen(const cv::Matx33d& m) const;
-    cv::Matx33d toCv(const Eigen::Matrix3d& m) const;
+    // cv::Matx33d toCv(const Eigen::Matrix3d& m) const;
 
 public:
     PinholeCameraModel();
+    // Manual intrinsic init, insppired by code from ES-PTAM
     PinholeCameraModel(int width, int height, double fx, double fy, double cx, double cy);
+    // Load intrinsic from YAML file
     PinholeCameraModel(const std::string& filename, CameraInfo& camera);
 
     /**

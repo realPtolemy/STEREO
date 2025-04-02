@@ -4,13 +4,12 @@
 #include "mapper/camera.hpp"
 #include "event.hpp"
 #include "mapper/depth_vector.hpp"
-// #include "mapper/trajectory.hpp"
 #include "mapper/transformation.hpp"
 
-#include <cartesian3dgrid/cartesian3dgrid.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 
+#include "cartesian3dgrid/cartesian3dgrid.h"
 #include "tf2/time.hpp"
 #include "tf2/buffer_core.hpp"
 /*
@@ -69,8 +68,6 @@ namespace EMVS
     int min_num_neighbors_;
   };
 
-  // Denna del är modifierad
-  // typedef LinearTrajectory TrajectoryType;
   class MapperEMVS
   {
   public:
@@ -82,12 +79,6 @@ namespace EMVS
       const PinholeCameraModel& cam,
       const ShapeDSI &dsi_shape
     );
-
-    // bool evaluateDSI(
-    //   const std::vector<Event>& events,
-    //   const TrajectoryType& trajectory,
-    //   const Transformation& T_rv_w
-    // );
 
     bool evaluateDSI(const std::vector<Event>& events,
       std::shared_ptr<tf2::BufferCore> tf_,
@@ -125,14 +116,6 @@ namespace EMVS
       PointCloud::Ptr &pc_,
       Transformation T_rv_w
     );
-
-    // bool getPoseAt(
-    //   std::shared_ptr<tf::Transformer> tf_,
-    //   const ros::Time& t,
-    //   std::string world_frame_id,
-    //   std::string frame_id,
-    //   geometry_utils::Transformation& T
-    // );
 
     bool getPoseAt(
       std::shared_ptr<tf2::BufferCore> tf_,

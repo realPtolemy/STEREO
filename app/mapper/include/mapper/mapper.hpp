@@ -21,13 +21,16 @@
 #include <opencv2/highgui.hpp> // For image display
 #include <opencv2/imgproc.hpp> // For image processing
 
+/*
+    This code is based upon the mapper.hpp file from ES-PTAM
+    Though with some modifications, mainly ragrding tf and ros::time
+*/
+
 class Mapper
 {
 private:
     // online data
     std::deque<std::vector<Event>> events_left_, events_right_;
-    // , events_tri_;
-    // Fixa Time klassen
     std::map<tf2::TimePoint, Transformation> poses_;
 
     // result
@@ -111,16 +114,27 @@ private:
     float max_duration_, min_duration_, init_wait_t_;
     bool auto_copilot_;
 
-    // #define dimX 0
-    // #define dimY 0
-    // #define dimZ 100
-    // #define for_deg 0.0
-    // #define min_depth 0.3
-    // #define max_depth 5.0
-    // #define NUM_EVENTS 512
-
+    /**
+     * Reads line that has the structure of an event, then parses it into an Event object.
+     *
+     * @param line The line to parse.
+     * @return The parsed Event object.
+     */
     Event parse_line(const std::string& line);
+    /**
+     * A thread that reads events from a file, parses them, and pushes them into a queue.
+     *
+     * @param event_file_path The path to the event file.
+     * @param camera_events A vector to store the parsed events.
+     * @param event_queue A queue that stores batched events.
+     */
     void camera_thread(const std::string &event_file_path, std::vector<Event> &camera1_events, std::deque<std::vector<Event>> &event_queue);
+    /**
+     * A function that limits the size of the event queue to a maximum length.
+     * For 2 reasons. 1) So that old events are not used, and 2) So that the queue does not grow too large and consume too much memory.
+     *
+     * @param event_queue The queue to check.
+     */
     void checkEventQueue(std::deque<std::vector<Event>> &event_queue);
     void dsi_merger(std::vector<Event> &camera1_events, std::vector<Event> &camera2_events);
     void mappingLoop();

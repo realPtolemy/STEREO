@@ -1,16 +1,27 @@
 #include <thread>
 #include <iostream>
-#include "mapper/mapper.hpp"
+// #include "mapper/mapper.hpp"
+#include "talking/coordinator.hpp"
 
 int main(int argc, char **argv) {
-    /*
-        A thread for the mapper and tracker modules
-        First run the mapper, so that some data is parsed that the tracker then can use
-    */
-    Mapper mapper;
-    // std::thread mapper_thread(mapper);
-    // std::thread tracker_thread();
-
-    // mapper_thread.join();
-    // tracker_thread.join();
+    /**
+     *  What tracker udpates:
+     *      - cmd_msg, a string
+     *      - msg_pose
+     *      - image msg
+     *
+     *  What mapper updates:
+     *      - point cloud, line 542 and 563 in ES-PTAM mapper.cpp
+     *      - cv_ptr->toImageMsg(), which is of type cv_bridge::CvImagePtr.
+     *      See line 505 for defintion of cv_bridge::CvImagePtr.
+     *
+     *  Other things that needs to be updated:
+     *      - tf_->waitForTransform, this is only for ROS, what we have to do
+     *      is to implement this. It checks if there is a transform between two frames
+     *      and if not, it waits for it. It's a blocking function. Run this on a thread
+     *      with a condition variable and a mutex.
+     *  From this 2 main things are trasmitted, msg_pose and point cloud.
+     */
+    // Mapper mapper;
+    Coordinator coordinator;
 }

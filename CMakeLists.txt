@@ -284,38 +284,38 @@ list(APPEND CMAKE_PREFIX_PATH ${PCL_INSTALL_DIR})
 find_package(PCL REQUIRED)
 
 
-# ================ KINDR ================
-set(KINDR_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/kindr-build)
-set(KINDR_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/kindr_src)
-if(NOT EXISTS ${KINDR_INSTALL_DIR})
-    message(STATUS "Fetching Kindr...")
-    file(MAKE_DIRECTORY ${KINDR_INSTALL_DIR})
-    FetchContent_Declare(
-        kindr
-        GIT_REPOSITORY https://github.com/ANYbotics/kindr.git
-        GIT_TAG master
-        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/kindr-src
-    )
-    FetchContent_GetProperties(kindr)
-    if (NOT kindr_POPULATED)
-        FetchContent_Populate(kindr)
-    endif()
-    message(STATUS "Building and installing Kindr...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND}
-            -S ${CMAKE_BINARY_DIR}/_deps/kindr-src
-            -B ${KINDR_BUILD_DIR}
-            -DCMAKE_INSTALL_PREFIX=${KINDR_INSTALL_DIR}
-            -DEIGEN3_INCLUDE_DIR=${EIGEN3_INSTALL_DIR}/include/eigen3
-            -DUSE_CMAKE=ON
-            -DBUILD_TEST=OFF
-            -DCMAKE_BUILD_TYPE=None
-    )
-    execute_process(COMMAND ${CMAKE_COMMAND} --build ${KINDR_BUILD_DIR})
-    execute_process(COMMAND ${CMAKE_COMMAND} --install ${KINDR_BUILD_DIR})
-endif()
-set(kindr_DIR ${KINDR_INSTALL_DIR}/share/kindr/cmake)
-find_package(kindr REQUIRED)
+# # ================ KINDR ================
+# set(KINDR_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/kindr-build)
+# set(KINDR_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/kindr_src)
+# if(NOT EXISTS ${KINDR_INSTALL_DIR})
+#     message(STATUS "Fetching Kindr...")
+#     file(MAKE_DIRECTORY ${KINDR_INSTALL_DIR})
+#     FetchContent_Declare(
+#         kindr
+#         GIT_REPOSITORY https://github.com/ANYbotics/kindr.git
+#         GIT_TAG master
+#         SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/kindr-src
+#     )
+#     FetchContent_GetProperties(kindr)
+#     if (NOT kindr_POPULATED)
+#         FetchContent_Populate(kindr)
+#     endif()
+#     message(STATUS "Building and installing Kindr...")
+#     execute_process(
+#         COMMAND ${CMAKE_COMMAND}
+#             -S ${CMAKE_BINARY_DIR}/_deps/kindr-src
+#             -B ${KINDR_BUILD_DIR}
+#             -DCMAKE_INSTALL_PREFIX=${KINDR_INSTALL_DIR}
+#             -DEIGEN3_INCLUDE_DIR=${EIGEN3_INSTALL_DIR}/include/eigen3
+#             -DUSE_CMAKE=ON
+#             -DBUILD_TEST=OFF
+#             -DCMAKE_BUILD_TYPE=None
+#     )
+#     execute_process(COMMAND ${CMAKE_COMMAND} --build ${KINDR_BUILD_DIR})
+#     execute_process(COMMAND ${CMAKE_COMMAND} --install ${KINDR_BUILD_DIR})
+# endif()
+# set(kindr_DIR ${KINDR_INSTALL_DIR}/share/kindr/cmake)
+# find_package(kindr REQUIRED)
 
 # ================ CNPY ================
 set(CNPY_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/cnpy_src)
@@ -373,6 +373,8 @@ endif()
 # find_package(Sophus REQUIRED)
 
 # ================ Subdirectories ================
-add_subdirectory(tf2)
-add_subdirectory(cartesian3dgrid)
+# add_subdirectory(minkindr)
+# add_subdirectory(tf2)
+# add_subdirectory(cartesian3dgrid)
+add_subdirectory(external)
 add_subdirectory(app)

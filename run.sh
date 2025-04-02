@@ -3,21 +3,22 @@
 BUILD_DIR="build"
 EXECUTABLE="./build/app/my_executable"
 
-ACTION="$1"
+ACTION1="$1"
+ACTION2="$2"
 
 # Default to 'run' if no argument is given
-if [ -z "$ACTION" ]; then
-    ACTION="run"
+if [ -z "$ACTION1" ]; then
+    ACTION1="run"
 fi
 
 # Clean
-if [ "$ACTION" = "clean" ]; then
+if [ "$ACTION1" = "clean" ]; then
     echo "Cleaning build directory..."
     rm -rf "$BUILD_DIR"
 fi
 
 # Build (includes mkdir + cmake config)
-if [ "$ACTION" = "clean" ] || [ "$ACTION" = "build" ]; then
+if [ "$ACTION1" = "clean" ] || [ "$ACTION1" = "build" ]; then
     if [ ! -d "$BUILD_DIR" ]; then
         echo "Creating build directory..."
         mkdir "$BUILD_DIR"
@@ -29,11 +30,19 @@ if [ "$ACTION" = "clean" ] || [ "$ACTION" = "build" ]; then
 fi
 
 # Link (compile)
-if [ "$ACTION" = "clean" ] || [ "$ACTION" = "build" ] || [ "$ACTION" = "compile" ]; then
+if [ "$ACTION1" = "clean" ] || [ "$ACTION1" = "build" ] || [ "$ACTION1" = "compile" ]; then
     echo "Compiling project..."
     cd "$BUILD_DIR"
     cmake --build .
     cd ..
+fi
+
+if [ "$ACTION1" = "test" ] || [ "$ACTION2" = "test" ]; then
+    echo "Running tests..."
+    cd "$BUILD_DIR"
+    ctest --output-on-failure
+    cd ..
+    exit 0
 fi
 
 # Run
