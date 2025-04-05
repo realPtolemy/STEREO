@@ -79,3 +79,9 @@ cv::Size PinholeCameraModel::fullResolution() const
 {
     return cv::Size(camera_info.width, camera_info.height);
 }
+
+void PinholeCameraModel::loadCamerInfo(CameraInfo &info){
+    camera_info.width = info.width;
+    camera_info.height = info.height;
+    // Fyll ut denna klass
+}

@@ -186,15 +186,15 @@ bool BufferCore::setTransform(
   bool is_static)
 {
   const tf2::Quaternion rotation(
-    transform.rotation.x(),
-    transform.rotation.y(),
-    transform.rotation.z(),
-    transform.rotation.w()
+    transform.transform.rotation.x(),
+    transform.transform.rotation.y(),
+    transform.transform.rotation.z(),
+    transform.transform.rotation.w()
   );
   const tf2::Vector3 origin(
-    transform.translation.x(),
-    transform.translation.y(),
-    transform.translation.z()
+    transform.transform.translation.x(),
+    transform.transform.translation.y(),
+    transform.transform.translation.z()
   );
   TimePoint time_point = transform.timestamp;
   // Should not need this! If the timestamps contains seconds we need to convert it then add it
@@ -716,13 +716,13 @@ msg::TransformStamped BufferCore::lookupTransform(
   tf2::Quaternion rotation;
   lookupTransformImpl(target_frame, source_frame, time, origin, rotation, time_out);
   msg::TransformStamped msg;
-  msg.translation.x() = origin.x();
-  msg.translation.y() = origin.y();
-  msg.translation.z() = origin.z();
-  msg.rotation.x() = rotation.x();
-  msg.rotation.y() = rotation.y();
-  msg.rotation.z() = rotation.z();
-  msg.rotation.w() = rotation.w();
+  msg.transform.translation.x() = origin.x();
+  msg.transform.translation.y() = origin.y();
+  msg.transform.translation.z() = origin.z();
+  msg.transform.rotation.x() = rotation.x();
+  msg.transform.rotation.y() = rotation.y();
+  msg.transform.rotation.z() = rotation.z();
+  msg.transform.rotation.w() = rotation.w();
   // std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
     // time_out.time_since_epoch());
   // std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(
@@ -748,14 +748,14 @@ msg::TransformStamped BufferCore::lookupTransform(
     target_frame, target_time, source_frame, source_time,
     fixed_frame, transform, time_out);
   msg::TransformStamped msg;
-  msg.translation.x() = transform.getOrigin().x();
-  msg.translation.y() = transform.getOrigin().y();
-  msg.translation.z() = transform.getOrigin().z();
+  msg.transform.translation.x() = transform.getOrigin().x();
+  msg.transform.translation.y() = transform.getOrigin().y();
+  msg.transform.translation.z() = transform.getOrigin().z();
   tf2::Quaternion rotation = transform.getRotation();
-  msg.rotation.x() = rotation.x();
-  msg.rotation.y() = rotation.y();
-  msg.rotation.z() = rotation.z();
-  msg.rotation.w() = rotation.w();
+  msg.transform.rotation.x() = rotation.x();
+  msg.transform.rotation.y() = rotation.y();
+  msg.transform.rotation.z() = rotation.z();
+  msg.transform.rotation.w() = rotation.w();
   // std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
   //   time_out.time_since_epoch());
   // std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(

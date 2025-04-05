@@ -3,7 +3,7 @@
 
 #include <string>
 #include "tf2/time.hpp"
-#include "tf2/msg/quaternion.hpp"
+#include "tf2/msg/transform.hpp"
 namespace tf2{
 namespace msg{
 	struct TransformStamped {
@@ -15,19 +15,14 @@ namespace msg{
 		// === Body ===
 		std::string child_frame_id;
 
-		Eigen::Vector3d translation;
-		Eigen::Quaterniond rotation;
+		tf2::msg::Transform transform;
 
+		// Eigen::Vector3d translation;
+		// Eigen::Quaterniond rotation;
 
-		// If we want have smaller msg types like ROS does it.
-		// Quaternion rotation;
-		// msg::TransformStamped()
-		//     : translation(Eigen::Vector3d::Zero()),
-		//       rotation(SOMETHN HERE) {}
-
-		TransformStamped()
-			: translation(Eigen::Vector3d::Zero()),
-			rotation(Eigen::Quaterniond::Identity()) {}
+		// TransformStamped()
+		// 	: translation(Eigen::Vector3d::Zero()),
+		// 	rotation(Eigen::Quaterniond::Identity()) {}
 	};
 }
 }

@@ -52,6 +52,8 @@ public:
     // Load intrinsic from YAML file
     PinholeCameraModel(const std::string& filename, CameraInfo& camera);
 
+    void loadCamerInfo(CameraInfo &info);
+
     /**
      * Projects a 3d point (in camera frame) to the pixel coordinates
      *
@@ -92,6 +94,8 @@ public:
     Eigen::Matrix3d getKinv() const { return camera_info.Kinv_eigen; }
     Eigen::Matrix3d getK_eigen() const { return camera_info.K_eigen; }
     cv::Matx33d intrinsicMatrix() const { return camera_info.K_cv; }
+
+    CameraInfo getCameraInfo() const { return camera_info; }
 
     cv::Matx34d getProjectionMatrix() const { return camera_info.P_cv; }
     cv::Mat distortionCoeffs() const { return cv::Mat(camera_info.distortion); }
