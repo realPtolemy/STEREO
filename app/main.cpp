@@ -1,7 +1,8 @@
 #include <thread>
 #include <iostream>
 // #include "mapper/mapper.hpp"
-#include "talking/coordinator.hpp"
+// #include "talking/coordinator.hpp"
+#include "udp/udp.hpp"
 
 int main(int argc, char **argv) {
     /**
@@ -23,5 +24,12 @@ int main(int argc, char **argv) {
      *  From this 2 main things are trasmitted, msg_pose and point cloud.
      */
     // Mapper mapper;
-    Coordinator coordinator;
+    // Coordinator coordinator;
+    Server server(12345);
+    Client client(12345);
+
+    client.send("Hello from server!", "172.28.144.41", 12345);
+    std::string msg = server.receive();
+    std::cout << "Client received: " << msg << std::endl;
+    return 0;
 }
