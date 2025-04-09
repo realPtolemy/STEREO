@@ -18,20 +18,32 @@ Server::Server(int port) {
 
     if (bind(sockfd, (const struct sockaddr *)&addr, sizeof(addr)) < 0)
         perror("Bind failed");
+    std::cout << "Server connected" << std::endl;
 }
 
-std::string Server::receive() {
-    char buffer[1024];
-    socklen_t len = sizeof(addr);
+void Server::receive_aestream() {
     std::cout << "Reciving data" << std::endl;
     ssize_t n = recvfrom(sockfd, buffer, sizeof(buffer) - 1, 0,
                          (struct sockaddr *)&addr, &len);
     if (n < 0) {
         perror("recvfrom failed");
+    }
+    std::cout  << "X coord:" << (buffer[0] & 0x7FFF)
+               << ", Y coord:" << (buffer[1] & 0x7FFF)
+                // << ", polarity:" << (buffer[1] & 0x8000)
+               << ", timestamp:" <<buffer[2] << buffer[3] <<"\n";
+}
+
+std::string Server::receive() {
+    std::cout << "Reciving data" << std::endl;
+    ssize_t n = recvfrom(sockfd, char_buffer, sizeof(buffer) - 1, 0,
+                         (struct sockaddr *)&addr, &len);
+    if (n < 0) {
+        perror("recvfrom failed");
         return "";
     }
-    buffer[n] = '\0';
-    return std::string(buffer);
+    char_buffer[n] = '\0';
+    return char_buffer;
 }
 
 void Client::send(const std::string& message, const std::string& clientIP, int clientPort) {

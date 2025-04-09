@@ -372,6 +372,34 @@ if(NOT EXISTS ${SOPHUS_INSTALL_DIR})
 endif()
 # find_package(Sophus REQUIRED)
 
+# # ================ Aestream ================
+# set(AESTREAM_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/aestream_src)
+# set(AESTREAM_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/aestream-build)
+# if(NOT EXISTS ${AESTREAM_INSTALL_DIR})
+#     message(STATUS "Fetching Aestream...")
+#     FetchContent_Declare(
+#         aestream
+#         GIT_REPOSITORY https://github.com/aestream/aestream.git
+#         GIT_TAG v0.6.4
+#         SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/aestream-src
+#     )
+#     FetchContent_GetProperties(aestream)
+#     if(NOT sophus_POPULATED)
+#         FetchContent_Populate(aestream)
+#     endif()
+
+#     execute_process(
+#         COMMAND ${CMAKE_COMMAND}
+#         -S ${CMAKE_BINARY_DIR}/_deps/aestream-src
+#         -B ${AESTREAM_BUILD_DIR}
+#         -DCMAKE_INSTALL_PREFIX=${AESTREAM_INSTALL_DIR}
+#         -DUSE_CUDA=OFF
+#     )
+#     execute_process(COMMAND ${CMAKE_COMMAND} --build ${AESTREAM_BUILD_DIR})
+#     execute_process(COMMAND ${CMAKE_COMMAND} --install ${AESTREAM_BUILD_DIR})
+
+# endif()
+
 # ================ Subdirectories ================
 # add_subdirectory(minkindr)
 # add_subdirectory(tf2)

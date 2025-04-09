@@ -16,11 +16,12 @@ set(SOURCES
     talking_test/src/class2.cpp
     talking_test/src/coordinator.cpp
     talking_test/src/common.cpp
-    udp/src/udp_start.cpp
     udp/src/udp.cpp
 )
 
 add_executable(my_executable ${SOURCES})
+
+include(${CMAKE_SOURCE_DIR}/cmake/CompilerSettings.cmake)
 
 target_include_directories(my_executable PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include

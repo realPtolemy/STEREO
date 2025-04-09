@@ -5,6 +5,7 @@
 #include "event.hpp"
 #include "mapper/mapper_emvs_stereo.hpp"
 #include "mapper/transformation.hpp"
+#include "shared_state.hpp"
 #include "tf2/time.hpp"
 
 #include <iostream>
@@ -29,8 +30,11 @@
 class Mapper
 {
 private:
+    // Shared state data
+    SharedState *shared_state_;
+
     // online data
-    std::deque<std::vector<Event>> events_left_, events_right_;
+    // std::deque<std::vector<Event>> events_left_, events_right_;
     std::map<tf2::TimePoint, Transformation> poses_;
 
     // result
@@ -72,7 +76,7 @@ private:
     // std::mutex m_merge_dsi_mutex;
     // int m_threads = 0;
     // bool m_merge_ready = true;
-    const int m_NUM_OF_CAMERAS = 2;
+    const int NUM_OF_CAMERAS_ = 2;
 
     // calibration params
     Eigen::Matrix4d mat4_1_0, mat4_2_0, mat4_hand_eye;
@@ -128,18 +132,14 @@ private:
      * @param camera_events A vector to store the parsed events.
      * @param event_queue A queue that stores batched events.
      */
-    void camera_thread(const std::string &event_file_path, std::vector<Event> &camera1_events, std::deque<std::vector<Event>> &event_queue);
-    /**
-     * A function that limits the size of the event queue to a maximum length.
-     * For 2 reasons. 1) So that old events are not used, and 2) So that the queue does not grow too large and consume too much memory.
-     *
-     * @param event_queue The queue to check.
-     */
-    void checkEventQueue(std::deque<std::vector<Event>> &event_queue);
+    void camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera1_events, EventQueue<std::vector<Event>> &event_queue);
+    void camera_thread_udp(Server server, std::vector<Event> &camera_events, EventQueue<std::vector<Event>> &event_queue);
+    Event parse_bufferd_data(std::string &buffered_data);
+    // void checkEventQueue(std::deque<std::vector<Event>> &event_queue);
     void dsi_merger(std::vector<Event> &camera1_events, std::vector<Event> &camera2_events);
     void mappingLoop();
 public:
-    Mapper();
+    Mapper(SharedState &shared_state);
 };
 
 #endif

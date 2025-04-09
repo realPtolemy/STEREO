@@ -24,10 +24,14 @@ public:
 };
 
 class Server : public UDP{
-
+private:
+    char char_buffer[1024];
+    uint16_t buffer[1024];
+    socklen_t len = sizeof(addr);
 public:
     Server(int port);
     std::string receive();
+    void receive_aestream();
     void buildPacket_pcl();
     void buildPacket_cvIMG();
 };

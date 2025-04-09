@@ -1,5 +1,5 @@
-#ifndef TF2_MSG_TRANSFORM_STAMPED_HPP
-#define TF2_MSG_TRANSFORM_STAMPED_HPP
+#ifndef TF2_MSG_POSE_STAMPED_HPP
+#define TF2_MSG_POSE_STAMPED_HPP
 
 #include <string>
 #include "tf2/time.hpp"

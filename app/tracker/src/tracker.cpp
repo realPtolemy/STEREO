@@ -94,7 +94,7 @@
 //     reset();
 // }
 
-// Tracker::Tracker():
+// Tracker::Tracker(SharedState &shared_state):
 //       tf_(tf2::durationFromSec(2.))
 
 //       ,
@@ -108,6 +108,7 @@
 
 //       ,
 //       idle_(true) {
+//     shared_state_ = &shared_state;
 //     batch_size_ = 500;
 //     max_iterations_ = 100;
 //     map_blur_ = 5;
@@ -237,16 +238,18 @@
 //     cur_ev_ = kf_ev_ = 0;
 // }
 
-// void Tracker::eventCallback(const std::vector<Event>& msg) {
-//     static const bool discard_events_when_idle = false;
-//     // rpg_common_ros::param<bool>(nhp_, "discard_events_when_idle", false);
+// // Events are insted stored in the shared_state, these events are read and parsed
+// // in the mapper.
+// // void Tracker::eventCallback(const std::vector<Event>& msg) {
+// //     static const bool discard_events_when_idle = false;
+// //     // rpg_common_ros::param<bool>(nhp_, "discard_events_when_idle", false);
 
-//     std::lock_guard<std::mutex> lock(data_mutex_);
-//     if (discard_events_when_idle && idle_) return;
+// //     std::lock_guard<std::mutex> lock(data_mutex_);
+// //     if (discard_events_when_idle && idle_) return;
 
-//     clearEventQueue();
-//     for (const auto& e : msg) events_.push_back(e);
-// }
+// //     clearEventQueue();
+// //     for (const auto& e : msg) events_.push_back(e);
+// // }
 
 // void Tracker::mapCallback(const pcl::PointCloud<pcl::PointXYZI>::Ptr& msg) {
 //     static size_t min_map_size = 0;

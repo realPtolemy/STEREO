@@ -6,6 +6,9 @@
 #include <string>
 #include <queue>
 
+#include "event.hpp"
+#include "udp/udp.hpp"
+
 #include <tf2/msg/pose_stamped.hpp>
 #include <tf2/time.hpp>
 #include "tf2/buffer_core.hpp"
@@ -14,12 +17,27 @@
 
 // Other states that should be stored, not sure currently
 
+template <typename T>
+struct EventQueue {
+    std::mutex mtx;
+    std::deque<T> data;
 
-struct tf_state {
-    std::mutex tf_mtx;
-    std::condition_variable tf_cv;
-    bool tf_ready = false;
-    std::shared_ptr<tf2::BufferCore> tf_;
+	void push_back(T&& chunk) {
+		std::lock_guard<std::mutex> lock(mtx);
+		data.push_back(std::move(chunk));
+		checkSize();
+	}
+
+private:
+    // Copied from ES-PTAM, added so that it takes a queue of vectors of events instead
+	void checkSize() {
+		static const size_t MAX_EVENT_QUEUE_LENGTH = 50000000 / 512;
+		if (data.size() > MAX_EVENT_QUEUE_LENGTH) {
+			size_t to_remove = data.size() - MAX_EVENT_QUEUE_LENGTH;
+			std::cout << "Event queue is too long, removing " << to_remove << " events\n";
+			data.erase(data.begin(), data.begin() + to_remove);
+		}
+	}
 };
 
 struct pcl_state {
@@ -37,38 +55,28 @@ struct pose_state {
     tf2::msg::PoseStamped pose;
 };
 
-inline void waitForTransform(
-    std::string &target_frame,
-    std::string &source_frame,
-    tf2::TimePoint &time,
-    tf2::Duration &timeout
-    // ,tf_state &tf_state
-)
-{
-    // tf_state.tf_;
-}
-
 class SharedState{
 private:
 
 public:
-    SharedState();
+    SharedState() {};
     ~SharedState() = default;
 
     pcl_state pcl_state_;
     pose_state pose_state_;
-    tf_state tf_state_;
+    EventQueue<std::vector<Event>> events_left_;
+    EventQueue<std::vector<Event>> events_right_;
     std::mutex data_mutex;
 
-    inline void waitForTransform(
-        std::string &target_frame,
-        std::string &source_frame,
-        tf2::TimePoint &time,
-        // ,tf_state &tf_state
-        tf2::Duration &timeout)
-    {
-        // tf_state_.tf_.get()->addTransformableRequest;
-    }
+    // inline void waitForTransform(
+    //     std::string &target_frame,
+    //     std::string &source_frame,
+    //     tf2::TimePoint &time,
+    //     // ,tf_state &tf_state
+    //     tf2::Duration &timeout)
+    // {
+    //     // tf_state_.tf_.get()->addTransformableRequest;
+    // }
 
 };
 

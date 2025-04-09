@@ -1,8 +1,10 @@
 #include <thread>
 #include <iostream>
-// #include "mapper/mapper.hpp"
+#include "mapper/mapper.hpp"
+#include "tracker/tracker.hpp"
 // #include "talking/coordinator.hpp"
-#include "udp/udp.hpp"
+// #include "udp/udp.hpp"
+#include "shared_state.hpp"
 
 int main(int argc, char **argv) {
     /**
@@ -25,11 +27,16 @@ int main(int argc, char **argv) {
      */
     // Mapper mapper;
     // Coordinator coordinator;
-    Server server(12345);
-    Client client(12345);
 
-    client.send("Hello from server!", "172.28.144.41", 12345);
-    std::string msg = server.receive();
-    std::cout << "Client received: " << msg << std::endl;
+    // Server server(12345);
+    // Client client(12345);
+
+    // client.send("Hello from server!", "172.28.144.41", 12345);
+    // std::string msg = server.receive();
+    // std::cout << "Client received: " << msg << std::endl;
+
+    SharedState SharedState;
+    Mapper mapper(SharedState);
+    // Tracker tracker(SharedState);
     return 0;
 }
