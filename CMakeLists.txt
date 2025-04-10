@@ -110,52 +110,52 @@ if(NOT EXISTS ${EIGEN3_INSTALL_DIR})
 endif()
 
 # ================ OpenCV ================
-set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
-set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
-if(NOT EXISTS ${OpenCV_INSTALL_DIR})
-    message(STATUS "Fetching OpenCV...")
-    FetchContent_Declare(
-        opencv
-        GIT_REPOSITORY https://github.com/opencv/opencv.git
-        GIT_TAG 4.9.0
-        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
-    )
-    FetchContent_GetProperties(opencv)
-    if(NOT opencv_POPULATED)
-        FetchContent_MakeAvailable(opencv)
-        set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
-        set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
-        execute_process(
-            COMMAND ${CMAKE_COMMAND}
-            -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
-            -B ${OpenCV_BUILD_DIR}
-            -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
-            -DBUILD_ZLIB=OFF
-            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-            -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
-            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
-            -DBUILD_OPENEXR=ON
-            -DBUILD_SHARED_LIBS=OFF
-            -DBUILD_TESTS=OFF
-            -DBUILD_EXAMPLES=OFF
-            -DWITH_IPP=OFF
-            -DWITH_QUIRC=OFF
-            -DWITH_GAPI=OFF
-            -DWITH_ADE=OFF
-            -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
-            -DBUILD_TBB=ON
-            -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
-            -DWITH_PROTOBUF=OFF
-            -DBUILD_PROTOBUF=OFF
-            -DBUILD_opencv_python2=OFF
-            -DBUILD_opencv_python3=OFF
-        )
-        execute_process(COMMAND ${CMAKE_COMMAND} --build ${OpenCV_BUILD_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} --install ${OpenCV_BUILD_DIR})
-    endif()
-endif()
-set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
-find_package(OpenCV REQUIRED)
+#set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
+#set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
+#if(NOT EXISTS ${OpenCV_INSTALL_DIR})
+#    message(STATUS "Fetching OpenCV...")
+#    FetchContent_Declare(
+#        opencv
+#        GIT_REPOSITORY https://github.com/opencv/opencv.git
+#        GIT_TAG 4.9.0
+#        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
+#    )
+#    FetchContent_GetProperties(opencv)
+#    if(NOT opencv_POPULATED)
+#        FetchContent_MakeAvailable(opencv)
+#        set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
+#        set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
+#        execute_process(
+#            COMMAND ${CMAKE_COMMAND}
+#            -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
+#            -B ${OpenCV_BUILD_DIR}
+#            -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
+#            -DBUILD_ZLIB=OFF
+#            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+#             -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
+#             -DZLIB_LIBRARY=${ZLIB_LIBRARY}
+#             -DBUILD_OPENEXR=ON
+#             -DBUILD_SHARED_LIBS=OFF
+#             -DBUILD_TESTS=OFF
+#             -DBUILD_EXAMPLES=OFF
+#             -DWITH_IPP=OFF
+#             -DWITH_QUIRC=OFF
+#             -DWITH_GAPI=OFF
+#             -DWITH_ADE=OFF
+#             -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
+#             -DBUILD_TBB=ON
+#             -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
+#             -DWITH_PROTOBUF=OFF
+#             -DBUILD_PROTOBUF=OFF
+#             -DBUILD_opencv_python2=OFF
+#             -DBUILD_opencv_python3=OFF
+#         )
+#         execute_process(COMMAND ${CMAKE_COMMAND} --build ${OpenCV_BUILD_DIR})
+#         execute_process(COMMAND ${CMAKE_COMMAND} --install ${OpenCV_BUILD_DIR})
+#     endif()
+# endif()
+# set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
+# find_package(OpenCV REQUIRED)
 
 # ================ Boost ================
 set(BOOST_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/boost_src)
@@ -197,9 +197,13 @@ find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST
 # ================ FLANN ================
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
 set(FLANN_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/flann-build)
+
 if(NOT EXISTS ${FLANN_INSTALL_DIR})
     message(STATUS "Fetching FLANN...")
     file(MAKE_DIRECTORY ${FLANN_INSTALL_DIR})
+
+    # Fetch FLANN source
+    include(FetchContent)
     FetchContent_Declare(
         flann
         GIT_REPOSITORY https://github.com/flann-lib/flann.git
@@ -208,16 +212,30 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
     )
     FetchContent_GetProperties(flann)
     if(NOT flann_POPULATED)
-        FetchContent_MakeAvailable(flann)
+        message(STATUS "Populating FLANN content...")
+        FetchContent_Populate(flann)
     endif()
-    message(STATUS "Building and installing FLANN...")
+
+    # Patch FLANN's CMakeLists.txt to update cmake_minimum_required
+    message(STATUS "Patching FLANN CMakeLists.txt...")
+    set(FLANN_CMAKELISTS "${CMAKE_BINARY_DIR}/_deps/flann-src/CMakeLists.txt")
+    file(READ ${FLANN_CMAKELISTS} FLANN_CMAKELISTS_CONTENT)
+    string(REPLACE
+        "cmake_minimum_required(VERSION 2.8.12)"
+        "cmake_minimum_required(VERSION 3.16.3)"  # Match PCL’s version
+        FLANN_CMAKELISTS_CONTENT_MODIFIED
+        ${FLANN_CMAKELISTS_CONTENT}
+    )
+    file(WRITE ${FLANN_CMAKELISTS} "${FLANN_CMAKELISTS_CONTENT_MODIFIED}")
+    message(STATUS "Patch applied successfully")
+
+    # Configure FLANN with debugging output
+    message(STATUS "Configuring FLANN...")
     execute_process(
         COMMAND ${CMAKE_COMMAND}
         -S ${CMAKE_BINARY_DIR}/_deps/flann-src
         -B ${FLANN_BUILD_DIR}
         -DCMAKE_INSTALL_PREFIX=${FLANN_INSTALL_DIR}
-        #-DCMAKE_MINIMUM_REQUIRED_VERSION=3.5
-        #-DCMAKE_POLICY_VERSION_MINIMUM=3.5  # Add this line
         -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
         -DCMAKE_BUILD_TYPE=None
         -DWITH_LZ4=ON
@@ -225,10 +243,47 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
         -DBUILD_SHARED_LIBS=OFF
         -DBUILD_TESTS=OFF
         -DBUILD_EXAMPLES=OFF
+        -DBUILD_MATLAB_BINDINGS=OFF  # Disable MATLAB bindings to avoid errors
+        OUTPUT_VARIABLE FLANN_CONFIGURE_OUTPUT
+        ERROR_VARIABLE FLANN_CONFIGURE_ERROR
+        RESULT_VARIABLE FLANN_CONFIGURE_RESULT
     )
-    execute_process(COMMAND ${CMAKE_COMMAND} --build ${FLANN_BUILD_DIR})
-    execute_process(COMMAND ${CMAKE_COMMAND} --install ${FLANN_BUILD_DIR})
+    message(STATUS "FLANN configure output: ${FLANN_CONFIGURE_OUTPUT}")
+    if(NOT FLANN_CONFIGURE_RESULT EQUAL 0)
+        message(STATUS "FLANN configure error output: ${FLANN_CONFIGURE_ERROR}")
+        message(FATAL_ERROR "FLANN configuration failed with result: ${FLANN_CONFIGURE_RESULT}")
+    endif()
+
+    # Build FLANN
+    message(STATUS "Building FLANN...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --build ${FLANN_BUILD_DIR}
+        OUTPUT_VARIABLE FLANN_BUILD_OUTPUT
+        ERROR_VARIABLE FLANN_BUILD_ERROR
+        RESULT_VARIABLE FLANN_BUILD_RESULT
+    )
+    message(STATUS "FLANN build output: ${FLANN_BUILD_OUTPUT}")
+    if(NOT FLANN_BUILD_RESULT EQUAL 0)
+        message(STATUS "FLANN build error output: ${FLANN_BUILD_ERROR}")
+        message(FATAL_ERROR "FLANN build failed with result: ${FLANN_BUILD_RESULT}")
+    endif()
+
+    # Install FLANN
+    message(STATUS "Installing FLANN...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --install ${FLANN_BUILD_DIR}
+        OUTPUT_VARIABLE FLANN_INSTALL_OUTPUT
+        ERROR_VARIABLE FLANN_INSTALL_ERROR
+        RESULT_VARIABLE FLANN_INSTALL_RESULT
+    )
+    message(STATUS "FLANN install output: ${FLANN_INSTALL_OUTPUT}")
+    if(NOT FLANN_INSTALL_RESULT EQUAL 0)
+        message(STATUS "FLANN install error output: ${FLANN_INSTALL_ERROR}")
+        message(FATAL_ERROR "FLANN installation failed with result: ${FLANN_INSTALL_RESULT}")
+    endif()
 endif()
+
+# Set FLANN paths for later use
 set(FLANN_DIR ${FLANN_INSTALL_DIR}/lib/cmake/flann)
 set(FLANN_INCLUDE_DIR ${FLANN_INSTALL_DIR}/include)
 set(ENV{PKG_CONFIG_PATH} "${FLANN_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
