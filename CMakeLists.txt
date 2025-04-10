@@ -110,52 +110,52 @@ if(NOT EXISTS ${EIGEN3_INSTALL_DIR})
 endif()
 
 # ================ OpenCV ================
-#set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
-#set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
-#if(NOT EXISTS ${OpenCV_INSTALL_DIR})
-#    message(STATUS "Fetching OpenCV...")
-#    FetchContent_Declare(
-#        opencv
-#        GIT_REPOSITORY https://github.com/opencv/opencv.git
-#        GIT_TAG 4.9.0
-#        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
-#    )
-#   FetchContent_GetProperties(opencv)
-#   if(NOT opencv_POPULATED)
-#       FetchContent_MakeAvailable(opencv)
-#       set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
-#       set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
-#       execute_process(
-#           COMMAND ${CMAKE_COMMAND}
-#           -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
-#           -B ${OpenCV_BUILD_DIR}
-#           -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
-#           -DBUILD_ZLIB=OFF
-#           -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-#            -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
-#            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
-#            -DBUILD_OPENEXR=ON
-#            -DBUILD_SHARED_LIBS=OFF
-#            -DBUILD_TESTS=OFF
-#            -DBUILD_EXAMPLES=OFF
-#            -DWITH_IPP=OFF
-#            -DWITH_QUIRC=OFF
-#            -DWITH_GAPI=OFF
-#            -DWITH_ADE=OFF
-#            -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
-#            -DBUILD_TBB=ON
-#            -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
-#            -DWITH_PROTOBUF=OFF
-#            -DBUILD_PROTOBUF=OFF
-#            -DBUILD_opencv_python2=OFF
-#            -DBUILD_opencv_python3=OFF
-#         )
-#         execute_process(COMMAND ${CMAKE_COMMAND} --build ${OpenCV_BUILD_DIR})
-#         execute_process(COMMAND ${CMAKE_COMMAND} --install ${OpenCV_BUILD_DIR})
-#     endif()
-# endif()
-# set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
-#find_package(OpenCV REQUIRED)
+set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
+set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
+if(NOT EXISTS ${OpenCV_INSTALL_DIR})
+   message(STATUS "Fetching OpenCV...")
+   FetchContent_Declare(
+       opencv
+       GIT_REPOSITORY https://github.com/opencv/opencv.git
+       GIT_TAG 4.9.0
+       SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
+   )
+  FetchContent_GetProperties(opencv)
+  if(NOT opencv_POPULATED)
+      FetchContent_MakeAvailable(opencv)
+      set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
+      set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
+      execute_process(
+          COMMAND ${CMAKE_COMMAND}
+          -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
+          -B ${OpenCV_BUILD_DIR}
+          -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
+          -DBUILD_ZLIB=OFF
+          -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+           -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
+           -DZLIB_LIBRARY=${ZLIB_LIBRARY}
+           -DBUILD_OPENEXR=ON
+           -DBUILD_SHARED_LIBS=OFF
+           -DBUILD_TESTS=OFF
+           -DBUILD_EXAMPLES=OFF
+           -DWITH_IPP=OFF
+           -DWITH_QUIRC=OFF
+           -DWITH_GAPI=OFF
+           -DWITH_ADE=OFF
+           -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
+           -DBUILD_TBB=ON
+           -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
+           -DWITH_PROTOBUF=OFF
+           -DBUILD_PROTOBUF=OFF
+           -DBUILD_opencv_python2=OFF
+           -DBUILD_opencv_python3=OFF
+        )
+        execute_process(COMMAND ${CMAKE_COMMAND} --build ${OpenCV_BUILD_DIR})
+        execute_process(COMMAND ${CMAKE_COMMAND} --install ${OpenCV_BUILD_DIR})
+    endif()
+endif()
+set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
+find_package(OpenCV REQUIRED)
 
 # ================ Boost ================
 set(BOOST_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/boost_src)
