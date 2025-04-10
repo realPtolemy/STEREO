@@ -109,89 +109,125 @@ if(NOT EXISTS ${EIGEN3_INSTALL_DIR})
     message(STATUS "Eigen fetched and installed.")
 endif()
 
- ================ OpenCV ================
-set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
-set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
-if(NOT EXISTS ${OpenCV_INSTALL_DIR})
-    message(STATUS "Fetching OpenCV...")
-    FetchContent_Declare(
-        opencv
-        GIT_REPOSITORY https://github.com/opencv/opencv.git
-        GIT_TAG 4.9.0
-        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
-    )
-   FetchContent_GetProperties(opencv)
-   if(NOT opencv_POPULATED)
-       FetchContent_MakeAvailable(opencv)
-       set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
-       set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
-       execute_process(
-           COMMAND ${CMAKE_COMMAND}
-           -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
-           -B ${OpenCV_BUILD_DIR}
-           -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
-           -DBUILD_ZLIB=OFF
-           -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-            -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
-            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
-            -DBUILD_OPENEXR=ON
-            -DBUILD_SHARED_LIBS=OFF
-            -DBUILD_TESTS=OFF
-            -DBUILD_EXAMPLES=OFF
-            -DWITH_IPP=OFF
-            -DWITH_QUIRC=OFF
-            -DWITH_GAPI=OFF
-            -DWITH_ADE=OFF
-            -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
-            -DBUILD_TBB=ON
-            -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
-            -DWITH_PROTOBUF=OFF
-            -DBUILD_PROTOBUF=OFF
-            -DBUILD_opencv_python2=OFF
-            -DBUILD_opencv_python3=OFF
-        )
-        execute_process(COMMAND ${CMAKE_COMMAND} --build ${OpenCV_BUILD_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} --install ${OpenCV_BUILD_DIR})
-    endif()
-endif()
-set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
-find_package(OpenCV REQUIRED)
+# ================ OpenCV ================
+#set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
+#set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
+#if(NOT EXISTS ${OpenCV_INSTALL_DIR})
+#    message(STATUS "Fetching OpenCV...")
+#    FetchContent_Declare(
+#        opencv
+#        GIT_REPOSITORY https://github.com/opencv/opencv.git
+#        GIT_TAG 4.9.0
+#        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
+#    )
+#   FetchContent_GetProperties(opencv)
+#   if(NOT opencv_POPULATED)
+#       FetchContent_MakeAvailable(opencv)
+#       set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
+#       set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
+#       execute_process(
+#           COMMAND ${CMAKE_COMMAND}
+#           -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
+#           -B ${OpenCV_BUILD_DIR}
+#           -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
+#           -DBUILD_ZLIB=OFF
+#           -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+#            -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
+#            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
+#            -DBUILD_OPENEXR=ON
+#            -DBUILD_SHARED_LIBS=OFF
+#            -DBUILD_TESTS=OFF
+#            -DBUILD_EXAMPLES=OFF
+#            -DWITH_IPP=OFF
+#            -DWITH_QUIRC=OFF
+#            -DWITH_GAPI=OFF
+#            -DWITH_ADE=OFF
+#            -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
+#            -DBUILD_TBB=ON
+#            -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
+#            -DWITH_PROTOBUF=OFF
+#            -DBUILD_PROTOBUF=OFF
+#            -DBUILD_opencv_python2=OFF
+#            -DBUILD_opencv_python3=OFF
+#         )
+#         execute_process(COMMAND ${CMAKE_COMMAND} --build ${OpenCV_BUILD_DIR})
+#         execute_process(COMMAND ${CMAKE_COMMAND} --install ${OpenCV_BUILD_DIR})
+#     endif()
+# endif()
+# set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
+#find_package(OpenCV REQUIRED)
 
 # ================ Boost ================
 set(BOOST_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/boost_src)
 set(BOOST_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/boost-build)
 
-find_package(Boost REQUIRED COMPONENTS filesystem system iostreams)
+# Always fetch and build Boost from source, ignoring local installations
+message(STATUS "Fetching Boost 1.87.0...")
+file(MAKE_DIRECTORY ${BOOST_INSTALL_DIR})
 
-if(NOT EXISTS ${BOOST_INSTALL_DIR} AND NOT Boost_FOUND)
-    message(STATUS "Fetching Boost...")
-    FetchContent_Declare(
-        boost
-        GIT_REPOSITORY https://github.com/boostorg/boost.git
-        GIT_TAG boost-1.87.0
-        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/boost-src
+include(FetchContent)
+FetchContent_Declare(
+    boost
+    GIT_REPOSITORY https://github.com/boostorg/boost.git
+    GIT_TAG boost-1.87.0
+    SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/boost-src
+)
+FetchContent_GetProperties(boost)
+if(NOT boost_POPULATED)
+    message(STATUS "Populating Boost content...")
+    FetchContent_Populate(boost)
+
+    # Configure Boost
+    message(STATUS "Configuring Boost...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND}
+        -S ${CMAKE_BINARY_DIR}/_deps/boost-src
+        -B ${BOOST_BUILD_DIR}
+        -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
+        -DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
+        -DBUILD_SHARED_LIBS=OFF
+        -DCMAKE_CXX_FLAGS="-D_FILE_OFFSET_BITS=64 -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
+        OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
+        ERROR_VARIABLE BOOST_CONFIGURE_ERROR
+        RESULT_VARIABLE BOOST_CONFIGURE_RESULT
     )
-    FetchContent_GetProperties(boost)
-    if(NOT boost_POPULATED)
-        FetchContent_MakeAvailable(boost)
-        execute_process(
-            COMMAND ${CMAKE_COMMAND}
-            -S ${CMAKE_BINARY_DIR}/_deps/boost-src
-            -B ${BOOST_BUILD_DIR}
-            -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
-            # -DBOOST_INCLUDE_LIBRARIES="filesystem;system;iostreams"
-            # -DBOOST_INCLUDE_LIBRARIES=filesystem\;system\;iostreams
-            -DBUILD_SHARED_LIBS=OFF
-            -DCMAKE_CXX_FLAGS="-D_FILE_OFFSET_BITS=64 -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
-            # -DBoost_ENABLE_INSTALL=ON
-        )
-        execute_process(COMMAND ${CMAKE_COMMAND} --build ${BOOST_BUILD_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} --install ${BOOST_BUILD_DIR})
+    message(STATUS "Boost configure output: ${BOOST_CONFIGURE_OUTPUT}")
+    if(NOT BOOST_CONFIGURE_RESULT EQUAL 0)
+        message(STATUS "Boost configure error output: ${BOOST_CONFIGURE_ERROR}")
+        message(FATAL_ERROR "Boost configuration failed with result: ${BOOST_CONFIGURE_RESULT}")
+    endif()
+
+    # Build Boost
+    message(STATUS "Building Boost...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --build ${BOOST_BUILD_DIR}
+        OUTPUT_VARIABLE BOOST_BUILD_OUTPUT
+        ERROR_VARIABLE BOOST_BUILD_ERROR
+        RESULT_VARIABLE BOOST_BUILD_RESULT
+    )
+    message(STATUS "Boost build output: ${BOOST_BUILD_OUTPUT}")
+    if(NOT BOOST_BUILD_RESULT EQUAL 0)
+        message(STATUS "Boost build error output: ${BOOST_BUILD_ERROR}")
+        message(FATAL_ERROR "Boost build failed with result: ${BOOST_BUILD_RESULT}")
+    endif()
+
+    # Install Boost
+    message(STATUS "Installing Boost...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --install ${BOOST_BUILD_DIR}
+        OUTPUT_VARIABLE BOOST_INSTALL_OUTPUT
+        ERROR_VARIABLE BOOST_INSTALL_ERROR
+        RESULT_VARIABLE BOOST_INSTALL_RESULT
+    )
+    message(STATUS "Boost install output: ${BOOST_INSTALL_OUTPUT}")
+    if(NOT BOOST_INSTALL_RESULT EQUAL 0)
+        message(STATUS "Boost install error output: ${BOOST_INSTALL_ERROR}")
+        message(FATAL_ERROR "Boost installation failed with result: ${BOOST_INSTALL_RESULT}")
     endif()
 endif()
-set(Boost_NO_BOOST_CMAKE TRUE)
-# set(CMAKE_PREFIX_PATH ${BOOST_INSTALL_DIR})
-# set(CMAKE_PREFIX_PATH ${BOOST_INSTALL_DIR}/lib/cmake)
+
+# Ensure CMake uses the freshly built Boost
+set(Boost_NO_BOOST_CMAKE TRUE)  # Prevent CMake from using Boost's own CMake config
 find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST_INSTALL_DIR} NO_DEFAULT_PATH)
 
 # ================ FLANN ================
