@@ -136,6 +136,7 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
            -DBUILD_OPENEXR=ON
            -DBUILD_SHARED_LIBS=OFF
+           -DWITH_JPEG=OFF
            -DBUILD_TESTS=OFF
            -DBUILD_EXAMPLES=OFF
            -DWITH_IPP=OFF
