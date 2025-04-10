@@ -1,9 +1,57 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.5)
 project(MyProject)
 
 include(FetchContent)
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/3party)
+
+# ================ LZ4 ================
+set(LZ4_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/lz4_src)
+message(STATUS "Checking for LZ4 at: ${LZ4_INSTALL_DIR}")
+
+if(NOT EXISTS ${LZ4_INSTALL_DIR})
+    message(STATUS "LZ4 not found at ${LZ4_INSTALL_DIR}")
+    message(STATUS "Fetching and building LZ4")
+    
+    FetchContent_Declare(
+        lz4
+        GIT_REPOSITORY https://github.com/lz4/lz4.git
+        GIT_TAG v1.9.4
+        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/lz4-src
+    )
+    
+    message(STATUS "Declared LZ4 fetch content with tag v1.9.4")
+    message(STATUS "Making LZ4 content available")
+    FetchContent_MakeAvailable(lz4)
+    
+    message(STATUS "Building LZ4 using Makefile in: ${CMAKE_BINARY_DIR}/_deps/lz4-src")
+    execute_process(
+        COMMAND make
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/_deps/lz4-src
+        RESULT_VARIABLE BUILD_RESULT
+    )
+    if(BUILD_RESULT EQUAL 0)
+        message(STATUS "LZ4 build successful")
+    else()
+        message(FATAL_ERROR "LZ4 build failed with result: ${BUILD_RESULT}")
+    endif()
+
+    message(STATUS "Installing LZ4 to: ${LZ4_INSTALL_DIR}")
+    execute_process(
+        COMMAND make install PREFIX=${LZ4_INSTALL_DIR}
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/_deps/lz4-src
+        RESULT_VARIABLE INSTALL_RESULT
+    )
+    if(INSTALL_RESULT EQUAL 0)
+        message(STATUS "LZ4 installation successful")
+    else()
+        message(FATAL_ERROR "LZ4 installation failed with result: ${INSTALL_RESULT}")
+    endif()
+    
+    message(STATUS "LZ4 processing complete")
+else()
+    message(STATUS "LZ4 already exists at ${LZ4_INSTALL_DIR}, skipping fetch and build")
+endif()
 
 # ================ Zlib ================
 set(ZLIB_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/zlib_src)
@@ -18,7 +66,7 @@ if(NOT EXISTS ${ZLIB_INSTALL_DIR})
     )
     FetchContent_GetProperties(zlib)
     if(NOT zlib_POPULATED)
-        FetchContent_Populate(zlib)
+        FetchContent_MakeAvailable(zlib)
         execute_process(
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/zlib-src
@@ -47,7 +95,7 @@ if(NOT EXISTS ${EIGEN3_INSTALL_DIR})
     )
     FetchContent_GetProperties(eigen)
     if(NOT eigen_POPULATED)
-        FetchContent_Populate(eigen)
+        FetchContent_MakeAvailable(eigen)
         execute_process(
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/eigen-src
@@ -69,18 +117,23 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
     FetchContent_Declare(
         opencv
         GIT_REPOSITORY https://github.com/opencv/opencv.git
-        GIT_TAG 4.6.0
+        GIT_TAG 4.9.0
         SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
     )
     FetchContent_GetProperties(opencv)
     if(NOT opencv_POPULATED)
-        FetchContent_Populate(opencv)
+        FetchContent_MakeAvailable(opencv)
+        set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
+        set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
         execute_process(
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
             -B ${OpenCV_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
+            -DBUILD_ZLIB=OFF
             -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+            -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
+            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
             -DBUILD_OPENEXR=ON
             -DBUILD_SHARED_LIBS=OFF
             -DBUILD_TESTS=OFF
@@ -120,7 +173,7 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR} AND NOT Boost_FOUND)
     )
     FetchContent_GetProperties(boost)
     if(NOT boost_POPULATED)
-        FetchContent_Populate(boost)
+        FetchContent_MakeAvailable(boost)
         execute_process(
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/boost-src
@@ -141,37 +194,6 @@ set(Boost_NO_BOOST_CMAKE TRUE)
 # set(CMAKE_PREFIX_PATH ${BOOST_INSTALL_DIR}/lib/cmake)
 find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST_INSTALL_DIR} NO_DEFAULT_PATH)
 
-# ================ LZ4 ================
-set(LZ4_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/lz4_src)
-set(LZ4_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/lz4-build)
-if(NOT EXISTS ${LZ4_INSTALL_DIR})
-    message(STATUS "Fetching LZ4...")
-    FetchContent_Declare(
-        lz4
-        GIT_REPOSITORY https://github.com/lz4/lz4.git
-        GIT_TAG v1.9.4
-        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/lz4-src
-    )
-    FetchContent_GetProperties(lz4)
-    if(NOT lz4_POPULATED)
-        FetchContent_Populate(lz4)
-        execute_process(
-            COMMAND ${CMAKE_COMMAND}
-            -S ${CMAKE_BINARY_DIR}/_deps/lz4-src/build/cmake
-            -B ${LZ4_BUILD_DIR}
-            -DCMAKE_INSTALL_PREFIX=${LZ4_INSTALL_DIR}
-            -DBUILD_SHARED_LIBS=OFF
-            -DLZ4_BUILD_CLI=OFF
-            -DLZ4_BUILD_LEGACY_LZ4C=OFF
-        )
-        execute_process(COMMAND ${CMAKE_COMMAND} --build ${LZ4_BUILD_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} --install ${LZ4_BUILD_DIR})
-    endif()
-endif()
-set(LZ4_LIBRARIES ${LZ4_INSTALL_DIR}/lib/liblz4.a)
-set(LZ4_INCLUDE_DIRS ${LZ4_INSTALL_DIR}/include)
-set(ENV{PKG_CONFIG_PATH} "${LZ4_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
-
 # ================ FLANN ================
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
 set(FLANN_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/flann-build)
@@ -186,7 +208,7 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
     )
     FetchContent_GetProperties(flann)
     if(NOT flann_POPULATED)
-        FetchContent_Populate(flann)
+        FetchContent_MakeAvailable(flann)
     endif()
     message(STATUS "Building and installing FLANN...")
     execute_process(
@@ -194,10 +216,12 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
         -S ${CMAKE_BINARY_DIR}/_deps/flann-src
         -B ${FLANN_BUILD_DIR}
         -DCMAKE_INSTALL_PREFIX=${FLANN_INSTALL_DIR}
-        -DZLIB_ROOT=${ZLIB_INSTALL_DIR}                        # REMOVE?
+        #-DCMAKE_MINIMUM_REQUIRED_VERSION=3.5
+        #-DCMAKE_POLICY_VERSION_MINIMUM=3.5  # Add this line
+        -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
         -DCMAKE_BUILD_TYPE=None
-        -DWITH_LZ4=ON                                          # REMOVE?
-        -DBUILD_STATIC_LIBS=ON                                 # REMOVE?
+        -DWITH_LZ4=ON
+        -DBUILD_STATIC_LIBS=ON
         -DBUILD_SHARED_LIBS=OFF
         -DBUILD_TESTS=OFF
         -DBUILD_EXAMPLES=OFF
@@ -233,7 +257,7 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
     )
     FetchContent_GetProperties(pcl)
     if(NOT pcl_POPULATED)
-        FetchContent_Populate(pcl)
+        FetchContent_MakeAvailable(pcl)
         execute_process(
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/pcl-src
@@ -320,18 +344,31 @@ find_package(PCL REQUIRED)
 # ================ CNPY ================
 set(CNPY_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/cnpy_src)
 set(CNPY_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/cnpy-build)
+message(STATUS "Checking for CNPY at: ${CNPY_INSTALL_DIR}")
+
 if(NOT EXISTS ${CNPY_INSTALL_DIR})
+    message(STATUS "CNPY not found at ${CNPY_INSTALL_DIR}")
     message(STATUS "Fetching CNPY...")
+
     FetchContent_Declare(
         cnpy
         GIT_REPOSITORY https://github.com/rogersce/cnpy.git
         GIT_TAG master
         SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/cnpy-src
     )
+    message(STATUS "Declared CNPY fetch content from master branch")
+
     FetchContent_GetProperties(cnpy)
     if(NOT cnpy_POPULATED)
-        FetchContent_Populate(cnpy)
+        message(STATUS "CNPY content not populated, starting population process")
+        FetchContent_MakeAvailable(cnpy)
+        message(STATUS "CNPY populated to: ${CMAKE_BINARY_DIR}/_deps/cnpy-src")
+    else()
+        message(STATUS "CNPY content already populated at: ${CMAKE_BINARY_DIR}/_deps/cnpy-src")
     endif()
+
+    message(STATUS "Configuring CNPY from source: ${CMAKE_BINARY_DIR}/_deps/cnpy-src")
+    message(STATUS "Using ZLIB_ROOT: ${ZLIB_ROOT}")
     execute_process(
         COMMAND ${CMAKE_COMMAND}
         -S ${CMAKE_BINARY_DIR}/_deps/cnpy-src
@@ -339,9 +376,39 @@ if(NOT EXISTS ${CNPY_INSTALL_DIR})
         -DCMAKE_INSTALL_PREFIX=${CNPY_INSTALL_DIR}
         -DBUILD_SHARED_LIBS=OFF
         -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+        RESULT_VARIABLE CONFIG_RESULT
     )
-    execute_process(COMMAND ${CMAKE_COMMAND} --build ${CNPY_BUILD_DIR})
-    execute_process(COMMAND ${CMAKE_COMMAND} --install ${CNPY_BUILD_DIR})
+    if(CONFIG_RESULT EQUAL 0)
+        message(STATUS "CNPY configuration successful")
+    else()
+        message(FATAL_ERROR "CNPY configuration failed with result: ${CONFIG_RESULT}")
+    endif()
+
+    message(STATUS "Building CNPY in: ${CNPY_BUILD_DIR}")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --build ${CNPY_BUILD_DIR}
+        RESULT_VARIABLE BUILD_RESULT
+    )
+    if(BUILD_RESULT EQUAL 0)
+        message(STATUS "CNPY build successful")
+    else()
+        message(FATAL_ERROR "CNPY build failed with result: ${BUILD_RESULT}")
+    endif()
+
+    message(STATUS "Installing CNPY to: ${CNPY_INSTALL_DIR}")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --install ${CNPY_BUILD_DIR}
+        RESULT_VARIABLE INSTALL_RESULT
+    )
+    if(INSTALL_RESULT EQUAL 0)
+        message(STATUS "CNPY installation successful")
+    else()
+        message(FATAL_ERROR "CNPY installation failed with result: ${INSTALL_RESULT}")
+    endif()
+
+    message(STATUS "CNPY processing complete")
+else()
+    message(STATUS "CNPY already exists at ${CNPY_INSTALL_DIR}, skipping fetch and build")
 endif()
 
 # ================ Sophus ================
@@ -357,7 +424,7 @@ if(NOT EXISTS ${SOPHUS_INSTALL_DIR})
     )
     FetchContent_GetProperties(sophus)
     if(NOT sophus_POPULATED)
-        FetchContent_Populate(sophus)
+        FetchContent_MakeAvailable(sophus)
     endif()
     execute_process(
         COMMAND ${CMAKE_COMMAND}
