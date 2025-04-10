@@ -12,18 +12,18 @@ message(STATUS "Checking for LZ4 at: ${LZ4_INSTALL_DIR}")
 if(NOT EXISTS ${LZ4_INSTALL_DIR})
     message(STATUS "LZ4 not found at ${LZ4_INSTALL_DIR}")
     message(STATUS "Fetching and building LZ4")
-    
+
     FetchContent_Declare(
         lz4
         GIT_REPOSITORY https://github.com/lz4/lz4.git
         GIT_TAG v1.9.4
         SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/lz4-src
     )
-    
+
     message(STATUS "Declared LZ4 fetch content with tag v1.9.4")
     message(STATUS "Making LZ4 content available")
     FetchContent_MakeAvailable(lz4)
-    
+
     message(STATUS "Building LZ4 using Makefile in: ${CMAKE_BINARY_DIR}/_deps/lz4-src")
     execute_process(
         COMMAND make
@@ -47,11 +47,14 @@ if(NOT EXISTS ${LZ4_INSTALL_DIR})
     else()
         message(FATAL_ERROR "LZ4 installation failed with result: ${INSTALL_RESULT}")
     endif()
-    
+
     message(STATUS "LZ4 processing complete")
 else()
     message(STATUS "LZ4 already exists at ${LZ4_INSTALL_DIR}, skipping fetch and build")
 endif()
+
+set(ENV{PKG_CONFIG_PATH} "${LZ4_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+
 
 # ================ Zlib ================
 set(ZLIB_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/zlib_src)
@@ -136,7 +139,7 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
            -DBUILD_OPENEXR=ON
            -DBUILD_SHARED_LIBS=OFF
-           -DWITH_JPEG=OFF
+        #    -DWITH_JPEG=OFF
            -DBUILD_TESTS=OFF
            -DBUILD_EXAMPLES=OFF
            -DWITH_IPP=OFF
@@ -145,7 +148,7 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
            -DWITH_ADE=OFF
            -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
            -DBUILD_TBB=ON
-           -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
+           -DBUILD_LIST=core,imgproc,highgui,calib3d,photo,imgcodecs
            -DWITH_PROTOBUF=OFF
            -DBUILD_PROTOBUF=OFF
            -DBUILD_opencv_python2=OFF
@@ -163,6 +166,8 @@ set(BOOST_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/boost_src)
 set(BOOST_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/boost-build)
 
 # Always fetch and build Boost from source, ignoring local installations
+if(NOT EXISTS ${BOOST_INSTALL_DIR})
+
 message(STATUS "Fetching Boost 1.87.0...")
 file(MAKE_DIRECTORY ${BOOST_INSTALL_DIR})
 
@@ -185,9 +190,9 @@ if(NOT boost_POPULATED)
         -S ${CMAKE_BINARY_DIR}/_deps/boost-src
         -B ${BOOST_BUILD_DIR}
         -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
-        -DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
+        -DBOOST_INCLUDE_LIBRARIES=filesystem\;system\;iostreams
         -DBUILD_SHARED_LIBS=OFF
-        -DCMAKE_CXX_FLAGS="-D_FILE_OFFSET_BITS=64 -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
+        # -DCMAKE_CXX_FLAGS="-D_FILE_OFFSET_BITS=64 -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
         OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
         ERROR_VARIABLE BOOST_CONFIGURE_ERROR
         RESULT_VARIABLE BOOST_CONFIGURE_RESULT
@@ -226,9 +231,11 @@ if(NOT boost_POPULATED)
         message(FATAL_ERROR "Boost installation failed with result: ${BOOST_INSTALL_RESULT}")
     endif()
 endif()
+endif()
 
 # Ensure CMake uses the freshly built Boost
-set(Boost_NO_BOOST_CMAKE TRUE)  # Prevent CMake from using Boost's own CMake config
+# set(Boost_NO_BOOST_CMAKE TRUE)  # Prevent CMake from using Boost's own CMake config
+set(Boost_DIR ${BOOST_INSTALL_DIR}/lib/cmake/Boost-1.87.0)
 find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST_INSTALL_DIR} NO_DEFAULT_PATH)
 
 # ================ FLANN ================
@@ -354,6 +361,7 @@ message(STATUS "${FLANN_INSTALL_DIR}")
 ## END OF EXTRA CHECK
 if(NOT EXISTS ${PCL_INSTALL_DIR})
     message(STATUS "Fetching PCL...")
+    set(WITH_OPENGL OFF CACHE BOOL "Disable OpenGL for PCL" FORCE)
     FetchContent_Declare(
         pcl
         GIT_REPOSITORY https://github.com/PointCloudLibrary/pcl.git
