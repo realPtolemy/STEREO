@@ -619,52 +619,94 @@ if(NOT EXISTS ${CNPY_INSTALL_DIR})
     FetchContent_GetProperties(cnpy)
     if(NOT cnpy_POPULATED)
         message(STATUS "CNPY content not populated, starting population process")
-        FetchContent_MakeAvailable(cnpy)
+        FetchContent_Populate(cnpy) # Only populate, don’t configure yet
         message(STATUS "CNPY populated to: ${CMAKE_BINARY_DIR}/_deps/cnpy-src")
+
+        # Patch CNPY's CMakeLists.txt
+        message(STATUS "Patching CNPY CMakeLists.txt...")
+        set(CNPY_CMAKELISTS "${CMAKE_BINARY_DIR}/_deps/cnpy-src/CMakeLists.txt")
+        file(READ ${CNPY_CMAKELISTS} CNPY_CMAKELISTS_CONTENT)
+        string(REPLACE
+            "CMAKE_MINIMUM_REQUIRED(VERSION 3.0 FATAL_ERROR)"
+            "CMAKE_MINIMUM_REQUIRED(VERSION 3.5)" # Match your project’s version
+            CNPY_CMAKELISTS_CONTENT_MODIFIED
+            ${CNPY_CMAKELISTS_CONTENT}
+        )
+        file(WRITE ${CNPY_CMAKELISTS} "${CNPY_CMAKELISTS_CONTENT_MODIFIED}")
+        message(STATUS "CNPY CMakeLists.txt patched to version 3.5")
+
+        # Now configure CNPY
+        message(STATUS "Configuring CNPY from source: ${CMAKE_BINARY_DIR}/_deps/cnpy-src")
+        message(STATUS "Using ZLIB_ROOT: ${ZLIB_ROOT}")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND}
+            -S ${CMAKE_BINARY_DIR}/_deps/cnpy-src
+            -B ${CNPY_BUILD_DIR}
+            -DCMAKE_INSTALL_PREFIX=${CNPY_INSTALL_DIR}
+            -DBUILD_SHARED_LIBS=OFF
+            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+            RESULT_VARIABLE CONFIG_RESULT
+            OUTPUT_VARIABLE CONFIG_OUTPUT
+            ERROR_VARIABLE CONFIG_ERROR
+        )
+        if(CONFIG_RESULT EQUAL 0)
+            message(STATUS "CNPY configuration successful")
+        else()
+            message(STATUS "CNPY configuration output: ${CONFIG_OUTPUT}")
+            message(STATUS "CNPY configuration error: ${CONFIG_ERROR}")
+            message(FATAL_ERROR "CNPY configuration failed with result: ${CONFIG_RESULT}")
+        endif()
+
+        # Build CNPY
+        message(STATUS "Building CNPY in: ${CNPY_BUILD_DIR}")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --build ${CNPY_BUILD_DIR}
+            RESULT_VARIABLE BUILD_RESULT
+            OUTPUT_VARIABLE BUILD_OUTPUT
+            ERROR_VARIABLE BUILD_ERROR
+        )
+        if(BUILD_RESULT EQUAL 0)
+            message(STATUS "CNPY build successful")
+        else()
+            message(STATUS "CNPY build output: ${BUILD_OUTPUT}")
+            message(STATUS "CNPY build error: ${BUILD_ERROR}")
+            message(FATAL_ERROR "CNPY build failed with result: ${BUILD_RESULT}")
+        endif()
+
+        # Install CNPY
+        message(STATUS "Installing CNPY to: ${CNPY_INSTALL_DIR}")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --install ${CNPY_BUILD_DIR}
+            RESULT_VARIABLE INSTALL_RESULT
+            OUTPUT_VARIABLE INSTALL_OUTPUT
+            ERROR_VARIABLE INSTALL_ERROR
+        )
+        if(INSTALL_RESULT EQUAL 0)
+            message(STATUS "CNPY installation successful")
+        else()
+            message(STATUS "CNPY install output: ${INSTALL_OUTPUT}")
+            message(STATUS "CNPY install error: ${INSTALL_ERROR}")
+            message(FATAL_ERROR "CNPY installation failed with result: ${INSTALL_RESULT}")
+        endif()
+
+        # Clean up
+        message(STATUS "Cleaning up CNPY build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-src
+            COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-build
+            COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-subbuild
+            RESULT_VARIABLE CLEAN_RESULT
+        )
+        if(NOT CLEAN_RESULT EQUAL 0)
+            message(WARNING "Failed to clean up CNPY build artifacts: ${CLEAN_RESULT}")
+        else()
+            message(STATUS "CNPY build artifacts cleaned up.")
+        endif()
+
+        message(STATUS "CNPY processing complete")
     else()
         message(STATUS "CNPY content already populated at: ${CMAKE_BINARY_DIR}/_deps/cnpy-src")
     endif()
-
-    message(STATUS "Configuring CNPY from source: ${CMAKE_BINARY_DIR}/_deps/cnpy-src")
-    message(STATUS "Using ZLIB_ROOT: ${ZLIB_ROOT}")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND}
-        -S ${CMAKE_BINARY_DIR}/_deps/cnpy-src
-        -B ${CNPY_BUILD_DIR}
-        -DCMAKE_INSTALL_PREFIX=${CNPY_INSTALL_DIR}
-        -DBUILD_SHARED_LIBS=OFF
-        -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-        RESULT_VARIABLE CONFIG_RESULT
-    )
-    if(CONFIG_RESULT EQUAL 0)
-        message(STATUS "CNPY configuration successful")
-    else()
-        message(FATAL_ERROR "CNPY configuration failed with result: ${CONFIG_RESULT}")
-    endif()
-
-    message(STATUS "Building CNPY in: ${CNPY_BUILD_DIR}")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} --build ${CNPY_BUILD_DIR}
-        RESULT_VARIABLE BUILD_RESULT
-    )
-    if(BUILD_RESULT EQUAL 0)
-        message(STATUS "CNPY build successful")
-    else()
-        message(FATAL_ERROR "CNPY build failed with result: ${BUILD_RESULT}")
-    endif()
-
-    message(STATUS "Installing CNPY to: ${CNPY_INSTALL_DIR}")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} --install ${CNPY_BUILD_DIR}
-        RESULT_VARIABLE INSTALL_RESULT
-    )
-    if(INSTALL_RESULT EQUAL 0)
-        message(STATUS "CNPY installation successful")
-    else()
-        message(FATAL_ERROR "CNPY installation failed with result: ${INSTALL_RESULT}")
-    endif()
-
-    message(STATUS "CNPY processing complete")
 else()
     message(STATUS "CNPY already exists at ${CNPY_INSTALL_DIR}, skipping fetch and build")
 endif()
@@ -672,6 +714,8 @@ endif()
 # ================ Sophus ================
 set(SOPHUS_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/sophus_src)
 set(SOPHUS_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/sophus-build)
+message(STATUS "Checking for Sophus at: ${SOPHUS_INSTALL_DIR}")
+
 if(NOT EXISTS ${SOPHUS_INSTALL_DIR})
     message(STATUS "Fetching Sophus...")
     FetchContent_Declare(
@@ -682,20 +726,124 @@ if(NOT EXISTS ${SOPHUS_INSTALL_DIR})
     )
     FetchContent_GetProperties(sophus)
     if(NOT sophus_POPULATED)
-        FetchContent_MakeAvailable(sophus)
+        message(STATUS "Sophus content not populated, starting population process")
+        FetchContent_Populate(sophus)
+        message(STATUS "Sophus populated to: ${CMAKE_BINARY_DIR}/_deps/sophus-src")
     endif()
+
+    # Configure Sophus
+    message(STATUS "Configuring Sophus...")
     execute_process(
         COMMAND ${CMAKE_COMMAND}
         -S ${CMAKE_BINARY_DIR}/_deps/sophus-src
         -B ${SOPHUS_BUILD_DIR}
         -DCMAKE_INSTALL_PREFIX=${SOPHUS_INSTALL_DIR}
-        -DEigen3_DIR=${Eigen3_DIR}
+        -DEIGEN_DIR=${EIGEN_INSTALL_DIR}
         -DBUILD_SOPHUS_TESTS=OFF
+        -DBUILD_SOPHUS_EXAMPLES=OFF
+        RESULT_VARIABLE CONFIG_RESULT
+        OUTPUT_VARIABLE CONFIG_OUTPUT
+        ERROR_VARIABLE CONFIG_ERROR
     )
-    execute_process(COMMAND ${CMAKE_COMMAND} --build ${SOPHUS_BUILD_DIR})
-    execute_process(COMMAND ${CMAKE_COMMAND} --install ${SOPHUS_BUILD_DIR})
+    if(CONFIG_RESULT EQUAL 0)
+        message(STATUS "Sophus configuration successful")
+    else()
+        message(STATUS "Sophus configuration output: ${CONFIG_OUTPUT}")
+        message(STATUS "Sophus configuration error: ${CONFIG_ERROR}")
+        message(FATAL_ERROR "Sophus configuration failed with result: ${CONFIG_RESULT}")
+    endif()
+
+    # Build Sophus
+    message(STATUS "Building Sophus...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --build ${SOPHUS_BUILD_DIR}
+        RESULT_VARIABLE BUILD_RESULT
+        OUTPUT_VARIABLE BUILD_OUTPUT
+        ERROR_VARIABLE BUILD_ERROR
+    )
+    if(BUILD_RESULT EQUAL 0)
+        message(STATUS "Sophus build successful")
+    else()
+        message(STATUS "Sophus build output: ${BUILD_OUTPUT}")
+        message(STATUS "Sophus build error: ${BUILD_ERROR}")
+        message(FATAL_ERROR "Sophus build failed with result: ${BUILD_RESULT}")
+    endif()
+
+    # Install Sophus
+    message(STATUS "Installing Sophus...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --install ${SOPHUS_BUILD_DIR}
+        RESULT_VARIABLE INSTALL_RESULT
+        OUTPUT_VARIABLE INSTALL_OUTPUT
+        ERROR_VARIABLE INSTALL_ERROR
+    )
+    if(INSTALL_RESULT EQUAL 0)
+        message(STATUS "Sophus installation successful")
+    else()
+        message(STATUS "Sophus install output: ${INSTALL_OUTPUT}")
+        message(STATUS "Sophus install error: ${INSTALL_ERROR}")
+        message(FATAL_ERROR "Sophus installation failed with result: ${INSTALL_RESULT}")
+    endif()
+
+    # Clean up
+    message(STATUS "Cleaning up Sophus build artifacts...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-src
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-build
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-subbuild
+        RESULT_VARIABLE CLEAN_RESULT
+    )
+    if(NOT CLEAN_RESULT EQUAL 0)
+        message(WARNING "Failed to clean up Sophus build artifacts: ${CLEAN_RESULT}")
+    else()
+        message(STATUS "Sophus build artifacts cleaned up.")
+    endif()
+else()
+    message(STATUS "Sophus already exists at ${SOPHUS_INSTALL_DIR}, skipping fetch and build")
 endif()
-# find_package(Sophus REQUIRED)
+message(STATUS "Sophus can now be found in: ${SOPHUS_INSTALL_DIR}")
+
+# ================ PCL Include Fix ================
+find_package(PCL REQUIRED PATHS ${PCL_INSTALL_DIR}/share/pcl-1.15 NO_DEFAULT_PATH)
+if(PCL_FOUND)
+    message(STATUS "PCL found: ${PCL_DIR}")
+    message(STATUS "PCL include dirs: ${PCL_INCLUDE_DIRS}")
+    include_directories(${PCL_INCLUDE_DIRS}) # Add PCL headers globally
+else()
+    message(FATAL_ERROR "PCL not found at ${PCL_INSTALL_DIR}/share/pcl-1.15!")
+endif()
+
+message(STATUS "PROCEEDING WITH OPENCV FIX...")
+# !!!!!!!!!!!!!!!!! Verify OpenCV !!!!!!!!!!!!!!!!
+find_package(OpenCV REQUIRED PATHS ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4 NO_DEFAULT_PATH)
+if(OpenCV_FOUND)
+    message(STATUS "OpenCV found: ${OpenCV_DIR}")
+    message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+    message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+    include_directories(${OpenCV_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "OpenCV not found at ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4!")
+endif()
+
+# ================ Eigen Include Fix ================
+find_package(Eigen3 REQUIRED PATHS ${EIGEN_INSTALL_DIR}/share/eigen3/cmake NO_DEFAULT_PATH)
+if(Eigen3_FOUND)
+    message(STATUS "Eigen3 found: ${Eigen3_DIR}")
+    include_directories(${EIGEN3_INCLUDE_DIR}) # Global include path
+else()
+    message(FATAL_ERROR "Eigen3 not found at ${EIGEN_INSTALL_DIR}/share/eigen3/cmake!")
+endif()
+
+# Find OpenMP (required by PCL)
+# ================ OPENMP Include Fix ================
+find_package(OpenMP REQUIRED)
+if(OpenMP_FOUND)
+    message(STATUS "OpenMP found: ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
+else()
+    message(FATAL_ERROR "OpenMP not found!")
+endif()
 
 # ================ Subdirectories ================
 # add_subdirectory(minkindr)
