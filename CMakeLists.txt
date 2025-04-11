@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.5)
+cmake_policy(SET CMP0144 NEW)
 project(MyProject)
 
-include(FetchContent)
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/3party)
+include(FetchContent)
 
 # ================ LZ4 ================
 set(LZ4_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/lz4_src)
@@ -48,16 +49,32 @@ if(NOT EXISTS ${LZ4_INSTALL_DIR})
         message(FATAL_ERROR "LZ4 installation failed with result: ${INSTALL_RESULT}")
     endif()
     
+    # Clean up
+    message(STATUS "Cleaning up LZ4 build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-src
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-build
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-subbuild
+        RESULT_VARIABLE CLEAN_RESULT
+    )
+    if(NOT CLEAN_RESULT EQUAL 0)
+        message(WARNING "Failed to clean up LZ4 build artifacts: ${CLEAN_RESULT}")
+    else()
+        message(STATUS "LZ4 build artifacts cleaned up.")
+    endif()
+
     message(STATUS "LZ4 processing complete")
 else()
     message(STATUS "LZ4 already exists at ${LZ4_INSTALL_DIR}, skipping fetch and build")
 endif()
+set(LZ4_ROOT ${LZ4_INSTALL_DIR})
+message(STATUS "LZ4 can now be found in: ${LZ4_INSTALL_DIR}")
 
 # ================ Zlib ================
 set(ZLIB_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/zlib_src)
 set(ZLIB_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/zlib-build)
 if(NOT EXISTS ${ZLIB_INSTALL_DIR})
-    message(STATUS "Fetching and building zlib...")
+    message(STATUS "Fetching and building ZLIB...")
     FetchContent_Declare(
         zlib
         GIT_REPOSITORY https://github.com/madler/zlib.git
@@ -78,15 +95,28 @@ if(NOT EXISTS ${ZLIB_INSTALL_DIR})
         execute_process(COMMAND ${CMAKE_COMMAND} --build ${ZLIB_BUILD_DIR})
         execute_process(COMMAND ${CMAKE_COMMAND} --install ${ZLIB_BUILD_DIR})
     endif()
-    message(STATUS "Zlib fetched and installed.")
+    # Clean up
+    message(STATUS "Cleaning up ZLIB build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-src
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-build
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-subbuild
+        RESULT_VARIABLE CLEAN_RESULT
+    )
+    if(NOT CLEAN_RESULT EQUAL 0)
+        message(WARNING "Failed to clean up ZLIB build artifacts: ${CLEAN_RESULT}")
+    else()
+        message(STATUS "ZLIB build artifacts cleaned up.")
+    endif()
+    message(STATUS "ZLIB fetched and installed.")
 endif()
 set(ZLIB_ROOT ${ZLIB_INSTALL_DIR})
-find_package(ZLIB REQUIRED)
+message(STATUS "ZLIB can now be found in: ${ZLIB_INSTALL_DIR}")
 
 # ================ Eigen ================
-set(EIGEN3_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/Eigen_src)
-if(NOT EXISTS ${EIGEN3_INSTALL_DIR})
-    message(STATUS "Fetching and building Eigen...")
+set(EIGEN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/eigen_src)
+if(NOT EXISTS ${EIGEN_INSTALL_DIR})
+    message(STATUS "Fetching and building EIGEN...")
     FetchContent_Declare(
         eigen
         GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
@@ -100,20 +130,39 @@ if(NOT EXISTS ${EIGEN3_INSTALL_DIR})
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/eigen-src
             -B ${CMAKE_BINARY_DIR}/_deps/eigen-build
-            -DCMAKE_INSTALL_PREFIX=${EIGEN3_INSTALL_DIR}
+            -DCMAKE_INSTALL_PREFIX=${EIGEN_INSTALL_DIR}
             -DBUILD_TESTING=OFF
         )
         execute_process(COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/_deps/eigen-build)
         execute_process(COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}/_deps/eigen-build)
     endif()
-    message(STATUS "Eigen fetched and installed.")
+
+     # Clean up
+    message(STATUS "Cleaning up EIGEN build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-src
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-build
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-subbuild
+        RESULT_VARIABLE CLEAN_RESULT
+    )
+    if(NOT CLEAN_RESULT EQUAL 0)
+        message(WARNING "Failed to clean up EIGEN build artifacts: ${CLEAN_RESULT}")
+    else()
+        message(STATUS "EIGEN build artifacts cleaned up.")
+    endif()
+    message(STATUS "EIGEN fetched and installed.")
 endif()
+message(STATUS "Verifying EIGEN installation...")
+set(EIGEN_ROOT ${EIGEN_INSTALL_DIR})
+message(STATUS "EIGEN can now be found in: ${EIGEN_INSTALL_DIR}")
+
+
 
 # ================ OpenCV ================
-set(OpenCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
-set(OpenCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
-if(NOT EXISTS ${OpenCV_INSTALL_DIR})
-   message(STATUS "Fetching OpenCV...")
+set(OPENCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
+set(OPENCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
+if(NOT EXISTS ${OPENCV_INSTALL_DIR})
+   message(STATUS "Fetching OPENCV...")
    FetchContent_Declare(
        opencv
        GIT_REPOSITORY https://github.com/opencv/opencv.git
@@ -126,17 +175,16 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
       set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
       set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
       execute_process(
-          COMMAND ${CMAKE_COMMAND}
-          -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
-          -B ${OpenCV_BUILD_DIR}
-          -DCMAKE_INSTALL_PREFIX=${OpenCV_INSTALL_DIR}
-          -DBUILD_ZLIB=OFF
-          -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-           -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
+            COMMAND ${CMAKE_COMMAND}
+            -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
+            -B ${OPENCV_BUILD_DIR}
+            -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
+            -DCMAKE_INSTALL_PREFIX=${OPENCV_INSTALL_DIR}
+            -DBUILD_ZLIB=OFF
+            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
            -DBUILD_OPENEXR=ON
            -DBUILD_SHARED_LIBS=OFF
-           -DWITH_JPEG=OFF
            -DBUILD_TESTS=OFF
            -DBUILD_EXAMPLES=OFF
            -DWITH_IPP=OFF
@@ -146,90 +194,135 @@ if(NOT EXISTS ${OpenCV_INSTALL_DIR})
            -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
            -DBUILD_TBB=ON
            -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
+           -DWITH_JPEG=ON       # Set to OFF if using other image format, ALL ON FOR NOW (JPEG, TIFF, PNG, WEBP)
+           -DBUILD_JPEG=ON
+           -DWITH_TIFF=ON
+           -DBUILD_TIFF=ON
+           -DWITH_PNG=ON
+           -DBUILD_PNG=ON
+           -DWITH_WEBP=ON
+           -DBUILD_WEBP=ON
            -DWITH_PROTOBUF=OFF
            -DBUILD_PROTOBUF=OFF
            -DBUILD_opencv_python2=OFF
            -DBUILD_opencv_python3=OFF
         )
-        execute_process(COMMAND ${CMAKE_COMMAND} --build ${OpenCV_BUILD_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} --install ${OpenCV_BUILD_DIR})
+        execute_process(COMMAND ${CMAKE_COMMAND} --build ${OPENCV_BUILD_DIR})
+        execute_process(COMMAND ${CMAKE_COMMAND} --install ${OPENCV_BUILD_DIR})
     endif()
+
+    # Clean up
+    message(STATUS "Cleaning up OPENCV build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/opencv-src
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/opencv-build
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/opencv-subbuild
+        RESULT_VARIABLE CLEAN_RESULT
+    )
+    if(NOT CLEAN_RESULT EQUAL 0)
+        message(WARNING "Failed to clean up OPENCV build artifacts: ${CLEAN_RESULT}")
+    else()
+        message(STATUS "OPENCV build artifacts cleaned up.")
+    endif()
+    message(STATUS "OPENCV fetched and installed.")
 endif()
-set(OpenCV_DIR ${OpenCV_INSTALL_DIR}/lib/cmake/opencv4)
-find_package(OpenCV REQUIRED)
+set(OPENCV_ROOT ${OPENCV_INSTALL_DIR})
+message(STATUS "OPENCV can now be found in: ${OPENCV_INSTALL_DIR}")
+
+
+
 
 # ================ Boost ================
 set(BOOST_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/boost_src)
 set(BOOST_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/boost-build)
 
-# Always fetch and build Boost from source, ignoring local installations
-message(STATUS "Fetching Boost 1.87.0...")
-file(MAKE_DIRECTORY ${BOOST_INSTALL_DIR})
-
-include(FetchContent)
-FetchContent_Declare(
-    boost
-    GIT_REPOSITORY https://github.com/boostorg/boost.git
-    GIT_TAG boost-1.87.0
-    SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/boost-src
-)
-FetchContent_GetProperties(boost)
-if(NOT boost_POPULATED)
-    message(STATUS "Populating Boost content...")
-    FetchContent_Populate(boost)
-
-    # Configure Boost
-    message(STATUS "Configuring Boost...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND}
-        -S ${CMAKE_BINARY_DIR}/_deps/boost-src
-        -B ${BOOST_BUILD_DIR}
-        -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
-        -DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
-        -DBUILD_SHARED_LIBS=OFF
-        -DCMAKE_CXX_FLAGS="-D_FILE_OFFSET_BITS=64 -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
-        OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
-        ERROR_VARIABLE BOOST_CONFIGURE_ERROR
-        RESULT_VARIABLE BOOST_CONFIGURE_RESULT
+#file(MAKE_DIRECTORY ${BOOST_INSTALL_DIR})
+#include(FetchContent)
+if(NOT EXISTS ${BOOST_INSTALL_DIR})
+    message(STATUS "Fetching Boost...")
+    FetchContent_Declare(
+        boost
+        GIT_REPOSITORY https://github.com/boostorg/boost.git
+        GIT_TAG boost-1.87.0
+        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/boost-src
     )
-    message(STATUS "Boost configure output: ${BOOST_CONFIGURE_OUTPUT}")
-    if(NOT BOOST_CONFIGURE_RESULT EQUAL 0)
-        message(STATUS "Boost configure error output: ${BOOST_CONFIGURE_ERROR}")
-        message(FATAL_ERROR "Boost configuration failed with result: ${BOOST_CONFIGURE_RESULT}")
+    FetchContent_GetProperties(boost)
+    if(NOT boost_POPULATED)
+        message(STATUS "Populating Boost content...")
+        FetchContent_Populate(boost)
+
+        # Configure Boost
+        message(STATUS "Configuring Boost...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND}
+            -S ${CMAKE_BINARY_DIR}/_deps/boost-src
+            -B ${BOOST_BUILD_DIR}
+            -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
+            -DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
+            -DBUILD_SHARED_LIBS=OFF
+            -DCMAKE_CXX_FLAGS="-D_FILE_OFFSET_BITS=64 -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
+            OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
+            ERROR_VARIABLE BOOST_CONFIGURE_ERROR
+            RESULT_VARIABLE BOOST_CONFIGURE_RESULT
+        )
+        message(STATUS "Boost configure output: ${BOOST_CONFIGURE_OUTPUT}")
+        if(NOT BOOST_CONFIGURE_RESULT EQUAL 0)
+            message(STATUS "Boost configure error output: ${BOOST_CONFIGURE_ERROR}")
+            message(FATAL_ERROR "Boost configuration failed with result: ${BOOST_CONFIGURE_RESULT}")
+        endif()
+
+        # Build Boost
+        message(STATUS "Building Boost...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --build ${BOOST_BUILD_DIR}
+            OUTPUT_VARIABLE BOOST_BUILD_OUTPUT
+            ERROR_VARIABLE BOOST_BUILD_ERROR
+            RESULT_VARIABLE BOOST_BUILD_RESULT
+        )
+        message(STATUS "Boost build output: ${BOOST_BUILD_OUTPUT}")
+        if(NOT BOOST_BUILD_RESULT EQUAL 0)
+            message(STATUS "Boost build error output: ${BOOST_BUILD_ERROR}")
+            message(FATAL_ERROR "Boost build failed with result: ${BOOST_BUILD_RESULT}")
+        endif()
+
+        # Install Boost
+        message(STATUS "Installing Boost...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --install ${BOOST_BUILD_DIR}
+            OUTPUT_VARIABLE BOOST_INSTALL_OUTPUT
+            ERROR_VARIABLE BOOST_INSTALL_ERROR
+            RESULT_VARIABLE BOOST_INSTALL_RESULT
+        )
+        message(STATUS "Boost install output: ${BOOST_INSTALL_OUTPUT}")
+        if(NOT BOOST_INSTALL_RESULT EQUAL 0)
+            message(STATUS "Boost install error output: ${BOOST_INSTALL_ERROR}")
+            message(FATAL_ERROR "Boost installation failed with result: ${BOOST_INSTALL_RESULT}")
+        endif()
     endif()
 
-    # Build Boost
-    message(STATUS "Building Boost...")
+    # Clean up
+    message(STATUS "Cleaning up BOOST build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
     execute_process(
-        COMMAND ${CMAKE_COMMAND} --build ${BOOST_BUILD_DIR}
-        OUTPUT_VARIABLE BOOST_BUILD_OUTPUT
-        ERROR_VARIABLE BOOST_BUILD_ERROR
-        RESULT_VARIABLE BOOST_BUILD_RESULT
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-src
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-build
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-subbuild
+        RESULT_VARIABLE CLEAN_RESULT
     )
-    message(STATUS "Boost build output: ${BOOST_BUILD_OUTPUT}")
-    if(NOT BOOST_BUILD_RESULT EQUAL 0)
-        message(STATUS "Boost build error output: ${BOOST_BUILD_ERROR}")
-        message(FATAL_ERROR "Boost build failed with result: ${BOOST_BUILD_RESULT}")
+    if(NOT CLEAN_RESULT EQUAL 0)
+        message(WARNING "Failed to clean up BOOST build artifacts: ${CLEAN_RESULT}")
+    else()
+        message(STATUS "BOOST build artifacts cleaned up.")
     endif()
+    message(STATUS "BOOST fetched and installed.")
 
-    # Install Boost
-    message(STATUS "Installing Boost...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} --install ${BOOST_BUILD_DIR}
-        OUTPUT_VARIABLE BOOST_INSTALL_OUTPUT
-        ERROR_VARIABLE BOOST_INSTALL_ERROR
-        RESULT_VARIABLE BOOST_INSTALL_RESULT
-    )
-    message(STATUS "Boost install output: ${BOOST_INSTALL_OUTPUT}")
-    if(NOT BOOST_INSTALL_RESULT EQUAL 0)
-        message(STATUS "Boost install error output: ${BOOST_INSTALL_ERROR}")
-        message(FATAL_ERROR "Boost installation failed with result: ${BOOST_INSTALL_RESULT}")
-    endif()
 endif()
-
 # Ensure CMake uses the freshly built Boost
-set(Boost_NO_BOOST_CMAKE TRUE)  # Prevent CMake from using Boost's own CMake config
-find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST_INSTALL_DIR} NO_DEFAULT_PATH)
+message(STATUS "Verifying OPENCV installation...")
+set(BOOST_ROOT ${BOOST_INSTALL_DIR})
+set(BOOST_DIR ${BOOST_INSTALL_DIR}/lib/cmake/Boost-1.87.0)
+set(BOOST_LIBRARY_DIRS ${BOOST_INSTALL_DIR}/lib)
+set(BOOST_INCLUDE_DIRS ${BOOST_INSTALL_DIR}/include)
+message(STATUS "BOOST can now be found in: ${BOOST_INSTALL_DIR}")
 
 # ================ FLANN ================
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
@@ -331,27 +424,51 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
         message(STATUS "FLANN install error output: ${FLANN_INSTALL_ERROR}")
         message(FATAL_ERROR "FLANN installation failed with result: ${FLANN_INSTALL_RESULT}")
     endif()
+
+    # Clean up
+    message(STATUS "Cleaning up FLANN build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-src
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-build
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-subbuild
+        RESULT_VARIABLE CLEAN_RESULT
+    )
+    if(NOT CLEAN_RESULT EQUAL 0)
+        message(WARNING "Failed to clean up FLANN build artifacts: ${CLEAN_RESULT}")
+    else()
+        message(STATUS "FLANN build artifacts cleaned up.")
+    endif()
+    message(STATUS "FLANN fetched and installed.")
 endif()
 
 # Set FLANN paths for later use
-set(FLANN_DIR ${FLANN_INSTALL_DIR}/lib/cmake/flann)
-set(FLANN_INCLUDE_DIR ${FLANN_INSTALL_DIR}/include)
-set(ENV{PKG_CONFIG_PATH} "${FLANN_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+message(STATUS "Verifying FLANN installation...")
+set(FLANN_ROOT ${FLANN_INSTALL_DIR})
+#set(ENV{PKG_CONFIG_PATH} "${FLANN_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")   # Let's try to NOT add this.
+message(STATUS "FLANN found, verification complete!")
+message(STATUS "FLANN can now be found in: ${FLANN_INSTALL_DIR}")
+
+
+
 
 # ================ PCL ================
 set(PCL_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/pcl_src)
 set(PCL_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/pcl-build)
-## START OF EXTRA CHECK that LZ4 can be found because of PCL's problematic dependency on LZ4...
-set(LZ4_LIBRARY_PATH "${CMAKE_SOURCE_DIR}/3party/lz4_src/lib/liblz4.a")
-if(NOT EXISTS ${LZ4_LIBRARY_PATH})
-    message(FATAL_ERROR "LZ4 library not found at ${LZ4_LIBRARY_PATH}")
-endif()
+message(STATUS "PCL_INSTALL_DIR set to: ${PCL_INSTALL_DIR}")
+message(STATUS "PCL_BUILD_DIR set to: ${PCL_BUILD_DIR}")
 
-set(Eigen3_DIR "${CMAKE_SOURCE_DIR}/3party/Eigen_src/share/eigen3/cmake")
-find_package(Eigen3 3.4.0 REQUIRED)
-message(STATUS "${FLANN_INSTALL_DIR}")
+## START OF EXTRA CHECK that LZ4 can be found because of PCL's problematic dependency on LZ4...
+#set(LZ4_LIBRARY_PATH "${CMAKE_SOURCE_DIR}/3party/lz4_src/lib/liblz4.a")
+#message(STATUS "Checking for LZ4 library at: ${LZ4_LIBRARY_PATH}")
+#if(NOT EXISTS ${LZ4_LIBRARY_PATH})
+#    message(FATAL_ERROR "LZ4 library not found at ${LZ4_LIBRARY_PATH}")
+#endif()
+
+#set(Eigen3_DIR "${CMAKE_SOURCE_DIR}/3party/eigen_src/share/eigen3/cmake")
+#message(STATUS "EIGEN3_DIR set to: ${Eigen3_DIR}")
 
 ## END OF EXTRA CHECK
+message(STATUS "Checking if PCL_INSTALL_DIR exists: ${PCL_INSTALL_DIR}")
 if(NOT EXISTS ${PCL_INSTALL_DIR})
     message(STATUS "Fetching PCL...")
     FetchContent_Declare(
@@ -361,28 +478,27 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
         SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/pcl-src
     )
     FetchContent_GetProperties(pcl)
+    message(STATUS "PCL populated: ${pcl_POPULATED}")
     if(NOT pcl_POPULATED)
+        message(STATUS "Making PCL available...")
         FetchContent_MakeAvailable(pcl)
+        message(STATUS "Configuring PCL build...")
         execute_process(
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/pcl-src
             -B ${PCL_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${PCL_INSTALL_DIR}
-            -DEigen3_DIR=${EIGEN3_INSTALL_DIR}/share/eigen3/cmake
-            # -DFLANN_INCLUDE_DIR=${FLANN_INSTALL_DIR}/lib/cmake/flann
-            # -DFLANN_INCLUDE_DIR=${FLANN_INSTALL_DIR}/include
-            # -DFLANN_LIBRARY=${FLANN_INSTALL_DIR}/lib/libflann_cpp.so
-            -DFLANN_ROOT=${FLANN_INSTALL_DIR}
-            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-            # -DBOOST_ROOT=${BOOST_INSTALL_DIR}                  # REMOVE?
-           # "-DCMAKE_SHARED_LINKER_FLAGS=-L/opt/homebrew/lib -llz4"  # Link flag, important - without this PCL builder wont find LZ4 lib... not good solution...
-            #"-DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_CURRENT_SORUCE_DIR}/3party/lz4_src/lib/liblz4.a"
-            "-DCMAKE_SHARED_LINKER_FLAGS=${LZ4_LIBRARY_PATH}"  # Full path here
             -DBUILD_SHARED_LIBS=OFF
-            # -DBUILD_octree=OFF                              # REMOVE?
+            -DPCL_SHARED_LIBS=OFF
+            -DLZ4_ROOT=${LZ4_INSTALL_DIR}                       # Point to previously installed LZ4 dir
+            "-DCMAKE_SHARED_LINKER_FLAGS=${LZ4_LIBRARY_PATH}"   # Full path here
+            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}                     # Point to previously installed ZLIB dir
+            -DEIGEN_DIR=${EIGEN_INSTALL_DIR} #/share/eigen3/cmake # Point to previously installed eigen dir # CAN BE REMOVED?
+            -DBOOST_ROOT=${BOOST_INSTALL_DIR}                   # Point to previously installed BOOST dir
+            -DBOOST_LIBRARY_DIRS=${BOOST_INSTALL_DIR}/lib
+            -DFLANN_ROOT=${FLANN_INSTALL_DIR}                   # Point to previously installed flann dir
             -DBUILD_filters=ON
             -DBUILD_keypoints=ON
-            # -DBUILD_sample_consensus=OFF
             -DBUILD_registration=OFF
             -DBUILD_surface=OFF
             -DBUILD_visualization=OFF
@@ -405,12 +521,49 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
             -DWITH_RSSDK=OFF
             -DWITH_RSSDK2=OFF
         )
-        execute_process(COMMAND ${CMAKE_COMMAND} --build ${PCL_BUILD_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} --install ${PCL_BUILD_DIR})
+
+        # Build PCL
+        message(STATUS "Building PCL...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --build ${PCL_BUILD_DIR}
+            RESULT_VARIABLE PCL_BUILD_RESULT
+        )
+        if(NOT PCL_BUILD_RESULT EQUAL 0)
+            # Capture build output for debugging if it fails
+            execute_process(
+                COMMAND ${CMAKE_COMMAND} --build ${PCL_BUILD_DIR}
+                OUTPUT_VARIABLE PCL_BUILD_OUTPUT
+                ERROR_VARIABLE PCL_BUILD_ERROR
+            )
+            message(STATUS "PCL build output: ${PCL_BUILD_OUTPUT}")
+            message(STATUS "PCL build error output: ${PCL_BUILD_ERROR}")
+            message(FATAL_ERROR "PCL build failed with result: ${PCL_BUILD_RESULT}")
+        endif()
+
+        # Install PCL
+        message(STATUS "Installing PCL...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --install ${PCL_BUILD_DIR}
+            RESULT_VARIABLE PCL_INSTALL_RESULT
+        )
+        if(NOT PCL_INSTALL_RESULT EQUAL 0)
+            # Capture install output for debugging if it fails
+            execute_process(
+                COMMAND ${CMAKE_COMMAND} --install ${PCL_BUILD_DIR}
+                OUTPUT_VARIABLE PCL_INSTALL_OUTPUT
+                ERROR_VARIABLE PCL_INSTALL_ERROR
+            )
+            message(STATUS "PCL install output: ${PCL_INSTALL_OUTPUT}")
+            message(STATUS "PCL install error output: ${PCL_INSTALL_ERROR}")
+            message(FATAL_ERROR "PCL installation failed with result: ${PCL_INSTALL_RESULT}")
+        endif()
+
     endif()
 endif()
+message(STATUS "Adding PCL_INSTALL_DIR to CMAKE_PREFIX_PATH: ${PCL_INSTALL_DIR}")
 list(APPEND CMAKE_PREFIX_PATH ${PCL_INSTALL_DIR})
-find_package(PCL REQUIRED)
+set(PCL_ROOT ${PCL_INSTALL_DIR})
+message(STATUS "PCL can now be found in: ${PCL_INSTALL_DIR}")
 
 
 # # ================ KINDR ================
