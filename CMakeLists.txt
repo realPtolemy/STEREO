@@ -50,18 +50,18 @@ if(NOT EXISTS ${LZ4_INSTALL_DIR})
     endif()
     
     # Clean up
-    message(STATUS "Cleaning up LZ4 build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-src
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-build
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-subbuild
-        RESULT_VARIABLE CLEAN_RESULT
-    )
-    if(NOT CLEAN_RESULT EQUAL 0)
-        message(WARNING "Failed to clean up LZ4 build artifacts: ${CLEAN_RESULT}")
-    else()
-        message(STATUS "LZ4 build artifacts cleaned up.")
-    endif()
+    #message(STATUS "Cleaning up LZ4 build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    #execute_process(
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-src
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-build
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/lz4-subbuild
+    #    RESULT_VARIABLE CLEAN_RESULT
+    #)
+    #if(NOT CLEAN_RESULT EQUAL 0)
+    #    message(WARNING "Failed to clean up LZ4 build artifacts: ${CLEAN_RESULT}")
+    #else()
+    #    message(STATUS "LZ4 build artifacts cleaned up.")
+    #endif()
 
     message(STATUS "LZ4 processing complete")
 else()
@@ -96,18 +96,18 @@ if(NOT EXISTS ${ZLIB_INSTALL_DIR})
         execute_process(COMMAND ${CMAKE_COMMAND} --install ${ZLIB_BUILD_DIR})
     endif()
     # Clean up
-    message(STATUS "Cleaning up ZLIB build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-src
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-build
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-subbuild
-        RESULT_VARIABLE CLEAN_RESULT
-    )
-    if(NOT CLEAN_RESULT EQUAL 0)
-        message(WARNING "Failed to clean up ZLIB build artifacts: ${CLEAN_RESULT}")
-    else()
-        message(STATUS "ZLIB build artifacts cleaned up.")
-    endif()
+    #message(STATUS "Cleaning up ZLIB build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    #execute_process(
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-src
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-build
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/zlib-subbuild
+    #    RESULT_VARIABLE CLEAN_RESULT
+    #)
+    #if(NOT CLEAN_RESULT EQUAL 0)
+    #    message(WARNING "Failed to clean up ZLIB build artifacts: ${CLEAN_RESULT}")
+    #else()
+    #    message(STATUS "ZLIB build artifacts cleaned up.")
+    #endif()
     message(STATUS "ZLIB fetched and installed.")
 endif()
 set(ZLIB_ROOT ${ZLIB_INSTALL_DIR})
@@ -138,24 +138,32 @@ if(NOT EXISTS ${EIGEN_INSTALL_DIR})
     endif()
 
      # Clean up
-    message(STATUS "Cleaning up EIGEN build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-src
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-build
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-subbuild
-        RESULT_VARIABLE CLEAN_RESULT
-    )
-    if(NOT CLEAN_RESULT EQUAL 0)
-        message(WARNING "Failed to clean up EIGEN build artifacts: ${CLEAN_RESULT}")
-    else()
-        message(STATUS "EIGEN build artifacts cleaned up.")
-    endif()
+    #message(STATUS "Cleaning up EIGEN build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    #execute_process(
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-src
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-build
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/eigen-subbuild
+    #    RESULT_VARIABLE CLEAN_RESULT
+    #)
+    #if(NOT CLEAN_RESULT EQUAL 0)
+    #    message(WARNING "Failed to clean up EIGEN build artifacts: ${CLEAN_RESULT}")
+    #else()
+    #    message(STATUS "EIGEN build artifacts cleaned up.")
+    #endif()
     message(STATUS "EIGEN fetched and installed.")
 endif()
 message(STATUS "Verifying EIGEN installation...")
 set(EIGEN_ROOT ${EIGEN_INSTALL_DIR})
 message(STATUS "EIGEN can now be found in: ${EIGEN_INSTALL_DIR}")
 
+# ================ Eigen Include Fix ================
+find_package(Eigen3 REQUIRED PATHS ${EIGEN_INSTALL_DIR}/share/eigen3/cmake NO_DEFAULT_PATH)
+if(Eigen3_FOUND)
+    message(STATUS "Eigen3 found: ${Eigen3_DIR}")
+    include_directories(${EIGEN3_INCLUDE_DIR}) # Global include path
+else()
+    message(FATAL_ERROR "Eigen3 not found at ${EIGEN_INSTALL_DIR}/share/eigen3/cmake!")
+endif()
 
 
 # ================ OpenCV ================
@@ -168,68 +176,129 @@ if(NOT EXISTS ${OPENCV_INSTALL_DIR})
        GIT_REPOSITORY https://github.com/opencv/opencv.git
        GIT_TAG 4.9.0
        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
-   )
-  FetchContent_GetProperties(opencv)
-  if(NOT opencv_POPULATED)
-      FetchContent_MakeAvailable(opencv)
-      set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
-      set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
-      execute_process(
+    )
+    FetchContent_GetProperties(opencv)
+    if(NOT opencv_POPULATED)
+        FetchContent_MakeAvailable(opencv)
+        set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
+        set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
+        message(STATUS "Configuring OpenCV with JPEG support...")
+        execute_process(
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
             -B ${OPENCV_BUILD_DIR}
-            -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
             -DCMAKE_INSTALL_PREFIX=${OPENCV_INSTALL_DIR}
+            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_TESTS=OFF
+            -DBUILD_EXAMPLES=OFF
             -DBUILD_ZLIB=OFF
             -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-           -DZLIB_LIBRARY=${ZLIB_LIBRARY}
-           -DBUILD_OPENEXR=ON
-           -DBUILD_SHARED_LIBS=OFF
-           -DBUILD_TESTS=OFF
-           -DBUILD_EXAMPLES=OFF
-           -DWITH_IPP=OFF
-           -DWITH_QUIRC=OFF
-           -DWITH_GAPI=OFF
-           -DWITH_ADE=OFF
-           -DWITH_TBB=ON # Remove this and build OpenEXR prior to OpenCV?
-           -DBUILD_TBB=ON
-           -DBUILD_LIST=core,imgproc,highgui,calib3d,photo
-           -DWITH_JPEG=ON       # Set to OFF if using other image format, ALL ON FOR NOW (JPEG, TIFF, PNG, WEBP)
-           -DBUILD_JPEG=ON
-           -DWITH_TIFF=ON
-           -DBUILD_TIFF=ON
-           -DWITH_PNG=ON
-           -DBUILD_PNG=ON
-           -DWITH_WEBP=ON
-           -DBUILD_WEBP=ON
-           -DWITH_PROTOBUF=OFF
-           -DBUILD_PROTOBUF=OFF
-           -DBUILD_opencv_python2=OFF
-           -DBUILD_opencv_python3=OFF
+            -DZLIB_INCLUDE_DIR=${ZLIB_INCLUDE_DIR}
+            -DZLIB_LIBRARY=${ZLIB_LIBRARY}
+            -DWITH_JPEG=ON
+            -DBUILD_JPEG=ON
+            -DWITH_TIFF=OFF
+            -DBUILD_TIFF=OFF
+            -DWITH_PNG=OFF
+            -DBUILD_PNG=OFF
+            -DWITH_WEBP=OFF
+            -DBUILD_WEBP=OFF
+            -DWITH_OPENJPEG=OFF
+            -DBUILD_OPENJPEG=OFF
+            -DWITH_PROTOBUF=OFF
+            -DBUILD_PROTOBUF=OFF
+            -DWITH_IPP=OFF
+            -DWITH_QUIRC=OFF
+            -DWITH_GAPI=OFF
+            -DWITH_ADE=OFF
+            -DWITH_TBB=OFF
+            -DBUILD_TBB=OFF
+            -DBUILD_OPENEXR=OFF
+            -DBUILD_LIST=core,imgproc,highgui,calib3d,photo,imgcodecs
+            -DBUILD_opencv_python2=OFF
+            -DBUILD_opencv_python3=OFF
+            -DBUILD_opencv_stitching=OFF
+            -DBUILD_opencv_video=OFF
+            -DBUILD_opencv_gapi=OFF
+            -DBUILD_opencv_ts=OFF
+            -DBUILD_opencv_java=OFF
+            -DBUILD_opencv_apps=OFF
+            RESULT_VARIABLE CONFIG_RESULT
+            OUTPUT_VARIABLE CONFIG_OUTPUT
+            ERROR_VARIABLE CONFIG_ERROR
         )
-        execute_process(COMMAND ${CMAKE_COMMAND} --build ${OPENCV_BUILD_DIR})
-        execute_process(COMMAND ${CMAKE_COMMAND} --install ${OPENCV_BUILD_DIR})
-    endif()
+        if(CONFIG_RESULT EQUAL 0)
+            message(STATUS "OpenCV configuration successful")
+        else()
+            message(STATUS "OpenCV configuration output: ${CONFIG_OUTPUT}")
+            message(STATUS "OpenCV configuration error: ${CONFIG_ERROR}")
+            message(FATAL_ERROR "OpenCV configuration failed with result: ${CONFIG_RESULT}")
+        endif()
 
-    # Clean up
-    message(STATUS "Cleaning up OPENCV build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/opencv-src
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/opencv-build
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/opencv-subbuild
-        RESULT_VARIABLE CLEAN_RESULT
-    )
-    if(NOT CLEAN_RESULT EQUAL 0)
-        message(WARNING "Failed to clean up OPENCV build artifacts: ${CLEAN_RESULT}")
-    else()
-        message(STATUS "OPENCV build artifacts cleaned up.")
+        # Build OpenCV
+        message(STATUS "Building OpenCV (this may take a while)...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --build ${OPENCV_BUILD_DIR} --target opencv_imgcodecs
+            RESULT_VARIABLE BUILD_RESULT
+            OUTPUT_VARIABLE BUILD_OUTPUT
+            ERROR_VARIABLE BUILD_ERROR
+        )
+        if(BUILD_RESULT EQUAL 0)
+            message(STATUS "OpenCV imgcodecs build successful")
+        else()
+            message(STATUS "OpenCV build output: ${BUILD_OUTPUT}")
+            message(STATUS "OpenCV build error: ${BUILD_ERROR}")
+            message(FATAL_ERROR "OpenCV imgcodecs build failed with result: ${BUILD_RESULT}")
+        endif()
+
+        # Build libjpeg-turbo explicitly
+        message(STATUS "Building libjpeg-turbo explicitly...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --build ${OPENCV_BUILD_DIR} --target libjpeg-turbo
+            RESULT_VARIABLE JPEG_BUILD_RESULT
+            OUTPUT_VARIABLE JPEG_BUILD_OUTPUT
+            ERROR_VARIABLE JPEG_BUILD_ERROR
+        )
+        if(JPEG_BUILD_RESULT EQUAL 0)
+            message(STATUS "libjpeg-turbo build successful")
+        else()
+            message(STATUS "libjpeg-turbo build output: ${JPEG_BUILD_OUTPUT}")
+            message(STATUS "libjpeg-turbo build error: ${JPEG_BUILD_ERROR}")
+            message(FATAL_ERROR "libjpeg-turbo build failed with result: ${JPEG_BUILD_RESULT}")
+        endif()
+
+        # Install OpenCV
+        message(STATUS "Installing OpenCV...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --install ${OPENCV_BUILD_DIR}
+            RESULT_VARIABLE INSTALL_RESULT
+            OUTPUT_VARIABLE INSTALL_OUTPUT
+            ERROR_VARIABLE INSTALL_ERROR
+        )
+        if(INSTALL_RESULT EQUAL 0)
+            message(STATUS "OpenCV installation successful")
+        else()
+            message(STATUS "OpenCV install output: ${INSTALL_OUTPUT}")
+            message(STATUS "OpenCV install error: ${INSTALL_ERROR}")
+            message(FATAL_ERROR "OpenCV installation failed with result: ${INSTALL_RESULT}")
+        endif()
     endif()
     message(STATUS "OPENCV fetched and installed.")
+else()
+    message(STATUS "OpenCV already exists at ${OPENCV_INSTALL_DIR}, verifying installation...")
 endif()
-set(OPENCV_ROOT ${OPENCV_INSTALL_DIR})
+set(OpenCV_DIR ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4)
 message(STATUS "OPENCV can now be found in: ${OPENCV_INSTALL_DIR}")
 
-
+# ================ OpenCV Include Fix ================
+find_package(OpenCV REQUIRED PATHS ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4 NO_DEFAULT_PATH)
+if(OpenCV_FOUND)
+    message(STATUS "OpenCV found: ${OpenCV_DIR}")
+    message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+    message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+else()
+    message(FATAL_ERROR "OpenCV not found at ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4!")
+endif()
 
 
 # ================ Boost ================
@@ -301,18 +370,18 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
     endif()
 
     # Clean up
-    message(STATUS "Cleaning up BOOST build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-src
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-build
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-subbuild
-        RESULT_VARIABLE CLEAN_RESULT
-    )
-    if(NOT CLEAN_RESULT EQUAL 0)
-        message(WARNING "Failed to clean up BOOST build artifacts: ${CLEAN_RESULT}")
-    else()
-        message(STATUS "BOOST build artifacts cleaned up.")
-    endif()
+    #message(STATUS "Cleaning up BOOST build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    #execute_process(
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-src
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-build
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-subbuild
+    #    RESULT_VARIABLE CLEAN_RESULT
+    #)
+    #if(NOT CLEAN_RESULT EQUAL 0)
+    #    message(WARNING "Failed to clean up BOOST build artifacts: ${CLEAN_RESULT}")
+    #else()
+    #    message(STATUS "BOOST build artifacts cleaned up.")
+    #endif()
     message(STATUS "BOOST fetched and installed.")
 
 endif()
@@ -323,6 +392,15 @@ set(BOOST_DIR ${BOOST_INSTALL_DIR}/lib/cmake/Boost-1.87.0)
 set(BOOST_LIBRARY_DIRS ${BOOST_INSTALL_DIR}/lib)
 set(BOOST_INCLUDE_DIRS ${BOOST_INSTALL_DIR}/include)
 message(STATUS "BOOST can now be found in: ${BOOST_INSTALL_DIR}")
+
+find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST_INSTALL_DIR}/lib/cmake NO_DEFAULT_PATH)
+if(Boost_FOUND)
+    message(STATUS "Boost found: ${Boost_DIR}")
+    message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
+    message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
+else()
+    message(FATAL_ERROR "Boost not found at ${BOOST_INSTALL_DIR}/lib/cmake!")
+endif()
 
 # ================ FLANN ================
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
@@ -426,18 +504,18 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
     endif()
 
     # Clean up
-    message(STATUS "Cleaning up FLANN build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-src
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-build
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-subbuild
-        RESULT_VARIABLE CLEAN_RESULT
-    )
-    if(NOT CLEAN_RESULT EQUAL 0)
-        message(WARNING "Failed to clean up FLANN build artifacts: ${CLEAN_RESULT}")
-    else()
-        message(STATUS "FLANN build artifacts cleaned up.")
-    endif()
+    #message(STATUS "Cleaning up FLANN build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+    #execute_process(
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-src
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-build
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-subbuild
+    #    RESULT_VARIABLE CLEAN_RESULT
+    #)
+    #if(NOT CLEAN_RESULT EQUAL 0)
+    #    message(WARNING "Failed to clean up FLANN build artifacts: ${CLEAN_RESULT}")
+    #else()
+    #    message(STATUS "FLANN build artifacts cleaned up.")
+    #endif()
     message(STATUS "FLANN fetched and installed.")
 endif()
 
@@ -464,8 +542,8 @@ message(STATUS "PCL_BUILD_DIR set to: ${PCL_BUILD_DIR}")
 #    message(FATAL_ERROR "LZ4 library not found at ${LZ4_LIBRARY_PATH}")
 #endif()
 
-#set(Eigen3_DIR "${CMAKE_SOURCE_DIR}/3party/eigen_src/share/eigen3/cmake")
-#message(STATUS "EIGEN3_DIR set to: ${Eigen3_DIR}")
+set(Eigen3_DIR "${CMAKE_SOURCE_DIR}/3party/eigen_src/share/eigen3/cmake")
+message(STATUS "EIGEN3_DIR set to: ${Eigen3_DIR}")
 
 ## END OF EXTRA CHECK
 message(STATUS "Checking if PCL_INSTALL_DIR exists: ${PCL_INSTALL_DIR}")
@@ -493,7 +571,7 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
             -DLZ4_ROOT=${LZ4_INSTALL_DIR}                       # Point to previously installed LZ4 dir
             "-DCMAKE_SHARED_LINKER_FLAGS=${LZ4_LIBRARY_PATH}"   # Full path here
             -DZLIB_ROOT=${ZLIB_INSTALL_DIR}                     # Point to previously installed ZLIB dir
-            -DEIGEN_DIR=${EIGEN_INSTALL_DIR} #/share/eigen3/cmake # Point to previously installed eigen dir # CAN BE REMOVED?
+            -DEigen3_DIR=${EIGEN_INSTALL_DIR} #/share/eigen3/cmake # Point to previously installed eigen dir # CAN BE REMOVED?
             -DBOOST_ROOT=${BOOST_INSTALL_DIR}                   # Point to previously installed BOOST dir
             -DBOOST_LIBRARY_DIRS=${BOOST_INSTALL_DIR}/lib
             -DFLANN_ROOT=${FLANN_INSTALL_DIR}                   # Point to previously installed flann dir
@@ -564,6 +642,16 @@ message(STATUS "Adding PCL_INSTALL_DIR to CMAKE_PREFIX_PATH: ${PCL_INSTALL_DIR}"
 list(APPEND CMAKE_PREFIX_PATH ${PCL_INSTALL_DIR})
 set(PCL_ROOT ${PCL_INSTALL_DIR})
 message(STATUS "PCL can now be found in: ${PCL_INSTALL_DIR}")
+
+# ================ PCL Include Fix ================
+find_package(PCL REQUIRED PATHS ${PCL_INSTALL_DIR}/share/pcl-1.15 NO_DEFAULT_PATH)
+if(PCL_FOUND)
+    message(STATUS "PCL found: ${PCL_DIR}")
+    message(STATUS "PCL include dirs: ${PCL_INCLUDE_DIRS}")
+    message(STATUS "PCL libraries: ${PCL_LIBRARIES}")
+else()
+    message(FATAL_ERROR "PCL not found at ${PCL_INSTALL_DIR}/share/pcl-1.15!")
+endif()
 
 
 # # ================ KINDR ================
@@ -690,18 +778,18 @@ if(NOT EXISTS ${CNPY_INSTALL_DIR})
         endif()
 
         # Clean up
-        message(STATUS "Cleaning up CNPY build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-        execute_process(
-            COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-src
-            COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-build
-            COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-subbuild
-            RESULT_VARIABLE CLEAN_RESULT
-        )
-        if(NOT CLEAN_RESULT EQUAL 0)
-            message(WARNING "Failed to clean up CNPY build artifacts: ${CLEAN_RESULT}")
-        else()
-            message(STATUS "CNPY build artifacts cleaned up.")
-        endif()
+        #message(STATUS "Cleaning up CNPY build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
+        #execute_process(
+        #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-src
+        #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-build
+        #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/cnpy-subbuild
+        #    RESULT_VARIABLE CLEAN_RESULT
+        #)
+        #if(NOT CLEAN_RESULT EQUAL 0)
+        #    message(WARNING "Failed to clean up CNPY build artifacts: ${CLEAN_RESULT}")
+        #else()
+        #    message(STATUS "CNPY build artifacts cleaned up.")
+        #endif()
 
         message(STATUS "CNPY processing complete")
     else()
@@ -786,64 +874,52 @@ if(NOT EXISTS ${SOPHUS_INSTALL_DIR})
     endif()
 
     # Clean up
-    message(STATUS "Cleaning up Sophus build artifacts...")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-src
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-build
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-subbuild
-        RESULT_VARIABLE CLEAN_RESULT
-    )
-    if(NOT CLEAN_RESULT EQUAL 0)
-        message(WARNING "Failed to clean up Sophus build artifacts: ${CLEAN_RESULT}")
-    else()
-        message(STATUS "Sophus build artifacts cleaned up.")
-    endif()
+    #message(STATUS "Cleaning up Sophus build artifacts...")
+    #execute_process(
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-src
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-build
+    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-subbuild
+    #    RESULT_VARIABLE CLEAN_RESULT
+    #)
+    #if(NOT CLEAN_RESULT EQUAL 0)
+    #    message(WARNING "Failed to clean up Sophus build artifacts: ${CLEAN_RESULT}")
+    #else()
+    #    message(STATUS "Sophus build artifacts cleaned up.")
+    #endif()
 else()
     message(STATUS "Sophus already exists at ${SOPHUS_INSTALL_DIR}, skipping fetch and build")
 endif()
 message(STATUS "Sophus can now be found in: ${SOPHUS_INSTALL_DIR}")
 
-# ================ PCL Include Fix ================
-find_package(PCL REQUIRED PATHS ${PCL_INSTALL_DIR}/share/pcl-1.15 NO_DEFAULT_PATH)
-if(PCL_FOUND)
-    message(STATUS "PCL found: ${PCL_DIR}")
-    message(STATUS "PCL include dirs: ${PCL_INCLUDE_DIRS}")
-    include_directories(${PCL_INCLUDE_DIRS}) # Add PCL headers globally
-else()
-    message(FATAL_ERROR "PCL not found at ${PCL_INSTALL_DIR}/share/pcl-1.15!")
-endif()
 
-message(STATUS "PROCEEDING WITH OPENCV FIX...")
+
+#message(STATUS "PROCEEDING WITH OPENCV FIX...")
 # !!!!!!!!!!!!!!!!! Verify OpenCV !!!!!!!!!!!!!!!!
-find_package(OpenCV REQUIRED PATHS ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4 NO_DEFAULT_PATH)
-if(OpenCV_FOUND)
-    message(STATUS "OpenCV found: ${OpenCV_DIR}")
-    message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
-    message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
-    include_directories(${OpenCV_INCLUDE_DIRS})
-else()
-    message(FATAL_ERROR "OpenCV not found at ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4!")
-endif()
+#find_package(OpenCV REQUIRED PATHS ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4 NO_DEFAULT_PATH)
+#if(OpenCV_FOUND)
+#    message(STATUS "OpenCV found: ${OpenCV_DIR}")
+#    message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+#    message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+#    include_directories(${OpenCV_INCLUDE_DIRS})
+#else()
+#    message(FATAL_ERROR "OpenCV not found at ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4!")
+#endif()
 
-# ================ Eigen Include Fix ================
-find_package(Eigen3 REQUIRED PATHS ${EIGEN_INSTALL_DIR}/share/eigen3/cmake NO_DEFAULT_PATH)
-if(Eigen3_FOUND)
-    message(STATUS "Eigen3 found: ${Eigen3_DIR}")
-    include_directories(${EIGEN3_INCLUDE_DIR}) # Global include path
-else()
-    message(FATAL_ERROR "Eigen3 not found at ${EIGEN_INSTALL_DIR}/share/eigen3/cmake!")
-endif()
+
+
+
+
 
 # Find OpenMP (required by PCL)
 # ================ OPENMP Include Fix ================
-find_package(OpenMP REQUIRED)
-if(OpenMP_FOUND)
-    message(STATUS "OpenMP found: ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
-else()
-    message(FATAL_ERROR "OpenMP not found!")
-endif()
+#find_package(OpenMP REQUIRED)
+#if(OpenMP_FOUND)
+#    message(STATUS "OpenMP found: ${OpenMP_CXX_FLAGS}")
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+#    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
+#else()
+#    message(FATAL_ERROR "OpenMP not found!")
+#endif()
 
 # ================ Subdirectories ================
 # add_subdirectory(minkindr)
