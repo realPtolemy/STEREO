@@ -6,6 +6,7 @@ set(
     src/buffer_core.cpp
     src/cache.cpp
     src/static_cache.cpp
+    src/time.cpp
 )
 
 add_library(${PROJECT_NAME} ${SOURCES})

@@ -30,7 +30,7 @@
 // #define TRACKING_LOST_RESET \
 //     2000  // if defined, reset tracking when keypoints_.size() < 5000
 
-#define TRACKER_DEBUG_REFERENCE_IMAGE  // define this to start overlap thread
+// #define TRACKER_DEBUG_REFERENCE_IMAGE  // define this to start overlap thread
 // #define TRACKING_PERF  // define this to evaluate also the performances
 
 /**
@@ -91,8 +91,7 @@ private:
      *
      * @param msg Message containing incoming events
      */
-    // Shared pointer här också?
-    void eventCallback(const std::vector<Event>& msg);
+    void eventCallback();
     /**
      * Updates map_ with the new published point cloud
      *

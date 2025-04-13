@@ -184,7 +184,7 @@ void Tracker::trackingThread() {
     }
 }
 
-// TODO: Add this the msg to the shared_state
+// TODO: Add this the msg to the shared_state. Is this needed even? How to handle this.
 void Tracker::remoteCallback(const std::string& msg) {
     const std::string& cmd = msg;
 
@@ -249,16 +249,20 @@ void Tracker::reset() {
 
 // Events are insted stored in the shared_state, these events are read and parsed
 // in the mapper.
-// void Tracker::eventCallback(const std::vector<Event>& msg) {
-//     static const bool discard_events_when_idle = false;
-//     // rpg_common_ros::param<bool>(nhp_, "discard_events_when_idle", false);
-
-//     std::lock_guard<std::mutex> lock(data_mutex_);
-//     if (discard_events_when_idle && idle_) return;
-
-//     clearEventQueue();
-//     for (const auto& e : msg) events_.push_back(e);
-// }
+void Tracker::eventCallback() {
+    static const bool discard_events_when_idle = false;
+    if (discard_events_when_idle && idle_) return;
+    clearEventQueue();
+    std::unique_lock<std::mutex> lock(shared_state_->events_left_.mtx);
+    while (true)
+    {
+        // TODO: Gör det här bättre? Kolla på denna en gång till.
+        shared_state_->events_left_.cv.wait(lock, [this]{ return shared_state_->events_left_.event_ready;});
+        // events_ = shared_state_->events_left_.data;
+        for (const auto& e : shared_state_->events_left_.chunk) events_.push_back(e);
+        shared_state_->events_left_.event_ready = false;
+    }
+}
 
 void Tracker::mapCallback() {
     static size_t min_map_size = 0;
@@ -268,48 +272,49 @@ void Tracker::mapCallback() {
     while (true)
     {
         shared_state_->pcl_state_.pcl_cv.wait(lock, [this]{ return shared_state_->pcl_state_.pcl_ready;});
+
+        /**
+         * map_ and the pcl located in shared_state_ are almost the same.
+         * Pcl in shared_state_ have points with a intesity (Point(XYZI)),
+         * while map_ expectrs points of type Point(XZY).
+         *
+         * So just copy evetyhing over from pcl in shared_state_ to map_ except
+         * the intensity
+        */
+        map_->header = shared_state_->pcl_state_.pcl.get()->header;
+        map_->height = shared_state_->pcl_state_.pcl.get()->height;
+        map_->width = shared_state_->pcl_state_.pcl.get()->width;
+        map_->is_dense = shared_state_->pcl_state_.pcl.get()->is_dense == 1;
+        // map_->resize(shared_state_->pcl_state_.pcl.get()->size());
+        // FIX: Here a preformance gain is possible, pushback allocates memory
+        // so could do it more staticlay
+        map_->clear();
+        for (const auto& pt : *shared_state_->pcl_state_.pcl.get()) {
+            map_->push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
+        }
+
+        // Old way, but should work. see explantation above why this is not used.
+        // pcl::PCLPointCloud2 pcl_pc;
+        // pcl::toPCLPointCloud2(*shared_state_->pcl_state_.pcl, pcl_pc);
+        // pcl::fromPCLPointCloud2(pcl_pc, *map_);
+        // LOG(INFO) << "Received new map: " << map_->size() << " points";
+
+        if (map_->size() > min_map_size && auto_trigger_) {
+            // LOG(INFO) << "Auto-triggering tracking";
+
+            // initialize(msg->header.stamp);
+            initialize(tf2::timeFromSec(shared_state_->pcl_state_.pcl.get()->header.stamp));
+            auto_trigger_ = false;
+        }
+
         shared_state_->pcl_state_.pcl_ready = false;
     }
-    /**
-     * map_ and the pcl located in shared_state_ are almost the same.
-     * Pcl in shared_state_ have points with a intesity (Point(XYZI)),
-     * while map_ expectrs points of type Point(XZY).
-     *
-     * So just copy evetyhing over from pcl in shared_state_ to map_ except
-     * the intensity
-    */
-    map_->header = shared_state_->pcl_state_.pcl.get()->header;
-    map_->height = shared_state_->pcl_state_.pcl.get()->height;
-    map_->width = shared_state_->pcl_state_.pcl.get()->width;
-    map_->is_dense = shared_state_->pcl_state_.pcl.get()->is_dense == 1;
-    // map_->resize(shared_state_->pcl_state_.pcl.get()->size());
-    // FIX: Here a preformance gain is possible, pushback allocates memory
-    // so could do it more staticlay
-    map_->clear();
-    for (const auto& pt : *shared_state_->pcl_state_.pcl.get()) {
-        map_->push_back(pcl::PointXYZ(pt.x, pt.y, pt.z));
-    }
 
-    // Old way, but should work. see explantation above why this is not used.
-    // pcl::PCLPointCloud2 pcl_pc;
-    // pcl::toPCLPointCloud2(*shared_state_->pcl_state_.pcl, pcl_pc);
-    // pcl::fromPCLPointCloud2(pcl_pc, *map_);
-    // LOG(INFO) << "Received new map: " << map_->size() << " points";
-
-    if (map_->size() > min_map_size && auto_trigger_) {
-        // LOG(INFO) << "Auto-triggering tracking";
-
-        // initialize(msg->header.stamp);
-        initialize(tf2::TimePointZero);
-        auto_trigger_ = false;
-    }
 }
 
 void Tracker::updateMap() {
     static size_t min_map_size = 0;
-        // rpg_common_ros::param<int>(nhp_, "min_map_size", 0);
     static size_t min_n_keypoints = 0;
-        // rpg_common_ros::param<int>(nhp_, "min_n_keypoints", 0);
 
     if (map_->size() <= min_map_size) {
         // LOG(WARNING) << "Unreliable map! Can not update map.";
@@ -419,15 +424,17 @@ void Tracker::publishTF() {
     pose_tf.frame_id = world_frame_id_;
     pose_tf.child_frame_id = "dvs_evo_raw";
     poses_.push_back(pose_tf);
-    // TODO: fixa updatering till sahred_state
-    // tf_pub_.sendTransform(new_pose);
+    {
+        std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
+        shared_state_->pose_state_.pose = pose_tf;
+        shared_state_->pose_state_.pose_ready = true;
+    }
 
-    // tf::StampedTransform filtered_pose;
     tf2::msg::TransformStamped filtered_pose;
     if (getFilteredPose(filtered_pose)) {
         filtered_pose.frame_id = world_frame_id_;
         filtered_pose.child_frame_id = frame_id_;
-        // tf_pub_.sendTransform(filtered_pose);
+        // TODO: Göra något liknande för filtered_pose som för pose_tf
         poses_filtered_.push_back(filtered_pose);
         publishPose();
     }
@@ -440,12 +447,11 @@ void Tracker::publishPose() {
     pose.frame_id = T_world_cam.frame_id;
     pose.transform.translation = T_world_cam.transform.translation;
     pose.transform.rotation = T_world_cam.transform.rotation;
-    // poses_pub_.publish(msg_pose);
+    // TODO: Ska vi göra något här ockspå?
 }
 
 bool Tracker::getFilteredPose(tf2::msg::TransformStamped& pose) {
     static const size_t mean_filter_size = 10;
-        // nhp_.param("pose_mean_filter_size", 10);
 
     if (mean_filter_size < 2) {
         pose = poses_.back();

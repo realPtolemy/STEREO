@@ -16,6 +16,7 @@ Mapper::Mapper(SharedState &shared_state)
 	std::vector<std::thread> threads(NUM_OF_CAMERAS_);
 
 	pc_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
+	pc_global_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
 
 	world_frame_id_ = "world";
 	regular_frame_id_ = "dvs0";
@@ -41,6 +42,9 @@ Mapper::Mapper(SharedState &shared_state)
 		threads[0] = std::thread(&Mapper::camera_thread_csv, this, "data/camera_0.csv", std::ref(camera1_events), std::ref(shared_state_->events_left_));
 		threads[1] = std::thread(&Mapper::camera_thread_csv, this, "data/camera_1.csv", std::ref(camera2_events), std::ref(shared_state_->events_right_));
 	#endif
+
+	std::thread pose_reader(&Mapper::tfCallback, this);
+
 	std::thread mapper_thread(&Mapper::mappingLoop, this);
 	// std::cout << "DSI merger" << std::endl;
 
@@ -52,13 +56,72 @@ Mapper::Mapper(SharedState &shared_state)
 		threads[0].join();
 		threads[1].join();
 	#endif
+}
 
-	mapper_thread.join();
+Mapper::~Mapper()
+{
+	running_ = false;
+    if (mapper_thread_.joinable()) {
+        mapper_thread_.join();
+    }
+}
+
+void Mapper::tfCallback(){
+	std::unique_lock<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
+	while (true)
+	{
+		shared_state_->pose_state_.pose_cv.wait(lock, [this]{ return shared_state_->pose_state_.pose_ready; });
+		std::chrono::high_resolution_clock::time_point t_start_callback = std::chrono::high_resolution_clock::now();
+		tf_->setTransform(shared_state_->pose_state_.pose, "mapper");
+		if(shared_state_->pose_state_.pose.child_frame_id == "hand"){
+            tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
+			tf2::msg::TransformStamped T_hand_eye = tf2::eigenToTransform(Eigen::Affine3d(mat4_hand_eye));
+			T_hand_eye.timestamp = tf_stamp_;
+			T_hand_eye.child_frame_id = "hand";
+			T_hand_eye.frame_id = bootstrap_frame_id_;
+            // Broadcast hand eye transform
+			// TODO: update pose evetying that listens to tf here, that is pose.
+            // broadcaster_.sendTransform(stamped_T_hand_eye);
+		}
+		if (shared_state_->pose_state_.pose.child_frame_id == frame_id_ || shared_state_->pose_state_.pose.child_frame_id == "/"+frame_id_) {
+			tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
+			tf2::msg::TransformStamped T_0_1, T_0_2;
+			T_0_1 = tf2::eigenToTransform(Eigen::Affine3d(mat4_1_0.inverse()));
+			T_0_1.timestamp = tf_stamp_;
+			T_0_1.child_frame_id = frame_id_;
+			T_0_1.frame_id = "dvs1";
+            tf_->setTransform(T_0_1, "mapper");
+
+            if (frame_id_ == bootstrap_frame_id_) {
+                // keep bootstrap frame also as regular frame for future use
+                shared_state_->pose_state_.pose.child_frame_id = regular_frame_id_;
+                tf_->setTransform(shared_state_->pose_state_.pose, "mapper");
+            }
+		}
+		std::chrono::high_resolution_clock::time_point t_end_callback = std::chrono::high_resolution_clock::now();
+		shared_state_->pose_state_.pose_ready = false;
+	}
+}
+bool Mapper::waitForTransformSimple(
+	const std::shared_ptr<tf2::BufferCore> & buffer,
+	const std::string & target_frame,
+	const std::string & source_frame,
+	const tf2::TimePoint & time,
+	const tf2::Duration & timeout,
+	const tf2::Duration & polling_sleep)
+{
+	auto start = std::chrono::steady_clock::now();
+	while ((std::chrono::steady_clock::now() - start) < timeout) {
+		if (buffer->canTransform(target_frame, source_frame, time)) {
+			return true;
+		}
+		std::this_thread::sleep_for(polling_sleep);
+	}
+	return false;
 }
 
 void Mapper::mappingLoop()
 {
-
     dsi_shape = EMVS::ShapeDSI(dimX, dimY, dimZ, min_depth, max_depth, fov_deg);
 
 	opts_depth_map.max_confidence = max_confidence;
@@ -78,13 +141,15 @@ void Mapper::mappingLoop()
 	std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
 
 	std::string error_msg;
+	while (running_){
+        if (!shared_state_->pcl_state_.pcl_listeners){
+			pc_global_->clear();
+		}
 
-	while (ros::ok()){
-        if (!shared_state_->pcl_state_.pcl_listeners)
-            pc_global_->clear();
 
         tf2::msg::TransformStamped latest_tf;
-		if(shared_state_->waitForTransformSimple(
+
+		if(waitForTransformSimple(
 			tf_,
 			world_frame_id_,
 			frame_id_, tf2::TimePointZero,
@@ -97,10 +162,10 @@ void Mapper::mappingLoop()
 			// LOG(WARNING) << error_msg;
 			continue;
 		}
-
         if (auto_trigger_ && initialized_ && !map_initialized && tf2::durationToSec(latest_tf_stamp_ - current_ts_) > init_wait_t_) {
             // LOG(INFO) << "GENERATING INITIAL MAP AUTOMATICALLY.";
             state_ = MAPPING;
+
         }
         if (state_ != MAPPING)
 			// TODO: Handle this?

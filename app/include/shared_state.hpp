@@ -23,19 +23,23 @@ struct EventQueue {
     std::condition_variable cv;
     bool event_ready = false;
     std::deque<T> data;
+    std::vector<Event>&& chunk;
 
 	void push_back(std::vector<Event>&& chunk) {
 		std::lock_guard<std::mutex> lock(mtx);
+        this.chunk = chunk;
         for(Event &e : chunk){
-            data.push_back(std::move(e))
+            data.push_back(std::move(e));
         }
+        event_ready = true;
+        cv.notify_all();
 		// data.push_back(std::move(chunk));
 		checkSize();
 	}
 private:
     // Copied from ES-PTAM, added so that it handles a queue of vectors of events instead
 	void checkSize() {
-		static const size_t MAX_EVENT_QUEUE_LENGTH = 50000000 / 512;
+		static const size_t MAX_EVENT_QUEUE_LENGTH = 50000000;
 		if (data.size() > MAX_EVENT_QUEUE_LENGTH) {
 			size_t to_remove = data.size() - MAX_EVENT_QUEUE_LENGTH;
 			std::cout << "Event queue is too long, removing " << to_remove << " events\n";
@@ -57,14 +61,14 @@ struct pose_state {
     // Behövs condition variable?
     std::condition_variable pose_cv;
     bool pose_ready = false;
-    tf2::msg::PoseStamped pose;
+    tf2::msg::TransformStamped pose;
 };
 
 class SharedState{
 private:
 
 public:
-    SharedState();
+    SharedState() = default;
     ~SharedState() = default;
 
     pcl_state pcl_state_;
@@ -72,25 +76,6 @@ public:
     EventQueue<Event> events_left_;
     EventQueue<Event> events_right_;
     std::mutex data_mutex;
-
-    // Based upon waitForTransfrom from tf, it's just a blocking thread
-    bool waitForTransformSimple(
-        const std::shared_ptr<tf2::BufferCore> & buffer,
-        const std::string & target_frame,
-        const std::string & source_frame,
-        const tf2::TimePoint & time,
-        const tf2::Duration & timeout,
-        const tf2::Duration & polling_sleep = std::chrono::milliseconds(10))
-    {
-        auto start = std::chrono::steady_clock::now();
-        while ((std::chrono::steady_clock::now() - start) < timeout) {
-            if (buffer->canTransform(target_frame, source_frame, time)) {
-                return true;
-            }
-            std::this_thread::sleep_for(polling_sleep);
-        }
-        return false;
-    }
 };
 
 #endif

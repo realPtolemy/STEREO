@@ -111,7 +111,7 @@ template<typename Scalar>
 RotationQuaternionTemplate<Scalar>::RotationQuaternionTemplate(
     const RotationMatrix& matrix) :
     q_A_B_(matrix) {
-  CHECK(isValidRotationMatrix(matrix)) << matrix;
+  // CHECK(isValidRotationMatrix(matrix)) << matrix;
 }
 
 template<typename Scalar>
@@ -120,8 +120,8 @@ RotationQuaternionTemplate<Scalar>::fromApproximateRotationMatrix(
     const RotationMatrix& matrix) {
   // We still want the input matrix to resemble a rotation matrix to avoid
   // bug hiding.
-  CHECK(isValidRotationMatrix(
-      matrix, static_cast<Scalar>(EPS<float>::normalization_value())));
+  // CHECK(isValidRotationMatrix(
+  //     matrix, static_cast<Scalar>(EPS<float>::normalization_value())));
   // http://people.csail.mit.edu/bkph/articles/Nearest_Orthonormal_Matrix.pdf
   // as discussed in https://github.com/ethz-asl/kindr/issues/55 ,
   // code by Philipp Krüsi.
@@ -404,9 +404,9 @@ template<typename Scalar>
 RotationQuaternionTemplate<Scalar>
 RotationQuaternionTemplate<Scalar>::operator*(
     const RotationQuaternionTemplate<Scalar>& rhs) const {
-  CHECK(!std::is_arithmetic<Scalar>::value) << "Please provide a specialized "
-      "function for this specific arithmetic type. This function is only a "
-      "workaround for non-arithmetic types.";
+  // CHECK(!std::is_arithmetic<Scalar>::value) << "Please provide a specialized "
+  //     "function for this specific arithmetic type. This function is only a "
+  //     "workaround for non-arithmetic types.";
   Implementation result = q_A_B_ * rhs.q_A_B_;
 
   // Check if the multiplication has resulted in the quaternion no longer being

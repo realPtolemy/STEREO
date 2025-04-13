@@ -1,4 +1,4 @@
-option(READ_EVENT_FROM_AESTREAM "read events from aestream instead of csv file" ON)
+option(READ_EVENT_FROM_AESTREAM "read events from aestream instead of csv file" OFF)
 option(OUPUT_PCL_TO_USER "" OFF)
 option(OUTPUT_DEPTH_MAPS_TO_USER "" OFF)
 # Add more options here

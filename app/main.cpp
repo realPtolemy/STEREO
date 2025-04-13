@@ -35,8 +35,8 @@ int main(int argc, char **argv) {
     // std::string msg = server.receive();
     // std::cout << "Client received: " << msg << std::endl;
 
-    SharedState SharedState;
-    Mapper mapper(SharedState);
+    SharedState shared_state;
+    Mapper mapper(shared_state);
     // Tracker tracker(SharedState);
     return 0;
 }

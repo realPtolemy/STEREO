@@ -7,6 +7,7 @@
 #include "mapper/transformation.hpp"
 #include "shared_state.hpp"
 #include "tf2/time.hpp"
+#include "tf2/LinearMath/tf2_eigen.hpp"
 #include "mapper/process1_live.hpp"
 
 #include <iostream>
@@ -33,6 +34,9 @@ class Mapper
 private:
     // Shared state data
     SharedState *shared_state_;
+
+    std::atomic<bool> running_{true};  // Control flag
+    std::thread mapper_thread_;
 
     std::shared_ptr<tf2::BufferCore> tf_;
     std::string world_frame_id_;
@@ -144,10 +148,8 @@ private:
     void camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera1_events, EventQueue<Event> &event_queue);
     void camera_thread_udp(Server server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue);
     Event parse_bufferd_data(std::string &buffered_data);
-    // void checkEventQueue(std::deque<std::vector<Event>> &event_queue);
-    void dsi_merger(std::vector<Event> &camera1_events, std::vector<Event> &camera2_events);
     void mappingLoop();
-    void Mapper::MappingAtTime(
+    void MappingAtTime(
         tf2::TimePoint current_ts,
         std::vector<Event> &events_left_,
         std::vector<Event> &events_right_,
@@ -155,9 +157,19 @@ private:
         std::string frame_id
     );
     void publishMsgs(std::string frame_id);
-    void Mapper::publishImgs(std::string frame_id);
+    void publishImgs(std::string frame_id);
+    bool waitForTransformSimple(
+        const std::shared_ptr<tf2::BufferCore> & buffer,
+        const std::string & target_frame,
+        const std::string & source_frame,
+        const tf2::TimePoint & time,
+        const tf2::Duration & timeout,
+        const tf2::Duration & polling_sleep = std::chrono::milliseconds(10)
+    );
+    void tfCallback();
 public:
     Mapper(SharedState &shared_state);
+    ~Mapper();
 };
 
 #endif
