@@ -175,7 +175,7 @@ if(NOT EXISTS ${OPENCV_INSTALL_DIR})
     FetchContent_Declare(
         opencv
         GIT_REPOSITORY https://github.com/opencv/opencv.git
-        GIT_TAG 4.9.0
+        GIT_TAG 4.11.0
         SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
     )
     FetchContent_GetProperties(opencv)
@@ -300,25 +300,7 @@ if(NOT EXISTS ${OPENCV_INSTALL_DIR})
             message(STATUS "OpenCV install output: ${INSTALL_OUTPUT}")
             message(STATUS "OpenCV install error: ${INSTALL_ERROR}")
             message(FATAL_ERROR "OpenCV installation failed with result: ${INSTALL_RESULT}")
-        endif()
-        # Patch OpenCVModules.cmake to ensure correct INTERFACE_LINK_LIBRARIES
-        message(STATUS "Patching OpenCVModules.cmake...")
-        set(OPENCV_MODULES_CMAKE "${OPENCV_INSTALL_DIR}/lib/cmake/opencv4/OpenCVModules.cmake")
-        file(READ ${OPENCV_MODULES_CMAKE} MODULES_CMAKE_CONTENT)
-        # Check if patching is needed
-        if(MODULES_CMAKE_CONTENT MATCHES "OpenEXR::OpenEXR|libjasper|tegra_hal")
-            # Replace INTERFACE_LINK_LIBRARIES for opencv_imgcodecs
-            string(REGEX REPLACE
-                "set_target_properties\\(opencv_imgcodecs PROPERTIES[ \t\n]*INTERFACE_LINK_LIBRARIES \".*?\"\\)"
-                "set_target_properties(opencv_imgcodecs PROPERTIES\n  INTERFACE_LINK_LIBRARIES \"opencv_core;opencv_imgproc;\$<LINK_ONLY:Eigen3::Eigen>;\$<LINK_ONLY:libjpeg-turbo>;${ZLIB_LIBRARY};-framework AppKit\")"
-                MODULES_CMAKE_CONTENT_MODIFIED
-                ${MODULES_CMAKE_CONTENT}
-            )
-            file(WRITE ${OPENCV_MODULES_CMAKE} "${MODULES_CMAKE_CONTENT_MODIFIED}")
-            message(STATUS "OpenCVModules.cmake patched successfully")
-        else()
-            message(STATUS "OpenCVModules.cmake already correct, skipping patch")
-        endif()
+        endif() 
     endif()
     message(STATUS "OpenCV fetched and installed.")
 else()
