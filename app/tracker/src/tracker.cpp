@@ -130,8 +130,8 @@ Tracker::Tracker(SharedState &shared_state):
     // TODO: Fixa att trackern har tillgång till kameran, ska kameran ligga i shared state?
     // c_ = evo_utils::camera::loadPinholeCamera(nh);
 
-    postCameraLoaded();
-
+    // postCameraLoaded();
+    std::cout << "Tracker!" << std::endl;
     std::thread pointcloud_thread(&Tracker::mapCallback, this);
     std::thread event_thread(&Tracker::eventCallback, this);
     // // Setup Subscribers
@@ -157,6 +157,9 @@ Tracker::Tracker(SharedState &shared_state):
     auto_trigger_ = false;
 
     tracking_thread_ = std::thread(&Tracker::trackingThread, this);
+
+    event_thread.join();
+    pointcloud_thread.join();
 }
 
 // Denna funktion ska kallas av tråden i main, konstruktorn kan inte kallas i en tråd
@@ -257,8 +260,12 @@ void Tracker::eventCallback() {
     while (true)
     {
         // TODO: Gör det här bättre? Kolla på denna en gång till.
-        shared_state_->events_left_.cv.wait(lock, [this]{ return shared_state_->events_left_.event_ready;});
+        std::cout << "test" << std::endl;
+        shared_state_->events_left_.cv_event.wait(lock, [this]{ return shared_state_->events_left_.event_ready;});
         // events_ = shared_state_->events_left_.data;
+        for (const auto& event : shared_state_->events_left_.chunk) {
+            std::cout << event.x << ", " << event.y << ", " << tf2::timeToSec(event.timestamp) << ", " << event.polarity << "\n";
+        }
         for (const auto& e : shared_state_->events_left_.chunk) events_.push_back(e);
         shared_state_->events_left_.event_ready = false;
     }

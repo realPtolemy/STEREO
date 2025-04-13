@@ -37,6 +37,6 @@ int main(int argc, char **argv) {
 
     SharedState shared_state;
     Mapper mapper(shared_state);
-    // Tracker tracker(SharedState);
+    Tracker tracker(shared_state);
     return 0;
 }

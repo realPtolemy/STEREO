@@ -20,21 +20,21 @@
 template <typename T>
 struct EventQueue {
     std::mutex mtx;
-    std::condition_variable cv;
+    std::condition_variable cv_event;
     bool event_ready = false;
     std::deque<T> data;
-    std::vector<Event>&& chunk;
+    std::vector<Event> chunk;
 
 	void push_back(std::vector<Event>&& chunk) {
 		std::lock_guard<std::mutex> lock(mtx);
-        this.chunk = chunk;
+        this->chunk = chunk;
         for(Event &e : chunk){
             data.push_back(std::move(e));
         }
-        event_ready = true;
-        cv.notify_all();
 		// data.push_back(std::move(chunk));
 		checkSize();
+        event_ready = true;
+        cv_event.notify_one();
 	}
 private:
     // Copied from ES-PTAM, added so that it handles a queue of vectors of events instead
