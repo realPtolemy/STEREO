@@ -169,20 +169,37 @@ endif()
 # ================ OpenCV ================
 set(OPENCV_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/opencv_src)
 set(OPENCV_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-build)
+
 if(NOT EXISTS ${OPENCV_INSTALL_DIR})
-   message(STATUS "Fetching OPENCV...")
-   FetchContent_Declare(
-       opencv
-       GIT_REPOSITORY https://github.com/opencv/opencv.git
-       GIT_TAG 4.9.0
-       SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
+    message(STATUS "Fetching OpenCV...")
+    FetchContent_Declare(
+        opencv
+        GIT_REPOSITORY https://github.com/opencv/opencv.git
+        GIT_TAG 4.9.0
+        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/opencv-src
     )
     FetchContent_GetProperties(opencv)
     if(NOT opencv_POPULATED)
-        FetchContent_MakeAvailable(opencv)
+        FetchContent_Populate(opencv)
+
+        # Patch OpenCV's OpenCVGenPkgconfig.cmake to fix cmake_minimum_required issue
+        message(STATUS "Patching OpenCVGenPkgconfig.cmake...")
+        set(OPENCV_PKGCONFIG_CMAKE "${CMAKE_BINARY_DIR}/_deps/opencv-src/cmake/OpenCVGenPkgconfig.cmake")
+        file(READ ${OPENCV_PKGCONFIG_CMAKE} PKGCONFIG_CMAKE_CONTENT)
+        string(REPLACE
+            "cmake_minimum_required(VERSION 2.8.12.2)"
+            "cmake_minimum_required(VERSION 3.5)"
+            PKGCONFIG_CMAKE_CONTENT_MODIFIED
+            ${PKGCONFIG_CMAKE_CONTENT}
+        )
+        file(WRITE ${OPENCV_PKGCONFIG_CMAKE} "${PKGCONFIG_CMAKE_CONTENT_MODIFIED}")
+        message(STATUS "OpenCVGenPkgconfig.cmake patched successfully")
+
         set(ZLIB_INCLUDE_DIR ${ZLIB_INSTALL_DIR}/include)
         set(ZLIB_LIBRARY ${ZLIB_INSTALL_DIR}/lib/libz.a)
         message(STATUS "Configuring OpenCV with JPEG support...")
+
+        # Configure OpenCV
         execute_process(
             COMMAND ${CMAKE_COMMAND}
             -S ${CMAKE_BINARY_DIR}/_deps/opencv-src
@@ -213,6 +230,7 @@ if(NOT EXISTS ${OPENCV_INSTALL_DIR})
             -DWITH_ADE=OFF
             -DWITH_TBB=OFF
             -DBUILD_TBB=OFF
+            -DWITH_OPENEXR=OFF
             -DBUILD_OPENEXR=OFF
             -DBUILD_LIST=core,imgproc,highgui,calib3d,photo,imgcodecs
             -DBUILD_opencv_python2=OFF
@@ -223,6 +241,7 @@ if(NOT EXISTS ${OPENCV_INSTALL_DIR})
             -DBUILD_opencv_ts=OFF
             -DBUILD_opencv_java=OFF
             -DBUILD_opencv_apps=OFF
+            -DOPENCV_GENERATE_PKGCONFIG=ON
             RESULT_VARIABLE CONFIG_RESULT
             OUTPUT_VARIABLE CONFIG_OUTPUT
             ERROR_VARIABLE CONFIG_ERROR
@@ -233,22 +252,6 @@ if(NOT EXISTS ${OPENCV_INSTALL_DIR})
             message(STATUS "OpenCV configuration output: ${CONFIG_OUTPUT}")
             message(STATUS "OpenCV configuration error: ${CONFIG_ERROR}")
             message(FATAL_ERROR "OpenCV configuration failed with result: ${CONFIG_RESULT}")
-        endif()
-
-        # Build OpenCV
-        message(STATUS "Building OpenCV (this may take a while)...")
-        execute_process(
-            COMMAND ${CMAKE_COMMAND} --build ${OPENCV_BUILD_DIR} --target opencv_imgcodecs
-            RESULT_VARIABLE BUILD_RESULT
-            OUTPUT_VARIABLE BUILD_OUTPUT
-            ERROR_VARIABLE BUILD_ERROR
-        )
-        if(BUILD_RESULT EQUAL 0)
-            message(STATUS "OpenCV imgcodecs build successful")
-        else()
-            message(STATUS "OpenCV build output: ${BUILD_OUTPUT}")
-            message(STATUS "OpenCV build error: ${BUILD_ERROR}")
-            message(FATAL_ERROR "OpenCV imgcodecs build failed with result: ${BUILD_RESULT}")
         endif()
 
         # Build libjpeg-turbo explicitly
@@ -267,6 +270,22 @@ if(NOT EXISTS ${OPENCV_INSTALL_DIR})
             message(FATAL_ERROR "libjpeg-turbo build failed with result: ${JPEG_BUILD_RESULT}")
         endif()
 
+        # Build OpenCV
+        message(STATUS "Building OpenCV... This will take some time...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --build ${OPENCV_BUILD_DIR}
+            RESULT_VARIABLE BUILD_RESULT
+            OUTPUT_VARIABLE BUILD_OUTPUT
+            ERROR_VARIABLE BUILD_ERROR
+        )
+        if(BUILD_RESULT EQUAL 0)
+            message(STATUS "OpenCV build successful")
+        else()
+            message(STATUS "OpenCV build output: ${BUILD_OUTPUT}")
+            message(STATUS "OpenCV build error: ${BUILD_ERROR}")
+            message(FATAL_ERROR "OpenCV build failed with result: ${BUILD_RESULT}")
+        endif()
+
         # Install OpenCV
         message(STATUS "Installing OpenCV...")
         execute_process(
@@ -282,24 +301,48 @@ if(NOT EXISTS ${OPENCV_INSTALL_DIR})
             message(STATUS "OpenCV install error: ${INSTALL_ERROR}")
             message(FATAL_ERROR "OpenCV installation failed with result: ${INSTALL_RESULT}")
         endif()
+        # Patch OpenCVModules.cmake to ensure correct INTERFACE_LINK_LIBRARIES
+        message(STATUS "Patching OpenCVModules.cmake...")
+        set(OPENCV_MODULES_CMAKE "${OPENCV_INSTALL_DIR}/lib/cmake/opencv4/OpenCVModules.cmake")
+        file(READ ${OPENCV_MODULES_CMAKE} MODULES_CMAKE_CONTENT)
+        # Check if patching is needed
+        if(MODULES_CMAKE_CONTENT MATCHES "OpenEXR::OpenEXR|libjasper|tegra_hal")
+            # Replace INTERFACE_LINK_LIBRARIES for opencv_imgcodecs
+            string(REGEX REPLACE
+                "set_target_properties\\(opencv_imgcodecs PROPERTIES[ \t\n]*INTERFACE_LINK_LIBRARIES \".*?\"\\)"
+                "set_target_properties(opencv_imgcodecs PROPERTIES\n  INTERFACE_LINK_LIBRARIES \"opencv_core;opencv_imgproc;\$<LINK_ONLY:Eigen3::Eigen>;\$<LINK_ONLY:libjpeg-turbo>;${ZLIB_LIBRARY};-framework AppKit\")"
+                MODULES_CMAKE_CONTENT_MODIFIED
+                ${MODULES_CMAKE_CONTENT}
+            )
+            file(WRITE ${OPENCV_MODULES_CMAKE} "${MODULES_CMAKE_CONTENT_MODIFIED}")
+            message(STATUS "OpenCVModules.cmake patched successfully")
+        else()
+            message(STATUS "OpenCVModules.cmake already correct, skipping patch")
+        endif()
     endif()
-    message(STATUS "OPENCV fetched and installed.")
+    message(STATUS "OpenCV fetched and installed.")
 else()
     message(STATUS "OpenCV already exists at ${OPENCV_INSTALL_DIR}, verifying installation...")
 endif()
-set(OpenCV_DIR ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4)
-message(STATUS "OPENCV can now be found in: ${OPENCV_INSTALL_DIR}")
 
-# ================ OpenCV Include Fix ================
-find_package(OpenCV REQUIRED PATHS ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4 NO_DEFAULT_PATH)
+# Set OpenCV paths explicitly
+set(OpenCV_DIR ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4)
+set(OpenCV_INCLUDE_DIRS ${OPENCV_INSTALL_DIR}/include/opencv4)
+
+# Find OpenCV
+find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR} NO_DEFAULT_PATH)
 if(OpenCV_FOUND)
     message(STATUS "OpenCV found: ${OpenCV_DIR}")
     message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
     message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+    # Explicitly set include directories to avoid source dir references
+    set_target_properties(opencv_core opencv_imgproc opencv_highgui opencv_calib3d opencv_photo opencv_imgcodecs
+        PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${OPENCV_INSTALL_DIR}/include/opencv4"
+    )
 else()
-    message(FATAL_ERROR "OpenCV not found at ${OPENCV_INSTALL_DIR}/lib/cmake/opencv4!")
+    message(FATAL_ERROR "OpenCV not found at ${OpenCV_DIR}!")
 endif()
-
 
 # ================ Boost ================
 set(BOOST_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/boost_src)
