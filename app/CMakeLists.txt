@@ -9,7 +9,8 @@ set(SOURCES
     mapper/src/process1_live.cpp
     mapper/src/utils.cpp
     mapper/src/mapper_emvs_stereo.cpp
-    mapper/src/camera.cpp
+    # mapper/src/camera.cpp
+    src/camera.cpp
     tracker/src/tracker.cpp
     tracker/src/lk_se3.cpp
     talking_test/src/class1.cpp

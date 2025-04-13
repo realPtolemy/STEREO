@@ -11,24 +11,35 @@ Mapper::Mapper(SharedState &shared_state)
 	current_ts_ = tf2::TimePointZero;
 
 	std::vector<Event> camera1_events, camera2_events;
-	camera1_events.reserve(NUM_EV_PER_MAP);
-	camera2_events.reserve(NUM_EV_PER_MAP);
+	camera1_events.reserve(EVENT_BATCH_SIZE);
+	camera2_events.reserve(EVENT_BATCH_SIZE);
 	std::vector<std::thread> threads(NUM_OF_CAMERAS_);
 
 	pc_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
+
+	world_frame_id_ = "world";
+	regular_frame_id_ = "dvs0";
+	bootstrap_frame_id_ = regular_frame_id_;
+	frame_id_ = bootstrap_frame_id_;
+
+    cv::Size full_resolution = cam0.fullResolution();
+    event_image0_ = cv::Mat(full_resolution,CV_8UC1);
+    event_image1_ = cv::Mat(full_resolution,CV_8UC1);
+    tf_ = std::make_shared<tf2::BufferCore>(tf2::durationFromSec(100) );
+    tf_->setUsingDedicatedThread(true);
 
 	#ifdef READ_EVENT_FROM_AESTREAM
 	/**
 	 * First a connection to the UDP stream has to be made.
 	 */
-	Server camera1_server(3333);
-	// Server camera2_server(port2)
-	std::thread camera1_thread(&Mapper::camera_thread_udp, this, camera1_server, std::ref(camera1_events), std::ref(shared_state_->events_left_));
-	// 3party/aestream_src/bin/aestream input file data/camera_0.csv output udp
-	// std::thread camera2_thread(camera_thread_udp, camera2_server, std::ref(camera2_events), std::ref(shared_state_->events_right_));
+		Server camera1_server(3333);
+		// Server camera2_server(port2)
+		std::thread camera1_thread(&Mapper::camera_thread_udp, this, camera1_server, std::ref(camera1_events), std::ref(shared_state_->events_left_));
+		// std::thread camera2_thread(camera_thread_udp, camera2_server, std::ref(camera2_events), std::ref(shared_state_->events_right_));
+		// 3party/aestream_src/bin/aestream input file data/camera_0.csv output udp
 	#else
-	threads[0] = std::thread(&Mapper::camera_thread_csv, this, "data/camera_0.csv", std::ref(camera1_events), std::ref(shared_state_->events_left_));
-	threads[1] = std::thread(&Mapper::camera_thread_csv, this, "data/camera_1.csv", std::ref(camera2_events), std::ref(shared_state_->events_right_));
+		threads[0] = std::thread(&Mapper::camera_thread_csv, this, "data/camera_0.csv", std::ref(camera1_events), std::ref(shared_state_->events_left_));
+		threads[1] = std::thread(&Mapper::camera_thread_csv, this, "data/camera_1.csv", std::ref(camera2_events), std::ref(shared_state_->events_right_));
 	#endif
 	std::thread mapper_thread(&Mapper::mappingLoop, this);
 	// std::cout << "DSI merger" << std::endl;
@@ -36,6 +47,7 @@ Mapper::Mapper(SharedState &shared_state)
 	// dsi_merger(std::ref(camera1_events), std::ref(camera2_events));
 	#ifdef READ_EVENT_FROM_AESTREAM
 		camera1_thread.join();
+		// camera2_thread.join();
 	#else
 		threads[0].join();
 		threads[1].join();
@@ -46,31 +58,243 @@ Mapper::Mapper(SharedState &shared_state)
 
 void Mapper::mappingLoop()
 {
-	while (true){
-		if(false){
-			pc_global_->clear();
-		}
+
+    dsi_shape = EMVS::ShapeDSI(dimX, dimY, dimZ, min_depth, max_depth, fov_deg);
+
+	opts_depth_map.max_confidence = max_confidence;
+	opts_depth_map.adaptive_threshold_kernel_size_ = adaptive_threshold_kernel_size;
+	opts_depth_map.adaptive_threshold_c_ = adaptive_threshold_c;
+	opts_depth_map.median_filter_size_ = median_filter_size;
+	opts_depth_map.full_sequence = full_seq;
+	opts_depth_map.save_conf_stats = save_conf_stats;
+	opts_depth_map.save_mono = save_mono;
+	opts_depth_map.rv_pos = rv_pos;
+
+	bool map_initialized = false;
+
+	// TODO: Fix ros::Rate and ros::ok()
+    const tf2::Duration interval = tf2::durationFromSec(0.01);
+    tf2::TimePoint next_time = tf2::get_now() + interval;
+	std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
+
+	std::string error_msg;
+
+	while (ros::ok()){
+        if (!shared_state_->pcl_state_.pcl_listeners)
+            pc_global_->clear();
 
         tf2::msg::TransformStamped latest_tf;
-        // if(tf_->waitForTransform(world_frame_id_, frame_id_, tf2::TimePointZero, ros::Duration(0), ros::Duration(0.01), &error_msg)){
-        //     tf_->lookupTransform(world_frame_id_, frame_id_, tf2::TimePointZero, latest_tf);
-        //     latest_tf_stamp_ = latest_tf.stamp_;
-        // }
-		// else {
-		// 	// LOG(WARNING) << error_msg;
-		// 	continue;
-		// }
+		if(shared_state_->waitForTransformSimple(
+			tf_,
+			world_frame_id_,
+			frame_id_, tf2::TimePointZero,
+			tf2::Duration(0),
+			tf2::durationFromSec(0.01))
+		){
+			latest_tf = tf_->lookupTransform(world_frame_id_, frame_id_, tf2::TimePointZero);
+            latest_tf_stamp_ = latest_tf.timestamp;
+        } else {
+			// LOG(WARNING) << error_msg;
+			continue;
+		}
 
-		// std::vector<Event> ev_subset_left_, ev_subset_right_;
-		// int last_tracked_ev_left, last_tracked_ev_right;
-		// if (current_ts_ < latest_tf_stamp_)
+        if (auto_trigger_ && initialized_ && !map_initialized && tf2::durationToSec(latest_tf_stamp_ - current_ts_) > init_wait_t_) {
+            // LOG(INFO) << "GENERATING INITIAL MAP AUTOMATICALLY.";
+            state_ = MAPPING;
+        }
+        if (state_ != MAPPING)
+			// TODO: Handle this?
+			return;
+		std::vector<Event> ev_subset_left_, ev_subset_right_, ev_subset_tri_;
+		int last_tracked_ev_left, last_tracked_ev_right;
+		if (current_ts_ >= latest_tf_stamp_) {
+
+		}
+		{
+			std::lock_guard<std::mutex> lock(data_mutex_);
+			// Find the first events that's older than the previous saved tf.
+			last_tracked_ev_left = shared_state_->events_left_.data.size() - 1;
+			while (last_tracked_ev_left>0 && shared_state_->events_left_.data[last_tracked_ev_left].timestamp > latest_tf_stamp_){
+				--last_tracked_ev_left;
+			}
+			// The same for the right camera
+			last_tracked_ev_right = shared_state_->events_right_.data.size() - 1;
+			while (last_tracked_ev_right>0 && shared_state_->events_right_.data[last_tracked_ev_right].timestamp > latest_tf_stamp_){
+				--last_tracked_ev_right;
+			}
+			// Check that there is enough events in both cameras to make a new map
+			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP) {
+				// LOG(INFO) << "Not enough events yet...";
+				continue;
+			}
+			// LOG(INFO) << "Creating subset of events with size: "<< NUM_EV_PER_MAP;
+			current_ts_ = latest_tf_stamp_;
+			double_t duration = tf2::durationToSec(current_ts_ - shared_state_->events_left_.data[last_tracked_ev_left - NUM_EV_PER_MAP].timestamp);
+			// LOG(INFO) << "Duration: "<<duration;
+			//              ros::Time ev_subset_start_ts = (events_left_.end()-NUM_EV_PER_MAP)->ts;
+			if (duration > max_duration_){
+				// LOG(INFO) << "Looking too far back in the past. skip";
+				continue;
+			}
+			if (duration < min_duration_){
+				// LOG(INFO) << "Time interval is not big enough. There might be flashing events. Skip.";
+				continue;
+			}
+			ev_subset_left_ = std::vector<Event>(
+				shared_state_->events_left_.data.begin()+last_tracked_ev_left-NUM_EV_PER_MAP,
+				shared_state_->events_left_.data.begin()+last_tracked_ev_left
+			);
+			ev_subset_right_ = std::vector<Event>(
+				shared_state_->events_right_.data.begin()+last_tracked_ev_right-NUM_EV_PER_MAP,
+				shared_state_->events_right_.data.begin()+last_tracked_ev_right
+			);
+		}
+		MappingAtTime(current_ts_, ev_subset_left_, ev_subset_right_, ev_subset_tri_, frame_id_);
+
+		if (on_demand_)
+			state_ = IDLE;
+		if (auto_copilot_ && !map_initialized)
+			frame_id_ = regular_frame_id_;
+		map_initialized = true;
 	}
-
 }
 
-void dsi_merger(std::vector<Event> &camera1_events, std::vector<Event> &camera2_events)
-{
-    std::cout << "DSI merger" << std::endl;
+void Mapper::MappingAtTime(
+	tf2::TimePoint current_ts,
+	std::vector<Event> &events_left_,
+	std::vector<Event> &events_right_,
+	std::vector<Event> &events_tri_,
+	std::string frame_id
+){
+    // LOG(INFO)<<"Initializing mapper fused";
+    EMVS::MapperEMVS mapper_fused(cam0, dsi_shape); //, mapper_fused_camera_time(cam0, dsi_shape);
+    mapper_fused.name = "fused";
+    // LOG(INFO)<<"Initializing mapper 0";
+    EMVS::MapperEMVS mapper0(cam0, dsi_shape);
+    mapper0.name="0";
+    // LOG(INFO)<<"Initializing mapper 1";
+    EMVS::MapperEMVS mapper1(cam1, dsi_shape);
+    mapper1.name="1";
+
+    // LOG(INFO)<<"Initializing mapper 2";
+    EMVS::MapperEMVS mapper2(cam2, dsi_shape);
+    mapper2.name="2";
+
+    switch(process_method)
+    {
+    case 1:
+        // Compute two DSIs (one for each camera) and fuse them.
+        // Only fusion across stereo camera, i.e., Alg. 1 of MC-EMVS (Ghosh and Gallego, AISY 2022) is implemented here
+        process_1(
+			world_frame_id_,
+			frame_id,
+			cam0,
+			cam1,
+			cam2,
+			tf_,
+			events_left_,
+			events_right_,
+			events_tri_,
+			opts_depth_map,
+			dsi_shape,
+			mapper_fused,
+			mapper0,
+			mapper1,
+			mapper2,
+			out_path,
+			current_ts,
+			stereo_fusion,
+			T_rv_w_
+		);
+        break;
+    default:
+        // LOG(INFO) << "Incorrect process method selected.. exiting";
+        exit(0);
+    }
+
+    // Convert DSI to depth maps using argmax and noise filtering
+    mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
+    //    mapper0.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
+
+    // Convert semi-dense depth map to point cloud
+    EMVS::OptionsPointCloud opts_pc;
+    opts_pc.radius_search_ = radius_search;
+    opts_pc.min_num_neighbors_ = min_num_neighbors;
+    mapper_fused.getPointcloud(depth_map, semidense_mask, opts_pc, pc_, T_rv_w_);
+    //    mapper0.getPointcloud(depth_map, semidense_mask, opts_pc, pc_, T_rv_w_);
+
+	publishMsgs(frame_id);
+}
+
+void Mapper::publishMsgs(std::string frame_id){
+	#ifdef PUBLISH_IMG
+		publishImgs(frame_id);
+	#endif
+	// TODO: Add a bool flag here, representing that the tracker is activated and wants pcl
+	if(!pc_->empty()){
+		pc_->header.stamp = tf2::timeToSec(current_ts_);
+		std::lock_guard<std::mutex> lock(shared_state_->pcl_state_.pcl_mtx);
+		shared_state_->pcl_state_.pcl = pc_;
+		shared_state_->pcl_state_.pcl_ready = true;
+		shared_state_->pcl_state_.pcl_cv.notify_all();
+		// TODO: en global pointcloud? Den ackumulerar flera pointclouds
+	}
+}
+
+void Mapper::publishImgs(std::string frame_id){
+	// LOG(INFO) << "Publishing message!!!!!!!!!!!!!!!!!!!!!!!!! ";
+    // cv_bridge::CvImagePtr cv_ptr(new cv_bridge::CvImage);
+    // cv_ptr->encoding = "mono8";
+    // cv_ptr->header.stamp = ros::Time(current_ts_);
+    // cv_ptr->header.frame_id = frame_id;
+    // cv_ptr->image = event_image0_;
+    // ev_img_pub_.publish(cv_ptr->toImageMsg());
+
+    // if (invDepthMap_pub_.getNumSubscribers() > 0 || conf_map_pub_.getNumSubscribers() > 0) {
+
+    //     // Save confidence map as an 8-bit image
+    //     cv::Mat confidence_map_255;
+    //     cv::normalize(confidence_map, confidence_map_255, 0, 255.0, cv::NORM_MINMAX, CV_8UC1);
+
+    //     // colorize depth maps according to max and min depth
+    //     cv::Mat invdepthmap_8bit, invdepthmap_color;
+    //     cv::Mat invmap = 1./depth_map;
+    //     float mod_max_depth = 1 * dsi_shape.max_depth_;
+    //     cv::Mat invdepth_map_255 = (invmap - 1./mod_max_depth)  / (1./dsi_shape.min_depth_ - 1./mod_max_depth) * 255.;
+    //     invdepth_map_255.convertTo(invdepthmap_8bit, CV_8U);
+    //     cv::applyColorMap(invdepthmap_8bit, invdepthmap_color, cv::COLORMAP_JET);
+    //     cv::Mat invdepth_on_canvas = cv::Mat(depth_map.rows, depth_map.cols, CV_8UC3, cv::Scalar(1,1,1)*0);
+    //     invdepthmap_color.copyTo(invdepth_on_canvas, semidense_mask);
+    //     cv::Mat element = cv::getStructuringElement( cv::MORPH_ELLIPSE, cv::Size(3,3));
+    //     cv::dilate(invdepth_on_canvas, invdepth_on_canvas, element);
+
+    //     // Change the background from black to white
+    //     for ( int i = 0; i < invdepth_on_canvas.rows; i++ ) {
+    //         for ( int j = 0; j < invdepth_on_canvas.cols; j++ ) {
+    //             if ( invdepth_on_canvas.at<cv::Vec3b>(i, j) == cv::Vec3b(0, 0, 0) ) {
+    //                 invdepth_on_canvas.at<cv::Vec3b>(i, j)[0] = 255;
+    //                 invdepth_on_canvas.at<cv::Vec3b>(i, j)[1] = 255;
+    //                 invdepth_on_canvas.at<cv::Vec3b>(i, j)[2] = 255;
+    //             }
+    //         }
+    //     }
+
+    //     //      saveDepthMaps(depth_map, confidence_map, semidense_mask, dsi_shape.min_depth_, dsi_shape.max_depth_, std::string("fused"), FLAGS_out_path + std::to_string(ts));
+
+    //     cv_bridge::CvImagePtr cv_ptr(new cv_bridge::CvImage);
+    //     cv_ptr->encoding = "bgr8";
+    //     cv_ptr->header.stamp = ros::Time(current_ts_);
+    //     cv_ptr->header.frame_id = "/map";
+    //     cv_ptr->image = invdepth_on_canvas;
+    //     invDepthMap_pub_.publish(cv_ptr->toImageMsg());
+
+    //     cv_bridge::CvImagePtr cv_ptr2(new cv_bridge::CvImage);
+    //     cv_ptr2->encoding = "mono8";
+    //     cv_ptr2->header.stamp = ros::Time(current_ts_);
+    //     cv_ptr2->header.frame_id = "/map";
+    //     cv_ptr2->image = 255 - confidence_map_255;
+    //     conf_map_pub_.publish(cv_ptr2->toImageMsg());
+    // }
 }
 
 /*
@@ -84,7 +308,7 @@ void dsi_merger(std::vector<Event> &camera1_events, std::vector<Event> &camera2_
 
 	Good idead to have some params for docuemntation here.
 */
-void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera_events, EventQueue<std::vector<Event>> &event_queue)
+void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera_events, EventQueue<Event> &event_queue)
 {
   	// ha en if sats eller #ifdef för att kolla ifall det är udp eller csv
   	std::ifstream event_file(event_file_path);
@@ -96,7 +320,7 @@ void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<E
   	while (std::getline(event_file, line)) {
 		Event e = parse_line(line);
   		camera_events.push_back(e);
-  		if (camera_events.size() == NUM_EV_PER_MAP){
+  		if (camera_events.size() == EVENT_BATCH_SIZE){
 			std::lock_guard<std::mutex> lock(data_mutex_);
 			if (!initialized_) {
 				// Behvös en event_offset?
@@ -113,7 +337,7 @@ void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<E
   	event_file.close();
 }
 
-void Mapper::camera_thread_udp(Server server, std::vector<Event> &camera_events, EventQueue<std::vector<Event>> &event_queue){
+void Mapper::camera_thread_udp(Server server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue){
 
 	while (true) {
 		// std::string buffered_data = server.receive();
@@ -137,19 +361,6 @@ void Mapper::camera_thread_udp(Server server, std::vector<Event> &camera_events,
 		// std::cout << buffered_data << "\n";
 	}
 }
-
-// Copied from ES-PTAM, added so that it takes a queue of vectors of events instead
-// void Mapper::checkEventQueue(std::deque<std::vector<Event>> &event_queue)
-// {
-// 	// 50000000
-//     static const size_t MAX_EVENT_QUEUE_LENGTH = 50000000/NUM_EV_PER_MAP;
-//     if (event_queue.size() > MAX_EVENT_QUEUE_LENGTH)
-//     {
-// 		std::cout << "Event queue is too long, removing " << event_queue.size() << " events" << std::endl;
-//         size_t NUM_EVENTS_TO_REMOVE = event_queue.size() - MAX_EVENT_QUEUE_LENGTH;
-//         event_queue.erase(event_queue.begin(), event_queue.begin() + NUM_EVENTS_TO_REMOVE);
-//     }
-// }
 
 /*
 	Parse a line from a csv file and return an Event object.

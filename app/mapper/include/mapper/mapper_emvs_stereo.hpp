@@ -1,7 +1,7 @@
 #ifndef MAPPER_EMVS_STEREO_HPP
 #define MAPPER_EMVS_STEREO_HPP
 
-#include "mapper/camera.hpp"
+#include "camera.hpp"
 #include "event.hpp"
 #include "mapper/depth_vector.hpp"
 #include "mapper/transformation.hpp"

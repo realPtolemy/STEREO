@@ -20,16 +20,20 @@
 template <typename T>
 struct EventQueue {
     std::mutex mtx;
+    std::condition_variable cv;
+    bool event_ready = false;
     std::deque<T> data;
 
-	void push_back(T&& chunk) {
+	void push_back(std::vector<Event>&& chunk) {
 		std::lock_guard<std::mutex> lock(mtx);
-		data.push_back(std::move(chunk));
+        for(Event &e : chunk){
+            data.push_back(std::move(e))
+        }
+		// data.push_back(std::move(chunk));
 		checkSize();
 	}
-
 private:
-    // Copied from ES-PTAM, added so that it takes a queue of vectors of events instead
+    // Copied from ES-PTAM, added so that it handles a queue of vectors of events instead
 	void checkSize() {
 		static const size_t MAX_EVENT_QUEUE_LENGTH = 50000000 / 512;
 		if (data.size() > MAX_EVENT_QUEUE_LENGTH) {
@@ -44,6 +48,7 @@ struct pcl_state {
     std::mutex pcl_mtx;
     std::condition_variable pcl_cv;
     bool pcl_ready = false;
+    bool pcl_listeners = false;
     pcl::PointCloud<pcl::PointXYZI>::Ptr pcl;
 };
 
@@ -59,25 +64,33 @@ class SharedState{
 private:
 
 public:
-    SharedState() {};
+    SharedState();
     ~SharedState() = default;
 
     pcl_state pcl_state_;
     pose_state pose_state_;
-    EventQueue<std::vector<Event>> events_left_;
-    EventQueue<std::vector<Event>> events_right_;
+    EventQueue<Event> events_left_;
+    EventQueue<Event> events_right_;
     std::mutex data_mutex;
 
-    // inline void waitForTransform(
-    //     std::string &target_frame,
-    //     std::string &source_frame,
-    //     tf2::TimePoint &time,
-    //     // ,tf_state &tf_state
-    //     tf2::Duration &timeout)
-    // {
-    //     // tf_state_.tf_.get()->addTransformableRequest;
-    // }
-
+    // Based upon waitForTransfrom from tf, it's just a blocking thread
+    bool waitForTransformSimple(
+        const std::shared_ptr<tf2::BufferCore> & buffer,
+        const std::string & target_frame,
+        const std::string & source_frame,
+        const tf2::TimePoint & time,
+        const tf2::Duration & timeout,
+        const tf2::Duration & polling_sleep = std::chrono::milliseconds(10))
+    {
+        auto start = std::chrono::steady_clock::now();
+        while ((std::chrono::steady_clock::now() - start) < timeout) {
+            if (buffer->canTransform(target_frame, source_frame, time)) {
+                return true;
+            }
+            std::this_thread::sleep_for(polling_sleep);
+        }
+        return false;
+    }
 };
 
 #endif

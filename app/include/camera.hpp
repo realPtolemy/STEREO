@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
+#include <opencv2/calib3d.hpp>
 
 #include <iostream>
 
@@ -85,7 +86,6 @@ public:
 
     // Accessors
     cv::Size fullResolution() const;
-
     double fx() const { return camera_info.fx_; }
     double fy() const { return camera_info.fy_; }
     double cx() const { return camera_info.cx_; }
@@ -106,6 +106,8 @@ public:
 
     cv::Vec3d translationCV() const { return camera_info.T_cv; }
     Eigen::Vector3d translationEigen() const { return camera_info.T_eigen; }
+
+    cv::Point rectifyPoint(cv::Point point);
 
 };
 

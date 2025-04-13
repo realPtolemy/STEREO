@@ -145,12 +145,12 @@ void fromMsg(const A & a, B & b);
  * \param a an object to convert from
  * \param b the object to convert to
  */
-template<class A, class B>
-void convert(const A & a, B & b)
-{
-  impl::Converter<rosidl_generator_traits::is_message<A>::value,
-    rosidl_generator_traits::is_message<B>::value>::convert(a, b);
-}
+// template<class A, class B>
+// void convert(const A & a, B & b)
+// {
+//   impl::Converter<rosidl_generator_traits::is_message<A>::value,
+//     rosidl_generator_traits::is_message<B>::value>::convert(a, b);
+// }
 
 template<class A>
 void convert(const A & a1, A & a2)

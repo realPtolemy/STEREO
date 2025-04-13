@@ -1,12 +1,13 @@
 #ifndef MAPPER_HPP
 #define MAPPER_HPP
 
-#include "mapper/camera.hpp"
+#include "camera.hpp"
 #include "event.hpp"
 #include "mapper/mapper_emvs_stereo.hpp"
 #include "mapper/transformation.hpp"
 #include "shared_state.hpp"
 #include "tf2/time.hpp"
+#include "mapper/process1_live.hpp"
 
 #include <iostream>
 #include <vector>
@@ -33,6 +34,12 @@ private:
     // Shared state data
     SharedState *shared_state_;
 
+    std::shared_ptr<tf2::BufferCore> tf_;
+    std::string world_frame_id_;
+    std::string frame_id_;
+    std::string regular_frame_id_;
+    std::string bootstrap_frame_id_;
+    std::string out_path;
     // online data
     // std::deque<std::vector<Event>> events_left_, events_right_;
     std::map<tf2::TimePoint, Transformation> poses_;
@@ -48,6 +55,12 @@ private:
     int dimX = 0;
     int dimY = 0;
     int dimZ = 100;
+    int max_confidence = 0;
+    bool full_seq = false;
+    bool save_conf_stats = false;
+    bool save_mono = false;
+    double rv_pos = 0;
+    int min_num_neighbors = 3;
 
     // Depth map parameters (selection and noise removal). Section 5.2.3 in the IJCV paper.
     int adaptive_threshold_kernel_size = 5;
@@ -70,12 +83,7 @@ private:
     int stereo_fusion = 2;
     int temporal_fusion = 4;
 
-    // std::condition_variable m_local_dsi_cv;
-    // std::condition_variable m_merge_dsi_cv;
     std::mutex data_mutex_;
-    // std::mutex m_merge_dsi_mutex;
-    // int m_threads = 0;
-    // bool m_merge_ready = true;
     const int NUM_OF_CAMERAS_ = 2;
 
     // calibration params
@@ -84,8 +92,8 @@ private:
     PinholeCameraModel cam0, cam1, cam2;
 
 
-    // EMVS::OptionsDepthMap opts_depth_map;
-    // EMVS::ShapeDSI dsi_shape;
+    EMVS::OptionsDepthMap opts_depth_map;
+    EMVS::ShapeDSI dsi_shape;
 
     // ros::Time current_ts_;
     tf2::TimePoint current_ts_;
@@ -105,7 +113,8 @@ private:
     bool on_demand_;
     bool accumulate_pc_;
 
-    int NUM_EV_PER_MAP = 512;
+    int EVENT_BATCH_SIZE = 512;
+    int NUM_EV_PER_MAP = 100000;
     Transformation T_rv_w_;
 
     cv::Mat event_image0_, event_image1_, event_image_live_;
@@ -132,12 +141,21 @@ private:
      * @param camera_events A vector to store the parsed events.
      * @param event_queue A queue that stores batched events.
      */
-    void camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera1_events, EventQueue<std::vector<Event>> &event_queue);
-    void camera_thread_udp(Server server, std::vector<Event> &camera_events, EventQueue<std::vector<Event>> &event_queue);
+    void camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera1_events, EventQueue<Event> &event_queue);
+    void camera_thread_udp(Server server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue);
     Event parse_bufferd_data(std::string &buffered_data);
     // void checkEventQueue(std::deque<std::vector<Event>> &event_queue);
     void dsi_merger(std::vector<Event> &camera1_events, std::vector<Event> &camera2_events);
     void mappingLoop();
+    void Mapper::MappingAtTime(
+        tf2::TimePoint current_ts,
+        std::vector<Event> &events_left_,
+        std::vector<Event> &events_right_,
+        std::vector<Event> &events_tri_,
+        std::string frame_id
+    );
+    void publishMsgs(std::string frame_id);
+    void Mapper::publishImgs(std::string frame_id);
 public:
     Mapper(SharedState &shared_state);
 };

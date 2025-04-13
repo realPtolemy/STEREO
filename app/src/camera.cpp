@@ -1,6 +1,7 @@
-#include "mapper/camera.hpp"
+#include "camera.hpp"
 #include "iostream"
 #include <filesystem>
+
 PinholeCameraModel::PinholeCameraModel() {}
 
 PinholeCameraModel::PinholeCameraModel(int width, int height, double fx, double fy, double cx, double cy) {
@@ -80,7 +81,18 @@ cv::Size PinholeCameraModel::fullResolution() const
     return cv::Size(camera_info.width, camera_info.height);
 }
 
-void PinholeCameraModel::loadCamerInfo(CameraInfo &info){
+cv::Point PinholeCameraModel::rectifyPoint(cv::Point point)
+{
+
+    cv::Point2f raw32 = point, rect32;
+    const cv::Mat src_pt(1, 1, CV_32FC2, &raw32.x);
+    cv::Mat dst_pt(1, 1, CV_32FC2, &rect32.x);
+    cv::undistortPoints(src_pt, dst_pt, camera_info.K_cv, cv::Mat(camera_info.distortion), camera_info.R_cv, camera_info.P_cv);
+    return rect32;
+    return cv::Point();
+}
+void PinholeCameraModel::loadCamerInfo(CameraInfo &info)
+{
     camera_info.width = info.width;
     camera_info.height = info.height;
     // Fyll ut denna klass
