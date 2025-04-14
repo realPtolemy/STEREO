@@ -185,6 +185,19 @@ bool BufferCore::setTransform(
   const std::string &authority,
   bool is_static)
 {
+  std::cout << "\nAddress of transform struct after: " << &transform.transform << std::endl;
+  std::cout << "Received TransformStamped struct after: " << &transform << std::endl;
+  std::cout << "Address of rotation quaternion after: " << &transform.transform.rotation << std::endl;
+  std::cout << "Address of translation vector after: " << &transform.transform.translation << std::endl;
+  const auto& t = transform.transform.translation;
+  const auto& q = transform.transform.rotation;
+
+  std::cout << "TransformStamped:" << std::endl;
+  std::cout << "  frame_id: " << transform.frame_id << std::endl;
+  std::cout << "  child_frame_id: " << transform.child_frame_id << std::endl;
+  std::cout << "  translation: [" << t.x() << ", " << t.y() << ", " << t.z() << "]" << std::endl;
+  std::cout << "  rotation1:    [" << q.w() << ", " << q.x() << ", " << q.y() << ", " << q.z() << "]" << std::endl;
+
   const tf2::Quaternion rotation(
     transform.transform.rotation.x(),
     transform.transform.rotation.y(),
@@ -196,6 +209,10 @@ bool BufferCore::setTransform(
     transform.transform.translation.y(),
     transform.transform.translation.z()
   );
+  std::cout << "  rotation2:    [" << rotation.w() << ", " << rotation.x() << ", " << rotation.y() << ", " << rotation.z() << "]" << std::endl;
+
+
+
   TimePoint time_point = transform.timestamp;
   // Should not need this! If the timestamps contains seconds we need to convert it then add it
   // But the msg currently does not have seconds only nanoseconds
@@ -273,6 +290,7 @@ bool BufferCore::setTransformImpl(
     //   stripped_child_frame_id.c_str(), authority.c_str(),
     //   rotation_in.x(), rotation_in.y(),
     //   rotation_in.z(), rotation_in.w());
+    std::cout << "ASGDHK" << std::endl;
     error_exists = true;
   }
 

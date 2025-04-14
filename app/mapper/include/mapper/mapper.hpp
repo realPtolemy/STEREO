@@ -169,6 +169,7 @@ private:
     void tfCallback();
 public:
     Mapper(SharedState &shared_state);
+    void mapperRun();
     ~Mapper();
 };
 

@@ -39,6 +39,7 @@
 class Tracker : public LKSE3 {
 public:
     Tracker(SharedState &shared_state);
+    void trackerRun();
     ~Tracker();
 
 private:
@@ -48,7 +49,7 @@ private:
     // ros::NodeHandle nh_, nhp_;
     // image_transport::ImageTransport it_;
     // tf::Transformer tf_;
-    tf2::BufferCore tf_;
+    std::shared_ptr<tf2::BufferCore> tf_;
     // tf::TransformBroadcaster tf_pub_;
 
     // ros::Subscriber event_sub_;        ///< @see eventCallback
@@ -113,7 +114,7 @@ private:
     /**
      * Adds published transforms to the tf_ data structure
      */
-    void tfCallback(const std::vector<tf2::msg::TransformStamped>& msgs);
+    void tfCallback();
 
     /**
      * Update camera info on callback

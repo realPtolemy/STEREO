@@ -21,6 +21,8 @@ set(SOURCES
 
 add_executable(my_executable ${SOURCES})
 
+message(STATUS ${GLOG})
+
 include(${CMAKE_SOURCE_DIR}/cmake/CompilerSettings.cmake)
 
 target_include_directories(my_executable PRIVATE
@@ -34,5 +36,6 @@ target_include_directories(my_executable PRIVATE
     ${EIGEN3_INSTALL_DIR}/include/eigen3
     ${SOPHUS_INSTALL_DIR}/include
     ${CMAKE_SOURCE_DIR}/external/minkindr/include
+    # ${GLOG_INSTALL_DIR}/include
 )
-target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS} cartesian3dgrid ${PCL_LIBRARIES} tf2)
+target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS} cartesian3dgrid ${PCL_LIBRARIES} tf2 glog::glog)

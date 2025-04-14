@@ -9,6 +9,7 @@
 #include "event.hpp"
 #include "udp/udp.hpp"
 
+#include <glog/logging.h>
 #include <tf2/msg/pose_stamped.hpp>
 #include <tf2/time.hpp>
 #include "tf2/buffer_core.hpp"
@@ -68,9 +69,12 @@ class SharedState{
 private:
 
 public:
-    SharedState() = default;
+    SharedState() {
+        tf_ = std::make_shared<tf2::BufferCore>();
+    };
     ~SharedState() = default;
 
+    std::shared_ptr<tf2::BufferCore> tf_;
     pcl_state pcl_state_;
     pose_state pose_state_;
     EventQueue<Event> events_left_;

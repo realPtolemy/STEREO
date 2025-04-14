@@ -7,6 +7,7 @@
 namespace tf2{
 namespace msg{
 	struct TransformStamped {
+		// EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 		// === Header ===
 		uint32_t seq = 0;  // Optional: only needed if you care about message order
 		tf2::TimePoint timestamp;
@@ -16,6 +17,9 @@ namespace msg{
 		std::string child_frame_id;
 
 		tf2::msg::Transform transform;
+
+		TransformStamped()
+  		: transform() { std::cout << "Constructed TransformStamped  at " << this << std::endl; }
 
 		// Eigen::Vector3d translation;
 		// Eigen::Quaterniond rotation;

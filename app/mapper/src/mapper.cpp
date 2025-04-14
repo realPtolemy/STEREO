@@ -1,8 +1,9 @@
 #include "mapper/mapper.hpp"
 
-Mapper::Mapper(SharedState &shared_state)
+Mapper::Mapper(SharedState &shared_state) :
+	shared_state_(&shared_state),
+	tf_(shared_state_->tf_)
 {
-	shared_state_ = &shared_state;
 	PinholeCameraModel cam0(m_calib_file_cam1, camera1), cam1(m_calib_file_cam2, camera2);
 
 	EMVS::ShapeDSI dsi_shape(dimX, dimY, dimZ, fov_deg, min_depth, max_depth);
@@ -10,24 +11,28 @@ Mapper::Mapper(SharedState &shared_state)
 	latest_tf_stamp_ = tf2::TimePointZero;
 	current_ts_ = tf2::TimePointZero;
 
-	std::vector<Event> camera1_events, camera2_events;
-	camera1_events.reserve(EVENT_BATCH_SIZE);
-	camera2_events.reserve(EVENT_BATCH_SIZE);
-	std::vector<std::thread> threads(NUM_OF_CAMERAS_);
-
 	pc_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
 	pc_global_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
 
 	world_frame_id_ = "world";
 	regular_frame_id_ = "dvs0";
-	bootstrap_frame_id_ = regular_frame_id_;
+	bootstrap_frame_id_ = "camera0";
+	// bootstrap_frame_id_ = regular_frame_id_;
 	frame_id_ = bootstrap_frame_id_;
 
     cv::Size full_resolution = cam0.fullResolution();
     event_image0_ = cv::Mat(full_resolution,CV_8UC1);
     event_image1_ = cv::Mat(full_resolution,CV_8UC1);
-    tf_ = std::make_shared<tf2::BufferCore>(tf2::durationFromSec(100) );
+    // tf_ = std::make_shared<tf2::BufferCore>(tf2::durationFromSec(100) );
     tf_->setUsingDedicatedThread(true);
+}
+
+void Mapper::mapperRun(){
+	google::FlushLogFiles(google::INFO);
+	std::vector<Event> camera1_events, camera2_events;
+	camera1_events.reserve(EVENT_BATCH_SIZE);
+	camera2_events.reserve(EVENT_BATCH_SIZE);
+	std::vector<std::thread> threads(NUM_OF_CAMERAS_);
 
 	#ifdef READ_EVENT_FROM_AESTREAM
 	/**
@@ -39,14 +44,26 @@ Mapper::Mapper(SharedState &shared_state)
 		// std::thread camera2_thread(camera_thread_udp, camera2_server, std::ref(camera2_events), std::ref(shared_state_->events_right_));
 		// 3party/aestream_src/bin/aestream input file data/camera_0.csv output udp
 	#else
-		threads[0] = std::thread(&Mapper::camera_thread_csv, this, "data/camera_0.csv", std::ref(camera1_events), std::ref(shared_state_->events_left_));
-		threads[1] = std::thread(&Mapper::camera_thread_csv, this, "data/camera_1.csv", std::ref(camera2_events), std::ref(shared_state_->events_right_));
+	// google::FlushLogFiles(google::INFO);
+		threads[0] = std::thread(
+			&Mapper::camera_thread_csv,
+			this,
+			"data/camera_0.csv",
+			std::ref(camera1_events),
+			std::ref(shared_state_->events_left_)
+		);
+		threads[1] = std::thread(
+			&Mapper::camera_thread_csv,
+			this,
+			"data/camera_1.csv",
+			std::ref(camera2_events),
+			std::ref(shared_state_->events_right_)
+		);
 	#endif
-
 	std::thread pose_reader(&Mapper::tfCallback, this);
 
+
 	std::thread mapper_thread(&Mapper::mappingLoop, this);
-	// std::cout << "DSI merger" << std::endl;
 
 	// dsi_merger(std::ref(camera1_events), std::ref(camera2_events));
 	#ifdef READ_EVENT_FROM_AESTREAM
@@ -72,7 +89,7 @@ void Mapper::tfCallback(){
 	{
 		shared_state_->pose_state_.pose_cv.wait(lock, [this]{ return shared_state_->pose_state_.pose_ready; });
 		std::chrono::high_resolution_clock::time_point t_start_callback = std::chrono::high_resolution_clock::now();
-		tf_->setTransform(shared_state_->pose_state_.pose, "mapper");
+		// tf_->setTransform(shared_state_->pose_state_.pose, "mapper");
 		if(shared_state_->pose_state_.pose.child_frame_id == "hand"){
             tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
 			tf2::msg::TransformStamped T_hand_eye = tf2::eigenToTransform(Eigen::Affine3d(mat4_hand_eye));
@@ -111,13 +128,22 @@ bool Mapper::waitForTransformSimple(
 	const tf2::Duration & polling_sleep)
 {
 	auto start = std::chrono::steady_clock::now();
-	while ((std::chrono::steady_clock::now() - start) < timeout) {
-		if (buffer->canTransform(target_frame, source_frame, time)) {
-			return true;
-		}
-		std::this_thread::sleep_for(polling_sleep);
+	// std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(start.time_since_epoch()).count() << " ms since epoch" << std::endl;
+	// std::cout << tf2::durationToSec(timeout) << " seconds" << std::endl;
+	// while ((std::chrono::steady_clock::now() - start) < timeout) {
+	// 	std::cout << target_frame << ", " << source_frame << std::endl;
+
+	// 	std::this_thread::sleep_for(polling_sleep);
+	// }
+	if (buffer->canTransform(target_frame, source_frame, time)) {
+		std::cout << target_frame << ", " << source_frame << std::endl;
+		LOG(INFO) << "target frame can be transformed";
+		return true;
 	}
-	return false;
+	else{
+		// std::cout << "false" << std::endl;
+		return false;
+	}
 }
 
 void Mapper::mappingLoop()
@@ -152,7 +178,8 @@ void Mapper::mappingLoop()
 		if(waitForTransformSimple(
 			tf_,
 			world_frame_id_,
-			frame_id_, tf2::TimePointZero,
+			frame_id_,
+			tf2::TimePointZero,
 			tf2::Duration(0),
 			tf2::durationFromSec(0.01))
 		){
@@ -375,7 +402,6 @@ void Mapper::publishImgs(std::string frame_id){
 */
 void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera_events, EventQueue<Event> &event_queue)
 {
-  	// ha en if sats eller #ifdef för att kolla ifall det är udp eller csv
   	std::ifstream event_file(event_file_path);
 	if(!event_file){
 		std::cerr << "Unable to open file: "<< event_file_path << std::endl;

@@ -400,6 +400,37 @@ endif()
 
 # endif()
 
+# ================ GLOG ================
+set(GLOG_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/glog_src)
+set(GLOG_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/glog-build)
+if(NOT EXISTS ${GLOG_INSTALL_DIR})
+    message(STATUS "Fetching glog")
+    FetchContent_Declare(
+        glog
+        GIT_REPOSITORY https://github.com/google/glog.git
+        GIT_TAG v0.7.1
+        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/glog-src
+    )
+    FetchContent_GetProperties(glog)
+    if(NOT glog_POPULATED)
+        FetchContent_Populate(glog)
+    endif()
+    execute_process(
+        COMMAND ${CMAKE_COMMAND}
+        -S ${CMAKE_BINARY_DIR}/_deps/glog-src
+        -B ${GLOG_BUILD_DIR}
+        -DCMAKE_INSTALL_PREFIX=${GLOG_INSTALL_DIR}
+        -DBUILD_SHARED_LIBS=OFF
+        # -DWITH_GFLAGS=OFF
+        -DWITH_GTEST=OFF
+        # -DWITH_GMOCK=OFF
+    )
+    execute_process(COMMAND ${CMAKE_COMMAND} --build ${GLOG_BUILD_DIR})
+    execute_process(COMMAND ${CMAKE_COMMAND} --install ${GLOG_BUILD_DIR})
+endif()
+set(glog_DIR ${GLOG_INSTALL_DIR}/lib/cmake/glog)
+message(STATUS ${glog_DIR})
+find_package (glog 0.7.1 REQUIRED)
 # ================ Subdirectories ================
 # add_subdirectory(minkindr)
 # add_subdirectory(tf2)

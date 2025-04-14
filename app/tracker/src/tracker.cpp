@@ -8,24 +8,8 @@
  */
 
 #include "tracker/tracker.hpp"
-
-// #include <camera_info_manager/camera_info_manager.h>
-// #include <cv_bridge/cv_bridge.h>
-// #include <dvs_msgs/EventArray.h>
-// #include <eigen_conversions/eigen_msg.h>
 #include <kindr/minimal/quat-transformation.h>
 #include <pcl/conversions.h>
-// #include <pcl_conversions/pcl_conversions.h>
-// #include <ros/package.h>
-// #include <sensor_msgs/PointCloud2.h>
-// #include <std_msgs/Bool.h>
-// #include <std_msgs/Float32.h>
-// #include <std_msgs/Float32MultiArray.h>
-// #include <std_msgs/String.h>
-// #include <tf/transform_broadcaster.h>
-// #include <tf/transform_listener.h>
-// #include <tf_conversions/tf_eigen.h>
-// #include <visualization_msgs/Marker.h>
 
 #include "tf2/LinearMath/tf2_eigen.hpp"
 
@@ -96,20 +80,15 @@ void Tracker::postCameraLoaded() {
 }
 
 Tracker::Tracker(SharedState &shared_state):
-      tf_(tf2::durationFromSec(2.))
-
-      ,
-      cur_ev_(0),
-      kf_ev_(0),
-      noise_rate_(10000)
-
-      ,
-      frame_size_(2500),
-      step_size_(2500)
-
-      ,
-      idle_(true) {
-    shared_state_ = &shared_state;
+    shared_state_(&shared_state),
+    tf_(shared_state_->tf_),
+    cur_ev_(0),
+    kf_ev_(0),
+    noise_rate_(10000),
+    frame_size_(2500),
+    step_size_(2500),
+    idle_(true)
+{
     batch_size_ = 500;
     max_iterations_ = 100;
     map_blur_ = 5;
@@ -125,15 +104,48 @@ Tracker::Tracker(SharedState &shared_state):
     map_ = PointCloud::Ptr(new PointCloud);
     map_local_ = PointCloud::Ptr(new PointCloud);
 
+    frame_id_ = std::string ("dvs0");
+    world_frame_id_ = std::string ("world");
+    auto_trigger_ = false;
+
+    tf2::msg::TransformStamped inital_pose;
+    inital_pose.frame_id = world_frame_id_;
+    inital_pose.child_frame_id = "camera0";
+    inital_pose.timestamp = tf2::TimePointZero;
+
+    const auto& t = inital_pose.transform.translation;
+    const auto& q = inital_pose.transform.rotation;
+
+    std::cout << "TransformStamped:" << std::endl;
+    std::cout << "  frame_id: " << inital_pose.frame_id << std::endl;
+    std::cout << "  child_frame_id: " << inital_pose.child_frame_id << std::endl;
+    std::cout << "  translation: [" << t.x() << ", " << t.y() << ", " << t.z() << "]" << std::endl;
+    std::cout << "  rotation:    [" << q.w() << ", " << q.x() << ", " << q.y() << ", " << q.z() << "]" << std::endl;
+
+    std::cout << "Address of transform struct before: " << &inital_pose.transform << std::endl;
+    std::cout << "Received TransformStamped struct before: " << &inital_pose << std::endl;
+    std::cout << "Address of rotation quatertion before: " << &inital_pose.transform.rotation << std::endl;
+    std::cout << "Address of translation vector before: " << &inital_pose.transform.translation << std::endl;
+
+    tf_.get()->setTransform(inital_pose, "tracker");
+
+    // std::string tf_debug;
+    std::cout << tf_->allFramesAsString() << std::endl;
+    // std::cout << tf_debug << std::endl;
+
     // Load camera calibration
     // Raden under laddar in en kalibreringsfil, det är samma kamera som i mapper modulen
     // TODO: Fixa att trackern har tillgång till kameran, ska kameran ligga i shared state?
     // c_ = evo_utils::camera::loadPinholeCamera(nh);
 
-    // postCameraLoaded();
-    std::cout << "Tracker!" << std::endl;
+//     // postCameraLoaded();
+}
+
+// Denna funktion ska kallas av tråden i main, konstruktorn kan inte kallas i en tråd
+void Tracker::trackerRun(){
     std::thread pointcloud_thread(&Tracker::mapCallback, this);
     std::thread event_thread(&Tracker::eventCallback, this);
+    // std::thread tf_thread(&Tracker::tfCallback, this);
     // // Setup Subscribers
     // event_sub_ = nh_.subscribe("events", 0, &Tracker::eventCallback, this);
     // map_sub_ = nh_.subscribe("pointcloud", 0, &Tracker::mapCallback, this);
@@ -147,25 +159,18 @@ Tracker::Tracker(SharedState &shared_state):
     // poses_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("evo/pose", 0);
     // remote_pub_ = nh_.advertise<const std_msgs::String>("remote_key", 0);
 
-#ifdef TRACKER_DEBUG_REFERENCE_IMAGE
-    std::thread map_overlap(&Tracker::publishMapOverlapThread, this);
-    map_overlap.detach();
-#endif
-
-    frame_id_ = std::string ("dvs0");
-    world_frame_id_ = std::string ("world");
-    auto_trigger_ = false;
+    #ifdef TRACKER_DEBUG_REFERENCE_IMAGE
+        std::thread map_overlap(&Tracker::publishMapOverlapThread, this);
+        map_overlap.detach();
+    #endif
 
     tracking_thread_ = std::thread(&Tracker::trackingThread, this);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    initialize(tf2::TimePointZero);
 
     event_thread.join();
     pointcloud_thread.join();
 }
-
-// Denna funktion ska kallas av tråden i main, konstruktorn kan inte kallas i en tråd
-// void Tracker::trackerRun(){
-//     std::thread tracker(&Tracker::trackingThread, this);
-// }
 Tracker::~Tracker(){
     running_ = false;
     if (tracking_thread_.joinable()) {
@@ -180,8 +185,10 @@ void Tracker::trackingThread() {
 
     while (running_) {
         std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
-
+        // std::cout << keypoints_.size() << std::endl;
         if (!idle_ && keypoints_.size() > 0) {
+            // std::cout << keypoints_.size() << std::endl;
+            std::cout << "running?" << std::endl;
             estimateTrajectory();
         }
     }
@@ -207,23 +214,34 @@ void Tracker::remoteCallback(const std::string& msg) {
         auto_trigger_ = true;
 }
 
-void Tracker::tfCallback(const std::vector<tf2::msg::TransformStamped>& msgs) {
-    if (!idle_) return;
+// void Tracker::tfCallback() {
+//     if (!idle_) return;
 
-    for (auto& msg : msgs) {
-        // TODO: Lägg till en autorhity som ett arguemnt i setTransform!
-        tf_.setTransform(msg, "tracker");
-    }
-}
+//     std::unique_lock<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
+//     while (true)
+//     {
+//         shared_state_->pose_state_.pose_cv.wait(lock, [this]{ return shared_state_->pose_state_.pose_ready; });
+//         tf_.setTransform(shared_state_->pose_state_.pose, "tracker");
+//         shared_state_->pose_state_.pose_ready = false;
+//     }
+//     // for (auto& msg : msgs) {
+//     //     // TODO: Lägg till en autorhity som ett arguemnt i setTransform!
+//     //     tf_.setTransform(msg, "tracker");
+//     // }
+// }
 
 void Tracker::initialize(const tf2::TimePoint& ts) {
-    std::string bootstrap_frame_id = std::string("/camera0");
+    std::string bootstrap_frame_id = std::string("camera0");
     // rpg_common_ros::param<std::string>(nh_, "dvs_bootstrap_frame_id", std::string("/camera0"));
     // tf::StampedTransform TF_kf_world;
     // tf_.lookupTransform(bootstrap_frame_id, world_frame_id_, ts, TF_kf_world);
     // tf::transformTFToEigen(TF_kf_world, T_kf_world);
-
-    tf2::msg::TransformStamped TF_kf_world = tf_.lookupTransform(bootstrap_frame_id, world_frame_id_, ts);
+    std::cout << "Target fram: " << bootstrap_frame_id << ", source frame: " << world_frame_id_ << std::endl;
+    std::string tf_debug;
+    tf_debug = tf_->allFramesAsString();
+    std::cout << tf_debug << std::endl;
+    tf2::msg::TransformStamped TF_kf_world = tf_.get()->lookupTransform(bootstrap_frame_id, world_frame_id_, ts);
+    LOG(INFO) << "Completed lookup";
     Eigen::Affine3d T_kf_world(tf2::transformToEigen(TF_kf_world));
 
     T_world_kf_ = T_kf_world.cast<float>().inverse();
@@ -260,12 +278,11 @@ void Tracker::eventCallback() {
     while (true)
     {
         // TODO: Gör det här bättre? Kolla på denna en gång till.
-        std::cout << "test" << std::endl;
         shared_state_->events_left_.cv_event.wait(lock, [this]{ return shared_state_->events_left_.event_ready;});
         // events_ = shared_state_->events_left_.data;
-        for (const auto& event : shared_state_->events_left_.chunk) {
-            std::cout << event.x << ", " << event.y << ", " << tf2::timeToSec(event.timestamp) << ", " << event.polarity << "\n";
-        }
+        // for (const auto& event : shared_state_->events_left_.chunk) {
+        //     std::cout << event.x << ", " << event.y << ", " << tf2::displayTimePoint(event.timestamp) << ", " << event.polarity << "\n";
+        // }
         for (const auto& e : shared_state_->events_left_.chunk) events_.push_back(e);
         shared_state_->events_left_.event_ready = false;
     }
@@ -434,7 +451,9 @@ void Tracker::publishTF() {
     {
         std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
         shared_state_->pose_state_.pose = pose_tf;
+        tf_.get()->setTransform(pose_tf, "tracker");
         shared_state_->pose_state_.pose_ready = true;
+        shared_state_->pose_state_.pose_cv.notify_one();
     }
 
     tf2::msg::TransformStamped filtered_pose;
@@ -520,7 +539,8 @@ void Tracker::estimateTrajectory() {
                         events_per_kf = 100000;
     // nhp_.param("max_event_rate", 8000000),
     // nhp_.param("events_per_kf", 100000);
-
+    std::cout << "esimate" << std::endl;
+    return;
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     while (true) {

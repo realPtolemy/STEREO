@@ -1,42 +1,30 @@
 #include <thread>
 #include <iostream>
+#include <string>
 #include "mapper/mapper.hpp"
 #include "tracker/tracker.hpp"
-// #include "talking/coordinator.hpp"
-// #include "udp/udp.hpp"
 #include "shared_state.hpp"
+#include <glog/logging.h>
 
 int main(int argc, char **argv) {
-    /**
-     *  What tracker udpates:
-     *      - cmd_msg, a string
-     *      - msg_pose
-     *      - image msg
-     *
-     *  What mapper updates:
-     *      - point cloud, line 542 and 563 in ES-PTAM mapper.cpp
-     *      - cv_ptr->toImageMsg(), which is of type cv_bridge::CvImagePtr.
-     *      See line 505 for defintion of cv_bridge::CvImagePtr.
-     *
-     *  Other things that needs to be updated:
-     *      - tf_->waitForTransform, this is only for ROS, what we have to do
-     *      is to implement this. It checks if there is a transform between two frames
-     *      and if not, it waits for it. It's a blocking function. Run this on a thread
-     *      with a condition variable and a mutex.
-     *  From this 2 main things are trasmitted, msg_pose and point cloud.
-     */
-    // Mapper mapper;
-    // Coordinator coordinator;
+    std::cout << argv[0] << std::endl;
+    google::InitGoogleLogging(argv[0]);
+    google::SetLogDestination(google::INFO, "log/");
 
-    // Server server(12345);
-    // Client client(12345);
+    // {
+    //     std::cout << "SharedState constructed" << std::endl;
+    //     LOG(INFO) << "Shared state construcotr";}
 
-    // client.send("Hello from server!", "172.28.144.41", 12345);
-    // std::string msg = server.receive();
-    // std::cout << "Client received: " << msg << std::endl;
+    LOG(INFO) << "Starting";
 
     SharedState shared_state;
-    Mapper mapper(shared_state);
+    LOG(INFO) << "Shared state created";
+    // Mapper mapper(shared_state);
     Tracker tracker(shared_state);
+    // std::thread mapper_thread(&Mapper::mapperRun, &mapper);
+    std::thread tracker_thread(&Tracker::trackerRun, &tracker);
+
+    // mapper_thread.join();
+    tracker_thread.join();
     return 0;
 }

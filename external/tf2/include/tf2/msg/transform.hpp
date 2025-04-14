@@ -7,13 +7,16 @@
 
 namespace tf2{
 namespace msg{
-    struct Transform{
+	struct Transform {
+		// EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 		Eigen::Vector3d translation;
 		Eigen::Quaterniond rotation;
+
 		Transform()
 			: translation(Eigen::Vector3d::Zero()),
-			rotation(Eigen::Quaterniond::Identity()) {}
-    };
+			  rotation(Eigen::Quaterniond::Identity()) {}
+	};
 }
 }
 
