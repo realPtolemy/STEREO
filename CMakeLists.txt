@@ -427,7 +427,6 @@ message(STATUS "BOOST can now be found in: ${BOOST_INSTALL_DIR}")
 # ================ FLANN ================
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
 set(FLANN_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/flann-build)
-
 if(NOT EXISTS ${FLANN_INSTALL_DIR})
     message(STATUS "Fetching FLANN...")
     file(MAKE_DIRECTORY ${FLANN_INSTALL_DIR})
@@ -472,6 +471,23 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
     file(WRITE ${FLANN_MATLAB_CMAKELISTS} "${FLANN_MATLAB_CONTENT_MODIFIED}")
     message(STATUS "MATLAB patch applied successfully")
 
+
+    # Debug LZ4 setup
+    message(STATUS "Debugging LZ4 setup...")
+    message(STATUS "LZ4_INSTALL_DIR: ${LZ4_INSTALL_DIR}")
+    if(EXISTS "${LZ4_INSTALL_DIR}/lib/pkgconfig/liblz4.pc")
+        message(STATUS "Found liblz4.pc at ${LZ4_INSTALL_DIR}/lib/pkgconfig/liblz4.pc")
+        file(READ "${LZ4_INSTALL_DIR}/lib/pkgconfig/liblz4.pc" LZ4_PC_CONTENT)
+        message(STATUS "liblz4.pc contents:\n${LZ4_PC_CONTENT}")
+    else()
+        message(WARNING "liblz4.pc not found at ${LZ4_INSTALL_DIR}/lib/pkgconfig/liblz4.pc")
+    endif()
+
+    # Set PKG_CONFIG_PATH to help find LZ4 for FLANN
+    set(ENV{PKG_CONFIG_PATH} "${LZ4_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+    message(STATUS "PKG_CONFIG_PATH set to: $ENV{PKG_CONFIG_PATH}")
+
+
     # Configure FLANN
     message(STATUS "Configuring FLANN...")
     execute_process(
@@ -480,6 +496,7 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
         -B ${FLANN_BUILD_DIR}
         -DCMAKE_INSTALL_PREFIX=${FLANN_INSTALL_DIR}
         -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
+        -DLZ4_ROOT=${LZ4_INSTALL_DIR}
         -DCMAKE_BUILD_TYPE=None
         -DWITH_LZ4=ON
         -DBUILD_STATIC_LIBS=ON
@@ -487,6 +504,7 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
         -DBUILD_TESTS=OFF
         -DBUILD_EXAMPLES=OFF
         -DBUILD_MATLAB_BINDINGS=ON  # Enable MATLAB bindings
+        -DPKG_CONFIG_PATH=${LZ4_INSTALL_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}
         OUTPUT_VARIABLE FLANN_CONFIGURE_OUTPUT
         ERROR_VARIABLE FLANN_CONFIGURE_ERROR
         RESULT_VARIABLE FLANN_CONFIGURE_RESULT
