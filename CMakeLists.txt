@@ -349,8 +349,10 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
             -S ${CMAKE_BINARY_DIR}/_deps/boost-src
             -B ${BOOST_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
-            -DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
+            #-DBOOST_INCLUDE_LIBRARIES=filesystem$<SEMICOLON>system$<SEMICOLON>iostreams$<SEMICOLON>atomic
+            #-DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
             -DBUILD_SHARED_LIBS=OFF
+            -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
             -DCMAKE_CXX_FLAGS="-D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
             -DCMAKE_VERBOSE_MAKEFILE=ON  # Enable verbose output
             OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
@@ -687,14 +689,14 @@ set(PCL_ROOT ${PCL_INSTALL_DIR})
 message(STATUS "PCL can now be found in: ${PCL_INSTALL_DIR}")
 
 # ================ PCL Include Fix ================
-find_package(PCL REQUIRED PATHS ${PCL_INSTALL_DIR}/share/pcl-1.15 NO_DEFAULT_PATH)
-if(PCL_FOUND)
-    message(STATUS "PCL found: ${PCL_DIR}")
-    message(STATUS "PCL include dirs: ${PCL_INCLUDE_DIRS}")
-    message(STATUS "PCL libraries: ${PCL_LIBRARIES}")
-else()
-    message(FATAL_ERROR "PCL not found at ${PCL_INSTALL_DIR}/share/pcl-1.15!")
-endif()
+#find_package(PCL REQUIRED PATHS ${PCL_INSTALL_DIR}/share/pcl-1.15 NO_DEFAULT_PATH)
+#if(PCL_FOUND)
+#    message(STATUS "PCL found: ${PCL_DIR}")
+#    message(STATUS "PCL include dirs: ${PCL_INCLUDE_DIRS}")
+#    message(STATUS "PCL libraries: ${PCL_LIBRARIES}")
+#else()
+#    message(FATAL_ERROR "PCL not found at ${PCL_INSTALL_DIR}/share/pcl-1.15!")
+#endif()
 
 
 # # ================ KINDR ================
