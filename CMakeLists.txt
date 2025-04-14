@@ -329,9 +329,6 @@ endif()
 # ================ Boost ================
 set(BOOST_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/boost_src)
 set(BOOST_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/boost-build)
-
-#file(MAKE_DIRECTORY ${BOOST_INSTALL_DIR})
-#include(FetchContent)
 if(NOT EXISTS ${BOOST_INSTALL_DIR})
     message(STATUS "Fetching Boost...")
     FetchContent_Declare(
@@ -354,7 +351,7 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
             -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
             -DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
             -DBUILD_SHARED_LIBS=OFF
-            -DCMAKE_CXX_FLAGS="-D_FILE_OFFSET_BITS=64 -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
+            -DCMAKE_CXX_FLAGS="-D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
             OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
             ERROR_VARIABLE BOOST_CONFIGURE_ERROR
             RESULT_VARIABLE BOOST_CONFIGURE_RESULT
@@ -411,21 +408,21 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
 
 endif()
 # Ensure CMake uses the freshly built Boost
-message(STATUS "Verifying OPENCV installation...")
+message(STATUS "Verifying BOOST installation...")
 set(BOOST_ROOT ${BOOST_INSTALL_DIR})
 set(BOOST_DIR ${BOOST_INSTALL_DIR}/lib/cmake/Boost-1.87.0)
 set(BOOST_LIBRARY_DIRS ${BOOST_INSTALL_DIR}/lib)
 set(BOOST_INCLUDE_DIRS ${BOOST_INSTALL_DIR}/include)
 message(STATUS "BOOST can now be found in: ${BOOST_INSTALL_DIR}")
 
-find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST_INSTALL_DIR}/lib/cmake NO_DEFAULT_PATH)
-if(Boost_FOUND)
-    message(STATUS "Boost found: ${Boost_DIR}")
-    message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
-    message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
-else()
-    message(FATAL_ERROR "Boost not found at ${BOOST_INSTALL_DIR}/lib/cmake!")
-endif()
+#find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST_INSTALL_DIR}/lib/cmake NO_DEFAULT_PATH)
+#if(Boost_FOUND)
+#    message(STATUS "Boost found: ${Boost_DIR}")
+#    message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
+#    message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
+#else()
+#    message(FATAL_ERROR "Boost not found at ${BOOST_INSTALL_DIR}/lib/cmake!")
+#endif()
 
 # ================ FLANN ================
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
