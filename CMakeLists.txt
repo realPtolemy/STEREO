@@ -844,6 +844,20 @@ else()
     message(STATUS "CNPY already exists at ${CNPY_INSTALL_DIR}, skipping fetch and build")
 endif()
 
+# ================ Eigen3 Setup for Sophus ================
+set(EIGEN3_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/3party/eigen_src/include/eigen3)
+set(Eigen3_DIR ${CMAKE_SOURCE_DIR}/3party/eigen_src/share/eigen3/cmake)
+message(STATUS "Eigen3 include dir: ${EIGEN3_INCLUDE_DIR}")
+message(STATUS "Eigen3 config dir: ${Eigen3_DIR}")
+
+# Check if Eigen3 exists
+if(NOT EXISTS ${EIGEN3_INCLUDE_DIR})
+    message(FATAL_ERROR "Eigen3 headers not found at ${EIGEN3_INCLUDE_DIR}. Please ensure Eigen3 is installed.")
+endif()
+if(NOT EXISTS ${Eigen3_DIR}/Eigen3Config.cmake)
+    message(FATAL_ERROR "Eigen3Config.cmake not found at ${Eigen3_DIR}. Please verify the Eigen3 installation.")
+endif()
+
 # ================ Sophus ================
 set(SOPHUS_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/sophus_src)
 set(SOPHUS_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/sophus-build)
@@ -851,6 +865,7 @@ message(STATUS "Checking for Sophus at: ${SOPHUS_INSTALL_DIR}")
 
 if(NOT EXISTS ${SOPHUS_INSTALL_DIR})
     message(STATUS "Fetching Sophus...")
+    include(FetchContent)
     FetchContent_Declare(
         sophus
         GIT_REPOSITORY https://github.com/strasdat/Sophus.git
@@ -871,7 +886,8 @@ if(NOT EXISTS ${SOPHUS_INSTALL_DIR})
         -S ${CMAKE_BINARY_DIR}/_deps/sophus-src
         -B ${SOPHUS_BUILD_DIR}
         -DCMAKE_INSTALL_PREFIX=${SOPHUS_INSTALL_DIR}
-        -DEIGEN_DIR=${EIGEN_INSTALL_DIR}
+        -DEigen3_DIR=${Eigen3_DIR}
+        -DEIGEN3_INCLUDE_DIR=${EIGEN3_INCLUDE_DIR}
         -DBUILD_SOPHUS_TESTS=OFF
         -DBUILD_SOPHUS_EXAMPLES=OFF
         RESULT_VARIABLE CONFIG_RESULT
@@ -917,25 +933,10 @@ if(NOT EXISTS ${SOPHUS_INSTALL_DIR})
         message(STATUS "Sophus install error: ${INSTALL_ERROR}")
         message(FATAL_ERROR "Sophus installation failed with result: ${INSTALL_RESULT}")
     endif()
-
-    # Clean up
-    #message(STATUS "Cleaning up Sophus build artifacts...")
-    #execute_process(
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-src
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-build
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/sophus-subbuild
-    #    RESULT_VARIABLE CLEAN_RESULT
-    #)
-    #if(NOT CLEAN_RESULT EQUAL 0)
-    #    message(WARNING "Failed to clean up Sophus build artifacts: ${CLEAN_RESULT}")
-    #else()
-    #    message(STATUS "Sophus build artifacts cleaned up.")
-    #endif()
 else()
     message(STATUS "Sophus already exists at ${SOPHUS_INSTALL_DIR}, skipping fetch and build")
 endif()
 message(STATUS "Sophus can now be found in: ${SOPHUS_INSTALL_DIR}")
-
 
 
 #message(STATUS "PROCEEDING WITH OPENCV FIX...")
@@ -970,5 +971,8 @@ message(STATUS "Sophus can now be found in: ${SOPHUS_INSTALL_DIR}")
 # add_subdirectory(minkindr)
 # add_subdirectory(tf2)
 # add_subdirectory(cartesian3dgrid)
+message(STATUS "I AM BEFORE EXTERNAL")
 add_subdirectory(external)
+message(STATUS "I PASS EXTERNAL")
 add_subdirectory(app)
+message(STATUS "I PASS APP")
