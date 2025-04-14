@@ -352,6 +352,7 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
             -DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
             -DBUILD_SHARED_LIBS=OFF
             -DCMAKE_CXX_FLAGS="-D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
+            -DCMAKE_VERBOSE_MAKEFILE=ON  # Enable verbose output
             OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
             ERROR_VARIABLE BOOST_CONFIGURE_ERROR
             RESULT_VARIABLE BOOST_CONFIGURE_RESULT
@@ -598,8 +599,8 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
     FetchContent_GetProperties(pcl)
     message(STATUS "PCL populated: ${pcl_POPULATED}")
     if(NOT pcl_POPULATED)
-        message(STATUS "Making PCL available...")
-        FetchContent_MakeAvailable(pcl)
+        message(STATUS "Populating PCL...")
+        FetchContent_Populate(pcl)
         message(STATUS "Configuring PCL build...")
         execute_process(
             COMMAND ${CMAKE_COMMAND}
@@ -612,7 +613,9 @@ if(NOT EXISTS ${PCL_INSTALL_DIR})
             "-DCMAKE_SHARED_LINKER_FLAGS=${LZ4_LIBRARY_PATH}"   # Full path here
             -DZLIB_ROOT=${ZLIB_INSTALL_DIR}                     # Point to previously installed ZLIB dir
             -DEigen3_DIR=${EIGEN_INSTALL_DIR} #/share/eigen3/cmake # Point to previously installed eigen dir # CAN BE REMOVED?
+            -DCMAKE_PREFIX_PATH=${CMAKE_SOURCE_DIR}/3party/eigen_src;${CMAKE_PREFIX_PATH}
             -DBOOST_ROOT=${BOOST_INSTALL_DIR}                   # Point to previously installed BOOST dir
+            -DBoost_DIR=${BOOST_INSTALL_DIR}/lib/cmake/Boost-1.87.0
             -DBOOST_LIBRARY_DIRS=${BOOST_INSTALL_DIR}/lib
             -DFLANN_ROOT=${FLANN_INSTALL_DIR}                   # Point to previously installed flann dir
             -DBUILD_filters=ON
