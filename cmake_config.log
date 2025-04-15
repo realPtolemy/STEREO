@@ -1,0 +1,38 @@
+CMake Error at CMakeLists.txt:2 (cmake_policy):
+  Policy "CMP0144" is not known to this version of CMake.
+
+
+-- Checking for LZ4 at: /home/btolemy/Projects/STEREO/3party/lz4_src
+-- LZ4 already exists at /home/btolemy/Projects/STEREO/3party/lz4_src, skipping fetch and build
+-- LZ4 can now be found in: /home/btolemy/Projects/STEREO/3party/lz4_src
+-- ZLIB can now be found in: /home/btolemy/Projects/STEREO/3party/zlib_src
+-- Verifying EIGEN installation...
+-- EIGEN can now be found in: /home/btolemy/Projects/STEREO/3party/eigen_src
+-- Eigen3 found: /home/btolemy/Projects/STEREO/3party/eigen_src/share/eigen3/cmake
+-- OpenCV already exists at /home/btolemy/Projects/STEREO/3party/opencv_src, verifying installation...
+-- OpenCV found: /home/btolemy/Projects/STEREO/3party/opencv_src/lib/cmake/opencv4
+-- OpenCV include dirs: /home/btolemy/Projects/STEREO/3party/opencv_src/include/opencv4
+-- OpenCV libraries: opencv_calib3d;opencv_core;opencv_features2d;opencv_flann;opencv_highgui;opencv_imgcodecs;opencv_imgproc;opencv_photo
+-- Verifying BOOST installation...
+-- BOOST can now be found in: /home/btolemy/Projects/STEREO/3party/boost_src
+-- Verifying FLANN installation...
+-- FLANN found, verification complete!
+-- FLANN can now be found in: /home/btolemy/Projects/STEREO/3party/flann_src
+-- PCL_INSTALL_DIR set to: /home/btolemy/Projects/STEREO/3party/pcl_src
+-- PCL_BUILD_DIR set to: /home/btolemy/Projects/STEREO/build/_deps/pcl-build
+-- EIGEN3_DIR set to: /home/btolemy/Projects/STEREO/3party/eigen_src/share/eigen3/cmake
+-- Checking if PCL_INSTALL_DIR exists: /home/btolemy/Projects/STEREO/3party/pcl_src
+-- Adding PCL_INSTALL_DIR to CMAKE_PREFIX_PATH: /home/btolemy/Projects/STEREO/3party/pcl_src
+-- PCL can now be found in: /home/btolemy/Projects/STEREO/3party/pcl_src
+-- Checking for CNPY at: /home/btolemy/Projects/STEREO/3party/cnpy_src
+-- CNPY already exists at /home/btolemy/Projects/STEREO/3party/cnpy_src, skipping fetch and build
+-- Eigen3 include dir: /home/btolemy/Projects/STEREO/3party/eigen_src/include/eigen3
+-- Eigen3 config dir: /home/btolemy/Projects/STEREO/3party/eigen_src/share/eigen3/cmake
+-- Checking for Sophus at: /home/btolemy/Projects/STEREO/3party/sophus_src
+-- Sophus already exists at /home/btolemy/Projects/STEREO/3party/sophus_src, skipping fetch and build
+-- Sophus can now be found in: /home/btolemy/Projects/STEREO/3party/sophus_src
+-- I AM BEFORE EXTERNAL
+-- I PASS EXTERNAL
+-- I PASS APP
+-- Configuring incomplete, errors occurred!
+See also "/home/btolemy/Projects/STEREO/build/CMakeFiles/CMakeOutput.log".
