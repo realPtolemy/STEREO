@@ -463,7 +463,6 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
     file(WRITE ${FLANN_MATLAB_CMAKELISTS} "${FLANN_MATLAB_CONTENT_MODIFIED}")
     message(STATUS "MATLAB patch applied successfully")
 
-
     # Debug LZ4 setup
     message(STATUS "Debugging LZ4 setup...")
     message(STATUS "LZ4_INSTALL_DIR: ${LZ4_INSTALL_DIR}")
@@ -489,6 +488,8 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
         -DCMAKE_INSTALL_PREFIX=${FLANN_INSTALL_DIR}
         -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
         -DLZ4_ROOT=${LZ4_INSTALL_DIR}
+        -DLZ4_INCLUDE_DIR=${LZ4_INSTALL_DIR}/include
+        -DLZ4_LIBRARY=${LZ4_INSTALL_DIR}/lib/liblz4.a
         -DCMAKE_BUILD_TYPE=None
         -DWITH_LZ4=ON
         -DBUILD_STATIC_LIBS=ON
@@ -535,20 +536,28 @@ if(NOT EXISTS ${FLANN_INSTALL_DIR})
         message(FATAL_ERROR "FLANN installation failed with result: ${FLANN_INSTALL_RESULT}")
     endif()
 
-    # Clean up
-    #message(STATUS "Cleaning up FLANN build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-    #execute_process(
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-src
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-build
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/flann-subbuild
-    #    RESULT_VARIABLE CLEAN_RESULT
-    #)
-    #if(NOT CLEAN_RESULT EQUAL 0)
-    #    message(WARNING "Failed to clean up FLANN build artifacts: ${CLEAN_RESULT}")
-    #else()
-    #    message(STATUS "FLANN build artifacts cleaned up.")
-    #endif()
-    message(STATUS "FLANN fetched and installed.")
+    # Patch flann/util/serialization.h to use absolute LZ4 paths
+    message(STATUS "Patching flann/util/serialization.h to use absolute LZ4 paths...")
+    set(SERIALIZATION_HEADER "${FLANN_INSTALL_DIR}/include/flann/util/serialization.h")
+    if(EXISTS "${SERIALIZATION_HEADER}")
+        file(READ "${SERIALIZATION_HEADER}" SERIALIZATION_CONTENT)
+        string(REPLACE
+            "#include <lz4.h>"
+            "#include \"${LZ4_INSTALL_DIR}/include/lz4.h\""
+            SERIALIZATION_CONTENT_MODIFIED
+            "${SERIALIZATION_CONTENT}"
+        )
+        string(REPLACE
+            "#include <lz4hc.h>"
+            "#include \"${LZ4_INSTALL_DIR}/include/lz4hc.h\""
+            SERIALIZATION_CONTENT_MODIFIED
+            "${SERIALIZATION_CONTENT_MODIFIED}"
+        )
+        file(WRITE "${SERIALIZATION_HEADER}" "${SERIALIZATION_CONTENT_MODIFIED}")
+        message(STATUS "Patched flann/util/serialization.h successfully")
+    else()
+        message(FATAL_ERROR "flann/util/serialization.h not found at ${SERIALIZATION_HEADER}")
+    endif()
 endif()
 
 # Set FLANN paths for later use
