@@ -342,6 +342,12 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
         message(STATUS "Populating Boost content...")
         FetchContent_Populate(boost)
 
+        # Set platform-specific CXX flags
+        set(BOOST_CXX_FLAGS "-D_POSIX_C_SOURCE=200809L")            # MAC AND LINUX
+        if(NOT APPLE)
+            set(BOOST_CXX_FLAGS "${BOOST_CXX_FLAGS} -D_GNU_SOURCE") # LINUX!
+        endif()
+
         # Configure Boost
         message(STATUS "Configuring Boost...")
         execute_process(
@@ -352,7 +358,7 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
             -DBUILD_SHARED_LIBS=OFF
             -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
             #-DCMAKE_CXX_FLAGS="-D_XOPEN_SOURCE=700 -D_GNU_SOURCE"                          # This line WORKS ON LINUX, but not on MAC
-            -DCMAKE_CXX_FLAGS="$<$<NOT:APPLE>:-D_GNU_SOURCE> -D_POSIX_C_SOURCE=200809L"     # testing..
+            -DCMAKE_CXX_FLAGS="${BOOST_CXX_FLAGS}"                                          # THIS LINE DEPENDS ON THE SET PLATFORM-SPECIFIC CXX FLAGS PART ABOVE
             -DCMAKE_VERBOSE_MAKEFILE=ON  # Enable verbose output
             OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
             ERROR_VARIABLE BOOST_CONFIGURE_ERROR
