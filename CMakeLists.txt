@@ -349,11 +349,10 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
             -S ${CMAKE_BINARY_DIR}/_deps/boost-src
             -B ${BOOST_BUILD_DIR}
             -DCMAKE_INSTALL_PREFIX=${BOOST_INSTALL_DIR}
-            #-DBOOST_INCLUDE_LIBRARIES=filesystem$<SEMICOLON>system$<SEMICOLON>iostreams$<SEMICOLON>atomic
-            #-DBOOST_INCLUDE_LIBRARIES=filesystem;system;iostreams
             -DBUILD_SHARED_LIBS=OFF
             -DZLIB_ROOT=${ZLIB_INSTALL_DIR}
-            -DCMAKE_CXX_FLAGS="-D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
+            #-DCMAKE_CXX_FLAGS="-D_XOPEN_SOURCE=700 -D_GNU_SOURCE"                          # This line WORKS ON LINUX, but not on MAC
+            -DCMAKE_CXX_FLAGS="$<$<NOT:APPLE>:-D_GNU_SOURCE> -D_POSIX_C_SOURCE=200809L"     # testing..
             -DCMAKE_VERBOSE_MAKEFILE=ON  # Enable verbose output
             OUTPUT_VARIABLE BOOST_CONFIGURE_OUTPUT
             ERROR_VARIABLE BOOST_CONFIGURE_ERROR
@@ -393,20 +392,6 @@ if(NOT EXISTS ${BOOST_INSTALL_DIR})
             message(FATAL_ERROR "Boost installation failed with result: ${BOOST_INSTALL_RESULT}")
         endif()
     endif()
-
-    # Clean up
-    #message(STATUS "Cleaning up BOOST build artifacts in ${CMAKE_BINARY_DIR}/_deps/...")
-    #execute_process(
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-src
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-build
-    #    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/_deps/boost-subbuild
-    #    RESULT_VARIABLE CLEAN_RESULT
-    #)
-    #if(NOT CLEAN_RESULT EQUAL 0)
-    #    message(WARNING "Failed to clean up BOOST build artifacts: ${CLEAN_RESULT}")
-    #else()
-    #    message(STATUS "BOOST build artifacts cleaned up.")
-    #endif()
     message(STATUS "BOOST fetched and installed.")
 
 endif()
@@ -418,14 +403,7 @@ set(BOOST_LIBRARY_DIRS ${BOOST_INSTALL_DIR}/lib)
 set(BOOST_INCLUDE_DIRS ${BOOST_INSTALL_DIR}/include)
 message(STATUS "BOOST can now be found in: ${BOOST_INSTALL_DIR}")
 
-#find_package(Boost REQUIRED COMPONENTS filesystem system iostreams PATHS ${BOOST_INSTALL_DIR}/lib/cmake NO_DEFAULT_PATH)
-#if(Boost_FOUND)
-#    message(STATUS "Boost found: ${Boost_DIR}")
-#    message(STATUS "Boost include dirs: ${Boost_INCLUDE_DIRS}")
-#    message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
-#else()
-#    message(FATAL_ERROR "Boost not found at ${BOOST_INSTALL_DIR}/lib/cmake!")
-#endif()
+
 
 # ================ FLANN ================
 set(FLANN_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/flann_src)
