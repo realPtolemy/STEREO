@@ -30,8 +30,16 @@ target_include_directories(my_executable PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/talking_test/include
     ${OpenCV_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
+    ${BOOST_INCLUDE_DIRS}
     ${EIGEN3_INSTALL_DIR}/include/eigen3
     ${SOPHUS_INSTALL_DIR}/include
     ${CMAKE_SOURCE_DIR}/external/minkindr/include
+    ${CMAKE_SOURCE_DIR}/3party/pcl_src/include/pcl-1.15
+    ${CMAKE_SOURCE_DIR}/3party/boost_src/include/boost
 )
-target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS} cartesian3dgrid ${PCL_LIBRARIES} tf2)
+target_link_libraries(my_executable PRIVATE 
+    ${OpenCV_LIBS}
+    ${PCL_LIBRARIES}
+    cartesian3dgrid
+    tf2
+)
