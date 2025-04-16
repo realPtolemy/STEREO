@@ -5,6 +5,7 @@ project(app)
 find_package(OpenCV REQUIRED)
 set(PCL_DIR "${CMAKE_SOURCE_DIR}/3party/pcl_src/share/pcl-1.15")
 #find_package(PCL 1.15 REQUIRED COMPONENTS common filters)
+find_package(PCL 1.15 REQUIRED COMPONENTS common filters io)
 set(BOOST_ROOT "${CMAKE_SOURCE_DIR}/3party/boost_src")
 #find_package(Boost REQUIRED COMPONENTS mpl system filesystem thread)
 set(EIGEN3_ROOT "${CMAKE_SOURCE_DIR}/3party/eigen_src")
@@ -46,7 +47,8 @@ target_include_directories(my_executable PRIVATE
     ${EIGEN3_INCLUDE_DIR}
     ${SOPHUS_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/external/minkindr/include
-    ${CMAKE_SOURCE_DIR}/3party/pcl_src/include/pcl-1.15  # Temporary until PCL is fully configured
+    # ${CMAKE_SOURCE_DIR}/3party/pcl_src/include/pcl-1.15  # Temporary until PCL is fully configured
+    ${PCL_INCLUDE_DIRS}
 )
 
 target_link_libraries(my_executable PRIVATE
