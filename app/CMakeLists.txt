@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(app)
 
+option(ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" ON)
 
 set(SOURCES
     main.cpp
@@ -9,6 +10,7 @@ set(SOURCES
     mapper/src/process1_live.cpp
     mapper/src/utils.cpp
     mapper/src/mapper_emvs_stereo.cpp
+    mapper/src/pointcloud_processing.cpp
     src/camera.cpp
     tracker/src/tracker.cpp
     tracker/src/lk_se3.cpp
@@ -21,7 +23,11 @@ set(SOURCES
 
 add_executable(my_executable ${SOURCES})
 
-message(STATUS ${GLOG})
+if(ENABLE_SANITIZERS)
+  	message(STATUS "Building with AddressSanitizer and UndefinedBehaviorSanitizer")
+	target_compile_options(my_executable PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer -g)
+  	target_link_options(my_executable PRIVATE -fsanitize=address,undefined)
+endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/CompilerSettings.cmake)
 
@@ -34,8 +40,16 @@ target_include_directories(my_executable PRIVATE
     ${OpenCV_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     ${EIGEN3_INSTALL_DIR}/include/eigen3
+    ${LZ4_INSTALL_DIR}/include
     ${SOPHUS_INSTALL_DIR}/include
     ${CMAKE_SOURCE_DIR}/external/minkindr/include
     # ${GLOG_INSTALL_DIR}/include
 )
-target_link_libraries(my_executable PRIVATE ${OpenCV_LIBS} cartesian3dgrid ${PCL_LIBRARIES} tf2 glog::glog)
+target_link_libraries(my_executable PRIVATE
+    ${OpenCV_LIBS}
+    cartesian3dgrid
+    ${PCL_LIBRARIES}
+    tf2
+    glog::glog
+    ${LZ4_LIBRARIES}
+)

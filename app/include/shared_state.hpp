@@ -18,6 +18,8 @@
 
 // Other states that should be stored, not sure currently
 
+typedef pcl::PointCloud<pcl::PointXYZI>::Ptr Pointcloud;
+
 template <typename T>
 struct EventQueue {
     std::mutex mtx;
@@ -54,7 +56,7 @@ struct pcl_state {
     std::condition_variable pcl_cv;
     bool pcl_ready = false;
     bool pcl_listeners = false;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr pcl;
+    Pointcloud pcl;
 };
 
 struct pose_state {
@@ -62,6 +64,7 @@ struct pose_state {
     // Behövs condition variable?
     std::condition_variable pose_cv;
     bool pose_ready = false;
+    int event_stamp;
     tf2::msg::TransformStamped pose;
 };
 
@@ -73,6 +76,11 @@ public:
         tf_ = std::make_shared<tf2::BufferCore>();
     };
     ~SharedState() = default;
+
+    const std::string m_calib_file_cam0 =
+        "calibration/calibrationData/calibration_data_camera_0.yaml";
+    const std::string m_calib_file_cam1 =
+        "calibration/calibrationData/calibration_data_camera_1.yaml";
 
     std::shared_ptr<tf2::BufferCore> tf_;
     pcl_state pcl_state_;

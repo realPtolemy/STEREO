@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/calib3d.hpp>
+#include <opencv2/core/eigen.hpp>
 
 #include <iostream>
 
@@ -17,6 +18,7 @@ struct CameraInfo {
     double fx_, fy_, cx_, cy_;
     // Extrinsics
     cv::Matx33d R_cv = cv::Matx33d::eye(); // OpenCV rotation matrix
+    cv::Matx33d newcameramtx;
     cv::Vec3d T_cv = cv::Vec3d(0, 0, 0);   // OpenCV translation vector
 
     Eigen::Matrix3d R_eigen = Eigen::Matrix3d::Identity();
@@ -27,11 +29,11 @@ struct CameraInfo {
 
     // Distortion
     std::vector<double> distortion;
-    std::string distortion_model = "fish_eye";
+    std::string distortion_model = "fisheye";
 
     // Resolution
-    unsigned int width = 100;
-    unsigned int height = 100;
+    unsigned int width = 640;
+    unsigned int height = 480;
 };
 typedef Eigen::Vector3d Point;
 typedef Eigen::Vector2d Keypoint;
@@ -39,22 +41,28 @@ typedef Eigen::Vector3d BearingVector;
 
 class PinholeCameraModel {
 private:
-    void readYAML(const std::string& filename, CameraInfo& camera);
+    // void readYAML(const std::string& filename, CameraInfo& camera);
+    void readYAML(const std::string& filename);
 
     CameraInfo camera_info;
+
+    Eigen::Matrix4d hand_eye_;
+
 
     Eigen::Matrix3d toEigen(const cv::Matx33d& m) const;
     // cv::Matx33d toCv(const Eigen::Matrix3d& m) const;
 
-public:
+    public:
     PinholeCameraModel();
     // Manual intrinsic init, insppired by code from ES-PTAM
     PinholeCameraModel(int width, int height, double fx, double fy, double cx, double cy);
     // Load intrinsic from YAML file
-    PinholeCameraModel(const std::string& filename, CameraInfo& camera);
+    // PinholeCameraModel(const std::string& filename, CameraInfo& camera);
+    PinholeCameraModel(const std::string& filename);
 
     void loadCamerInfo(CameraInfo &info);
 
+    std::string cam_name;
     /**
      * Projects a 3d point (in camera frame) to the pixel coordinates
      *
@@ -94,7 +102,7 @@ public:
     Eigen::Matrix3d getKinv() const { return camera_info.Kinv_eigen; }
     Eigen::Matrix3d getK_eigen() const { return camera_info.K_eigen; }
     cv::Matx33d intrinsicMatrix() const { return camera_info.K_cv; }
-
+    Eigen::Matrix4d getHandEye() const {return hand_eye_ ; }
     CameraInfo getCameraInfo() const { return camera_info; }
 
     cv::Matx34d getProjectionMatrix() const { return camera_info.P_cv; }

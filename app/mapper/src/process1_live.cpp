@@ -59,7 +59,7 @@ void process_1(
 
     Transformation T_w_rv, T_w_l, T_w_r;
     mapper0.getPoseAt(tf_, ts, world_frame_id, left_cam_frame_id, T_w_l);
-    mapper1.getPoseAt(tf_, ts, world_frame_id, "dvs1", T_w_r);
+    mapper1.getPoseAt(tf_, ts, left_cam_frame_id, "dvs1", T_w_r);
 //    trajectory1.getPoseAt(ros::Time(t_mid), T_w_r);
     //Put camera somewhere along the baseline between 2 cameras
     Eigen::Matrix4d baseline = Eigen::Matrix4d::Identity(4,4);
@@ -74,7 +74,7 @@ void process_1(
 #ifdef TIMING_LOOP
     for(int i=1; i<=nloops; i++){
 #endif
-        mapper0.evaluateDSI(events0, tf_, world_frame_id, left_cam_frame_id, T_rv_w);
+      mapper0.evaluateDSI(events0, tf_, world_frame_id, left_cam_frame_id, T_rv_w);
 #ifdef TIMING_LOOP
       }
 #endif
@@ -92,7 +92,7 @@ void process_1(
 #ifdef TIMING_LOOP
     for (int i=1; i<=nloops; i++){
 #endif
-        mapper1.evaluateDSI(events1, tf_, world_frame_id, "dvs1", T_rv_w);
+        mapper1.evaluateDSI(events1, tf_, left_cam_frame_id, "dvs1", T_rv_w);
 #ifdef TIMING_LOOP
       }
 #endif

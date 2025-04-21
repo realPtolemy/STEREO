@@ -39,8 +39,11 @@ public:
     // At integer location
     inline float getGridValueAt(const unsigned int ix, const unsigned int iy, const unsigned int iz) const
     {
+        // std::cout << "POS: " << (ix + size_[0]*(iy + size_[1]*iz)) << std::endl;
         return data_array_.at(ix + size_[0]*(iy + size_[1]*iz));
     }
+
+    void printDataArray();
 
     inline float getGridValueAt(const unsigned int p) const
     {
@@ -66,6 +69,9 @@ public:
         for (int p = 0; p < numCells_; p++)
             {
                 data_array_.at(p) += grid2.data_array_.at(p);
+                // if(data_array_.at(p) += grid2.data_array_.at(p) != 0){
+                //     std::cout << "Adding two grids. Value 1: " << data_array_.at(p) << ", Value 2: " << grid2.data_array_.at(p) << std::endl;
+                // }
             }
     }
 
@@ -123,6 +129,12 @@ public:
                 float prod = data_array_.at(p) * grid2.data_array_.at(p);
                 float sum  = data_array_.at(p) + grid2.data_array_.at(p);
                 data_array_.at(p) = 2*prod / (sum + eps);
+                // std::cout << "Data at grid2: " << grid2.data_array_.at(p) << std::endl;
+                // std::cout << "Data at grid1: " << data_array_.at(p) << std::endl;
+                // if (data_array_.at(p) != 0 ){
+                //     std::cout << data_array_.at(p) << std::endl;
+                // }
+
             }
     }
 

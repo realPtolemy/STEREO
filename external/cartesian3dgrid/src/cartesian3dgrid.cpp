@@ -69,10 +69,22 @@ void Grid3D::resetGrid()
   std::fill(data_array_.begin(), data_array_.end(), 0.f);
 }
 
+void Grid3D::printDataArray(){
+	int count = 0;
+  	for (size_t i = 0; i < data_array_.size(); ++i) {
+    	if (data_array_[i] == 0) {
+			count ++;
+      		continue;
+    	}
+    	std::cout << "data_array_[" << i << "] = " << data_array_[i] << std::endl;
+  	}
+	std::cout << "Numbers of 0 in data_array_: " << count << std::endl;
+}
+
 cv::Mat Grid3D::getSlice(const unsigned int sliceIdx, const unsigned int dimIdx) const
 {
   cv::Mat slice;
-  
+
   // simplest way
   if (dimIdx==0)
   {
@@ -97,7 +109,7 @@ cv::Mat Grid3D::getSlice(const unsigned int sliceIdx, const unsigned int dimIdx)
   else if (dimIdx==2)
   {
     // Z-slice
-    unsigned int u_size = size_[0], 
+    unsigned int u_size = size_[0],
                  v_size = size_[1];
     slice = cv::Mat(v_size,u_size,CV_32FC1); // (y,x) as in images
     for(unsigned int v=0; v<v_size; v++)
@@ -108,7 +120,7 @@ cv::Mat Grid3D::getSlice(const unsigned int sliceIdx, const unsigned int dimIdx)
   {
     std::cout << "ERROR. dimIdx should be 0, 1 or 2" << std::endl;
   }
-  
+
   return slice;
 }
 
@@ -118,18 +130,22 @@ void Grid3D::collapseMaxZSlice(cv::Mat* max_val, cv::Mat* max_pos_idx) const
   unsigned int u_size = size_[0], v_size = size_[1], w_size = size_[2];
   *max_val = cv::Mat(v_size,u_size, CV_32FC1); // (y,x) as in images
   *max_pos_idx = cv::Mat(v_size,u_size, CV_8U); // WARNING: Max 256 depth layers
-  
+
   std::vector<float> grid_vals_vec(w_size);
   for(unsigned int v=0; v<v_size; v++)
   {
     for(unsigned int u=0; u<u_size; u++)
     {
       // Build vector containing the grid values at a given (u,v), as a function of depth
-      for(unsigned int k=0; k<w_size; ++k)
+      for(unsigned int k=0; k<w_size; ++k){
         grid_vals_vec.at(k) = getGridValueAt(u,v,k);
-      
+        // std::cout << "get grid value at (" << u << "," << v << ") in slice "
+        // << k << " is: " << grid_vals_vec.at(k) << std::endl;
+      }
+
       // Look for maximum of vector and its location
       auto max = std::max_element(std::begin(grid_vals_vec), std::end(grid_vals_vec));
+      // std::cout << "Max value vector: " << *max << std::endl;
       (*max_val).at<float>(v,u) = *max;
       (*max_pos_idx).at<uchar>(v,u) = std::distance(std::begin(grid_vals_vec), max);
     }
@@ -142,7 +158,7 @@ void Grid3D::collapseMinZSlice(cv::Mat* max_val, cv::Mat* max_pos_idx) const
   unsigned int u_size = size_[0], v_size = size_[1], w_size = size_[2];
   *max_val = cv::Mat(v_size,u_size, CV_32FC1); // (y,x) as in images
   *max_pos_idx = cv::Mat(v_size,u_size, CV_8U); // WARNING: Max 256 depth layers
-  
+
   std::vector<float> grid_vals_vec(w_size);
   for(unsigned int v=0; v<v_size; v++)
   {
@@ -151,7 +167,7 @@ void Grid3D::collapseMinZSlice(cv::Mat* max_val, cv::Mat* max_pos_idx) const
       // Build vector containing the grid values at a given (u,v), as a function of depth
       for(unsigned int k=0; k<w_size; ++k)
         grid_vals_vec.at(k) = getGridValueAt(u,v,k);
-      
+
       // Look for maximum of vector and its location
       auto max = std::min_element(std::begin(grid_vals_vec), std::end(grid_vals_vec));
       (*max_val).at<float>(v,u) = *max;
@@ -169,7 +185,7 @@ double Grid3D::computeMeanSquare() const
     double tmp = (double) data_array_.at(i);
     result += tmp*tmp;
   }
-  
+
   return result/numCells_;
 }
 
@@ -200,19 +216,19 @@ void Grid3D::collapseZSliceByGradMag(cv::Mat* confidence, cv::Mat* depth_cell_in
   const int patch_size = 2 * half_patchsize + 1;
   cv::Mat gaussian_kernel = cv::getGaussianKernel(patch_size, -1, CV_32F);
   cv::Mat gaussian_kernel_2d = gaussian_kernel * gaussian_kernel.t();
-  
+
   for(unsigned int k=0; k<w_size; ++k)
   {
     // Get depth plane
     float *pgrid = &data_array_[k * u_size * v_size];
     cv::Mat slice_dsi(v_size, u_size, CV_32F, pgrid);
-    
+
     // Compute local gradient magnitude (focus measure) of current depth slice of the DSI
     cv::Mat grad_x, grad_y, grad_mag;
     cv::Sobel( slice_dsi, grad_x, CV_32F, 1, 0);
     cv::Sobel( slice_dsi, grad_y, CV_32F, 0, 1);
     grad_mag = grad_x.mul(grad_x) + grad_y.mul(grad_y);
-    
+
     // Retain maximum local focus per pixel (i.e., per optical ray)
     for(int y=half_patchsize; y<v_size-half_patchsize; ++y)
     {
@@ -221,7 +237,7 @@ void Grid3D::collapseZSliceByGradMag(cv::Mat* confidence, cv::Mat* depth_cell_in
         // TODO
         // Compute the focus measure on a small patch around (x,y)
         //float focus = grad_mag.at<float>(y,x);  // Causes double edges
-        
+
         cv::Mat patch = grad_mag(cv::Rect(x-half_patchsize, y-half_patchsize, patch_size, patch_size)); //.mul(gaussian_kernel_2d);
         float focus = cv::mean(patch)[0];
 
@@ -234,7 +250,7 @@ void Grid3D::collapseZSliceByGradMag(cv::Mat* confidence, cv::Mat* depth_cell_in
       }
     }
   }
-  
+
   // Return gradient magnitude instead of its square
   cv::sqrt(*confidence, *confidence);
 }
@@ -246,18 +262,18 @@ void Grid3D::collapseZSliceByLaplacianMag(cv::Mat* confidence, cv::Mat* depth_ce
   unsigned int u_size = size_[0], v_size = size_[1], w_size = size_[2];
   *confidence = cv::Mat::zeros(v_size,u_size, CV_32FC1); // (y,x) as in images
   *depth_cell_indices = cv::Mat::zeros(v_size,u_size, CV_8U); // WARNING: Max 256 depth layers
-  
+
   for(unsigned int k=0; k<w_size; ++k)
   {
     // Get depth plane
     float *pgrid = &data_array_[k * u_size * v_size];
     cv::Mat slice_dsi(v_size, u_size, CV_32F, pgrid);
-    
+
     // Compute local focus measure of current depth slice of the DSI
     cv::Mat slice_high_freq, slice_high_freq_mag;
     cv::Laplacian( slice_dsi, slice_high_freq, CV_32FC1, 5);
     slice_high_freq_mag = slice_high_freq.mul(slice_high_freq);
-    
+
     // Retain maximum local focus per pixel (i.e., per optical ray)
     for(int y=0; y<v_size; ++y)
     {
@@ -275,7 +291,7 @@ void Grid3D::collapseZSliceByLaplacianMag(cv::Mat* confidence, cv::Mat* depth_ce
       }
     }
   }
-  
+
   // Return gradient magnitude instead of its square
   cv::sqrt(*confidence, *confidence);
 }
@@ -287,19 +303,19 @@ void Grid3D::collapseZSliceByDoG(cv::Mat* confidence, cv::Mat* depth_cell_indice
   unsigned int u_size = size_[0], v_size = size_[1], w_size = size_[2];
   *confidence = cv::Mat::zeros(v_size,u_size, CV_32FC1); // (y,x) as in images
   *depth_cell_indices = cv::Mat::zeros(v_size,u_size, CV_8U); // WARNING: Max 256 depth layers
-  
+
   // Compute DoG filtered image
   const double sigma = 0.5; // 1.0
-  
+
   //const double sigma2 = sigma * 3.0; // DoG
   const double sigma2 = sigma * 1.6; // LoG
-  
+
   for(unsigned int k=0; k<w_size; ++k)
   {
     // Get depth plane
     float *pgrid = &data_array_[k * u_size * v_size];
     cv::Mat slice_dsi(v_size, u_size, CV_32F, pgrid);
-    
+
     // Local means with two Gaussian kernel widths
     cv::Mat slice_local_mean1, slice_local_mean2;
     // Compute DoG filtered image
@@ -333,22 +349,22 @@ void Grid3D::collapseZSliceByLocalVar(cv::Mat* confidence, cv::Mat* depth_cell_i
   unsigned int u_size = size_[0], v_size = size_[1], w_size = size_[2];
   *confidence = cv::Mat::zeros(v_size,u_size, CV_32FC1); // (y,x) as in images
   *depth_cell_indices = cv::Mat::zeros(v_size,u_size, CV_8U); // WARNING: Max 256 depth layers
-  
+
   const double sigma = 0.5;
-  
+
   for(unsigned int k=0; k<w_size; ++k)
   {
     // Get depth plane
     float *pgrid = &data_array_[k * u_size * v_size];
     cv::Mat slice_dsi(v_size, u_size, CV_32F, pgrid);
-    
+
     // Compute local mean, local MS and then, local variance
     cv::Mat slice_local_mean, slice_local_MS;
     cv::GaussianBlur(slice_dsi, slice_local_mean, cv::Size(0,0), sigma,sigma, cv::BORDER_REFLECT);
     cv::GaussianBlur(slice_dsi.mul(slice_dsi), slice_local_MS, cv::Size(0,0), sigma,sigma, cv::BORDER_REFLECT);
     cv::Mat slice_local_var = slice_local_MS - slice_local_mean.mul(slice_local_mean);
     cv::threshold(slice_local_var, slice_local_var, 0., 0., cv::THRESH_TOZERO); // guarantee non-negativeness
-    
+
     // Retain maximum local focus per pixel (i.e., per optical ray)
     for(int y=0; y<v_size; ++y)
     {
@@ -366,7 +382,7 @@ void Grid3D::collapseZSliceByLocalVar(cv::Mat* confidence, cv::Mat* depth_cell_i
       }
     }
   }
-  
+
   // Return std instead of variance
   //cv::sqrt(*confidence, *confidence);
 }
@@ -378,19 +394,19 @@ void Grid3D::collapseZSliceByLocalMeanSquare(cv::Mat* confidence, cv::Mat* depth
   unsigned int u_size = size_[0], v_size = size_[1], w_size = size_[2];
   *confidence = cv::Mat::zeros(v_size,u_size, CV_32FC1); // (y,x) as in images
   *depth_cell_indices = cv::Mat::zeros(v_size,u_size, CV_8U); // WARNING: Max 256 depth layers
-  
+
   const double sigma = 0.5;
-  
+
   for(unsigned int k=0; k<w_size; ++k)
   {
     // Get depth plane
     float *pgrid = &data_array_[k * u_size * v_size];
     cv::Mat slice_dsi(v_size, u_size, CV_32F, pgrid);
-    
+
     // Compute filtered image
     cv::Mat slice_local_MS;
     cv::GaussianBlur(slice_dsi.mul(slice_dsi), slice_local_MS, cv::Size(0,0), sigma,sigma, cv::BORDER_REFLECT);
-    
+
     // Retain maximum local focus per pixel (i.e., per optical ray)
     for(int y=0; y<v_size; ++y)
     {
@@ -408,7 +424,7 @@ void Grid3D::collapseZSliceByLocalMeanSquare(cv::Mat* confidence, cv::Mat* depth
       }
     }
   }
-  
+
   // Return sqrt of MS
   //cv::sqrt(*confidence, *confidence);
 }
@@ -432,26 +448,26 @@ void Grid3D::computeLocalVarInPlace()
 {
   // Z-slice
   unsigned int u_size = size_[0], v_size = size_[1], w_size = size_[2];
-  
+
   const double sigma = 0.5;
-  
+
   #pragma omp parallel for
   for(unsigned int k=0; k<w_size; ++k)
   {
     // Get depth plane
     float *pgrid = &data_array_[k * u_size * v_size];
     cv::Mat slice_dsi(v_size, u_size, CV_32F, pgrid);
-    
+
     // Compute local variance by convolution, including Gaussian smoothing
     cv::Mat slice_local_mean, slice_local_MS; // Local mean and MS per Z-slice
     cv::GaussianBlur(slice_dsi, slice_local_mean, cv::Size(0,0), sigma,sigma, cv::BORDER_REFLECT);
     cv::GaussianBlur(slice_dsi.mul(slice_dsi), slice_local_MS, cv::Size(0,0), sigma,sigma, cv::BORDER_REFLECT);
     cv::Mat slice_local_var = slice_local_MS - slice_local_mean.mul(slice_local_mean);
     cv::threshold(slice_local_var, slice_local_var, 0., 0., cv::THRESH_TOZERO); // guarantee non-negativeness
-    
+
     //Stddev instead of variance
     cv::sqrt(slice_local_var, slice_local_var);
-    
+
     // Overwrite slice value
     slice_local_var.copyTo(slice_dsi);
   }
@@ -460,23 +476,23 @@ void Grid3D::computeLocalVarInPlace()
 
 void Grid3D::computeLocalMeanSquareInPlace()
 {
-  
+
   // Z-slice
   unsigned int u_size = size_[0], v_size = size_[1], w_size = size_[2];
-  
+
   const double sigma = 0.5;
-  
+
   #pragma omp parallel for
   for(unsigned int k=0; k<w_size; ++k)
   {
     // Get depth plane
     float *pgrid = &data_array_[k * u_size * v_size];
     cv::Mat slice_dsi(v_size, u_size, CV_32F, pgrid);
-    
+
     // Compute local MS by convolution, including Gaussian smoothing
     cv::Mat slice_local_MS;
     cv::GaussianBlur(slice_dsi.mul(slice_dsi), slice_local_MS, cv::Size(0,0), sigma,sigma, cv::BORDER_REFLECT);
-    
+
     // Overwrite slice value
     slice_local_MS.copyTo(slice_dsi);
   }

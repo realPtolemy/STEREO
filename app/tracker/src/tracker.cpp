@@ -11,6 +11,8 @@
 #include <kindr/minimal/quat-transformation.h>
 #include <pcl/conversions.h>
 
+#include <cstddef>  // For offsetof
+
 #include "tf2/LinearMath/tf2_eigen.hpp"
 
 #include <mutex>
@@ -97,6 +99,7 @@ Tracker::Tracker(SharedState &shared_state):
 
     weight_scale_trans_ = 0.;
     weight_scale_rot_ = 0.;
+    first_event_ = false;
 
     T_world_kf_ = T_kf_ref_ = T_ref_cam_ = T_cur_ref_ =
         Eigen::Affine3f::Identity();
@@ -104,41 +107,21 @@ Tracker::Tracker(SharedState &shared_state):
     map_ = PointCloud::Ptr(new PointCloud);
     map_local_ = PointCloud::Ptr(new PointCloud);
 
-    frame_id_ = std::string ("dvs0");
-    world_frame_id_ = std::string ("world");
+    // frame_id_ = std::string ("dvs0");
+    // world_frame_id_ = std::string ("world");
+    frame_id_ = "cam0";
+    world_frame_id_ = "world";
     auto_trigger_ = false;
 
-    tf2::msg::TransformStamped inital_pose;
-    inital_pose.frame_id = world_frame_id_;
-    inital_pose.child_frame_id = "camera0";
-    inital_pose.timestamp = tf2::TimePointZero;
+    // tf2::msg::TransformStamped inital_pose;
+    // inital_pose.frame_id = world_frame_id_;
+    // inital_pose.child_frame_id = "camera0";
+    // inital_pose.timestamp = tf2::TimePointZero;
+    // tf_.get()->setTransform(inital_pose, "tracker");
 
-    const auto& t = inital_pose.transform.translation;
-    const auto& q = inital_pose.transform.rotation;
+    c_ = PinholeCameraModel(shared_state_->m_calib_file_cam0);
 
-    std::cout << "TransformStamped:" << std::endl;
-    std::cout << "  frame_id: " << inital_pose.frame_id << std::endl;
-    std::cout << "  child_frame_id: " << inital_pose.child_frame_id << std::endl;
-    std::cout << "  translation: [" << t.x() << ", " << t.y() << ", " << t.z() << "]" << std::endl;
-    std::cout << "  rotation:    [" << q.w() << ", " << q.x() << ", " << q.y() << ", " << q.z() << "]" << std::endl;
-
-    std::cout << "Address of transform struct before: " << &inital_pose.transform << std::endl;
-    std::cout << "Received TransformStamped struct before: " << &inital_pose << std::endl;
-    std::cout << "Address of rotation quatertion before: " << &inital_pose.transform.rotation << std::endl;
-    std::cout << "Address of translation vector before: " << &inital_pose.transform.translation << std::endl;
-
-    tf_.get()->setTransform(inital_pose, "tracker");
-
-    // std::string tf_debug;
-    std::cout << tf_->allFramesAsString() << std::endl;
-    // std::cout << tf_debug << std::endl;
-
-    // Load camera calibration
-    // Raden under laddar in en kalibreringsfil, det är samma kamera som i mapper modulen
-    // TODO: Fixa att trackern har tillgång till kameran, ska kameran ligga i shared state?
-    // c_ = evo_utils::camera::loadPinholeCamera(nh);
-
-//     // postCameraLoaded();
+    postCameraLoaded();
 }
 
 // Denna funktion ska kallas av tråden i main, konstruktorn kan inte kallas i en tråd
@@ -165,8 +148,41 @@ void Tracker::trackerRun(){
     #endif
 
     tracking_thread_ = std::thread(&Tracker::trackingThread, this);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    initialize(tf2::TimePointZero);
+    // std::this_thread::sleep_for(std::chrono::seconds(1));
+    // initialize(tf2::TimePointZero);
+    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // std::cout << keypoints_.size() << std::endl;
+
+    while (true) {
+        {
+            std::lock_guard<std::mutex> lock(events_mutex_);
+            if (events_.size() >= 100000) break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    std::cout << events_.size() << std::endl;
+    if(first_event_){
+        std::lock_guard<std::mutex> lock(events_mutex_);
+        tf2::msg::TransformStamped inital_pose;
+        inital_pose.frame_id = world_frame_id_;
+        // inital_pose.child_frame_id = "camera0";
+        inital_pose.child_frame_id = "cam0";
+        // inital_pose.child_frame_id = frame_id_;
+        int temp = events_.size() - 2*(events_.size() - 100000);
+        inital_pose.timestamp = events_[temp].timestamp;
+        // inital_pose.timestamp = events_.back().timestamp;
+        // std::cout << tf2::timeToSec(events_.back().timestamp) << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
+            shared_state_->pose_state_.pose = inital_pose;
+            shared_state_->pose_state_.event_stamp = temp;
+            shared_state_->pose_state_.pose_ready = true;
+            tf_.get()->setTransform(inital_pose, "tracker");
+            shared_state_->pose_state_.pose_cv.notify_one();
+        }
+    }
+
+    // std::cout << tf_.get()->allFramesAsYAML() << std::endl;
 
     event_thread.join();
     pointcloud_thread.join();
@@ -187,7 +203,6 @@ void Tracker::trackingThread() {
         std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
         // std::cout << keypoints_.size() << std::endl;
         if (!idle_ && keypoints_.size() > 0) {
-            // std::cout << keypoints_.size() << std::endl;
             std::cout << "running?" << std::endl;
             estimateTrajectory();
         }
@@ -231,17 +246,14 @@ void Tracker::remoteCallback(const std::string& msg) {
 // }
 
 void Tracker::initialize(const tf2::TimePoint& ts) {
-    std::string bootstrap_frame_id = std::string("camera0");
-    // rpg_common_ros::param<std::string>(nh_, "dvs_bootstrap_frame_id", std::string("/camera0"));
-    // tf::StampedTransform TF_kf_world;
-    // tf_.lookupTransform(bootstrap_frame_id, world_frame_id_, ts, TF_kf_world);
-    // tf::transformTFToEigen(TF_kf_world, T_kf_world);
-    std::cout << "Target fram: " << bootstrap_frame_id << ", source frame: " << world_frame_id_ << std::endl;
-    std::string tf_debug;
-    tf_debug = tf_->allFramesAsString();
-    std::cout << tf_debug << std::endl;
+    // std::string bootstrap_frame_id = std::string("camera0");
+    std::string bootstrap_frame_id = "cam0";
+    // std::cout << "Target fram: " << bootstrap_frame_id << ", source frame: " << world_frame_id_ << std::endl;
+    // std::string tf_debug;
+    // tf_debug = tf_->allFramesAsString();
+    // std::cout << tf_debug << std::endl;
     tf2::msg::TransformStamped TF_kf_world = tf_.get()->lookupTransform(bootstrap_frame_id, world_frame_id_, ts);
-    LOG(INFO) << "Completed lookup";
+    // LOG(INFO) << "Completed lookup";
     Eigen::Affine3d T_kf_world(tf2::transformToEigen(TF_kf_world));
 
     T_world_kf_ = T_kf_world.cast<float>().inverse();
@@ -251,11 +263,10 @@ void Tracker::initialize(const tf2::TimePoint& ts) {
     while (cur_ev_ + 1 < events_.size() &&
            events_[cur_ev_].timestamp < TF_kf_world.timestamp)
         ++cur_ev_;
-//    LOG(INFO) << "latest tf stamp: "<< TF_kf_world.stamp_;
-//    LOG(INFO) << "latest event stamp: " << events_[cur_ev_].ts << "id: " << cur_ev_ << " with events size" << events_.size();
-
+    // LOG(INFO) << "latest tf stamp: "<< tf2::timeToSec(TF_kf_world.timestamp);
+    // LOG(INFO) << "latest event stamp: " << tf2::timeToSec(events_[cur_ev_].timestamp) << "id: " << cur_ev_ << " with events size:" << events_.size();
+    // google::FlushLogFiles(google::INFO); // or WARNING, ERROR, etc.
     updateMap();
-
     idle_ = false;
 }
 
@@ -272,18 +283,28 @@ void Tracker::reset() {
 // in the mapper.
 void Tracker::eventCallback() {
     static const bool discard_events_when_idle = false;
-    if (discard_events_when_idle && idle_) return;
-    clearEventQueue();
     std::unique_lock<std::mutex> lock(shared_state_->events_left_.mtx);
     while (true)
     {
+        if (discard_events_when_idle && idle_) continue;
+        clearEventQueue();
+
         // TODO: Gör det här bättre? Kolla på denna en gång till.
         shared_state_->events_left_.cv_event.wait(lock, [this]{ return shared_state_->events_left_.event_ready;});
         // events_ = shared_state_->events_left_.data;
         // for (const auto& event : shared_state_->events_left_.chunk) {
         //     std::cout << event.x << ", " << event.y << ", " << tf2::displayTimePoint(event.timestamp) << ", " << event.polarity << "\n";
         // }
-        for (const auto& e : shared_state_->events_left_.chunk) events_.push_back(e);
+        {
+            std::lock_guard<std::mutex> lock(events_mutex_);
+            for (const auto& e : shared_state_->events_left_.chunk) {
+                events_.push_back(e);
+            }
+        }
+
+        if(!first_event_){
+            first_event_ = true;
+        }
         shared_state_->events_left_.event_ready = false;
     }
 }
@@ -340,16 +361,20 @@ void Tracker::updateMap() {
     static size_t min_map_size = 0;
     static size_t min_n_keypoints = 0;
 
+    // std::cout << keypoints_.size() << std::endl;
+    // std::cout << "map_ size: " << map_->size() << std::endl;
     if (map_->size() <= min_map_size) {
         // LOG(WARNING) << "Unreliable map! Can not update map.";
         return;
     }
 
+    std::cout << keypoints_.size() << std::endl;
     T_kf_ref_ = T_kf_ref_ * T_ref_cam_;
     T_ref_cam_ = Eigen::Affine3f::Identity();
     kf_ev_ = cur_ev_;
 
     projectMap();
+    std::cout << keypoints_.size() << std::endl;
 
     if (keypoints_.size() < min_n_keypoints) {
         // LOG(WARNING) << "Losing track!";
@@ -362,6 +387,7 @@ void Tracker::clearEventQueue() {
     // Batcha events här också?
     // TODO : Fixa så att tracker också läser events, inte bara mapper
     if (idle_) {
+        // std::cout << "idle event cleaning" << std::endl;
         if (events_.size() > event_history_size_) {
             events_.erase(
                 events_.begin(),
@@ -371,6 +397,7 @@ void Tracker::clearEventQueue() {
             cur_ev_ = kf_ev_ = 0;
         }
     } else {
+        // std::cout << "event cleaning" << std::endl;
         events_.erase(events_.begin(), events_.begin() + kf_ev_);
 
         cur_ev_ -= kf_ev_;
@@ -446,15 +473,18 @@ void Tracker::publishTF() {
     pose_tf = tf2::eigenToTransform(T_world_cam.cast<double>());
     pose_tf.timestamp = events_[cur_ev_ + frame_size_].timestamp;
     pose_tf.frame_id = world_frame_id_;
-    pose_tf.child_frame_id = "dvs_evo_raw";
+    // pose_tf.child_frame_id = "dvs_evo_raw";
+    pose_tf.child_frame_id = "cam0";
+
     poses_.push_back(pose_tf);
-    {
-        std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
-        shared_state_->pose_state_.pose = pose_tf;
-        tf_.get()->setTransform(pose_tf, "tracker");
-        shared_state_->pose_state_.pose_ready = true;
-        shared_state_->pose_state_.pose_cv.notify_one();
-    }
+    // {
+    //     std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
+    //     shared_state_->pose_state_.pose = pose_tf;
+    //     std::cout << "new pose!" << std::endl;
+    //     tf_.get()->setTransform(pose_tf, "tracker");
+    //     shared_state_->pose_state_.pose_ready = true;
+    //     shared_state_->pose_state_.pose_cv.notify_one();
+    // }
 
     tf2::msg::TransformStamped filtered_pose;
     if (getFilteredPose(filtered_pose)) {
@@ -462,7 +492,17 @@ void Tracker::publishTF() {
         filtered_pose.child_frame_id = frame_id_;
         // TODO: Göra något liknande för filtered_pose som för pose_tf
         poses_filtered_.push_back(filtered_pose);
-        publishPose();
+
+        {
+            std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
+            shared_state_->pose_state_.pose = filtered_pose;
+            std::cout << "new pose!" << std::endl;
+            tf_.get()->setTransform(filtered_pose, "tracker");
+            shared_state_->pose_state_.pose_ready = true;
+            shared_state_->pose_state_.pose_cv.notify_one();
+        }
+
+        // publishPose();
     }
 }
 

@@ -5,6 +5,7 @@
 #include "event.hpp"
 #include "mapper/mapper_emvs_stereo.hpp"
 #include "mapper/transformation.hpp"
+#include "mapper/pointcloud_processing.hpp"
 #include "shared_state.hpp"
 #include "tf2/time.hpp"
 #include "tf2/LinearMath/tf2_eigen.hpp"
@@ -76,10 +77,7 @@ private:
     // int min_num_negihbors = 3;
 
     // Process parameters
-    const std::string m_calib_file_cam1 =
-        "calibration/calibrationData/calibration_data_camera_0.yaml";
-    const std::string m_calib_file_cam2 =
-        "calibration/calibrationData/calibration_data_camera_1.yaml";
+
     // std::string calib_path, mocap_calib_path;
     // std::string calib_type;
     int process_method = 1;
@@ -92,7 +90,7 @@ private:
 
     // calibration params
     Eigen::Matrix4d mat4_1_0, mat4_2_0, mat4_hand_eye;
-    CameraInfo camera1, camera2;
+    // CameraInfo camera1, camera2;
     PinholeCameraModel cam0, cam1, cam2;
 
 

@@ -4,21 +4,35 @@ Mapper::Mapper(SharedState &shared_state) :
 	shared_state_(&shared_state),
 	tf_(shared_state_->tf_)
 {
-	PinholeCameraModel cam0(m_calib_file_cam1, camera1), cam1(m_calib_file_cam2, camera2);
+	// PinholeCameraModel cam0(m_calib_file_cam1, camera1), cam1(m_calib_file_cam2, camera2);
+	// PinholeCameraModel cam0(shared_state_->m_calib_file_cam0), cam1(shared_state_->m_calib_file_cam1);
+	cam0 = PinholeCameraModel(shared_state_->m_calib_file_cam0);
+	cam1 = PinholeCameraModel(shared_state_->m_calib_file_cam1);
+	cam0.cam_name = "cam0";
+	cam1.cam_name = "cam1";
+	mat4_hand_eye = cam0.getHandEye().inverse() * cam1.getHandEye();
+	mat4_1_0 = mat4_hand_eye;
+	std::cout << mat4_1_0 << std::endl;
 
 	EMVS::ShapeDSI dsi_shape(dimX, dimY, dimZ, fov_deg, min_depth, max_depth);
 	initialized_ = false;
 	latest_tf_stamp_ = tf2::TimePointZero;
 	current_ts_ = tf2::TimePointZero;
-
+	state_= IDLE;
+	auto_trigger_ = true;
 	pc_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
 	pc_global_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
 
+	min_duration_ = .1;
+	max_duration_ = 1.;
+
 	world_frame_id_ = "world";
-	regular_frame_id_ = "dvs0";
-	bootstrap_frame_id_ = "camera0";
+	frame_id_ = "cam0";
+	// regular_frame_id_ = "dvs0";
+	// bootstrap_frame_id_ = "camera0";
 	// bootstrap_frame_id_ = regular_frame_id_;
-	frame_id_ = bootstrap_frame_id_;
+	// frame_id_ = bootstrap_frame_id_;
+	// frame_id_ = regular_frame_id_;
 
     cv::Size full_resolution = cam0.fullResolution();
     event_image0_ = cv::Mat(full_resolution,CV_8UC1);
@@ -28,11 +42,9 @@ Mapper::Mapper(SharedState &shared_state) :
 }
 
 void Mapper::mapperRun(){
-	google::FlushLogFiles(google::INFO);
 	std::vector<Event> camera1_events, camera2_events;
 	camera1_events.reserve(EVENT_BATCH_SIZE);
 	camera2_events.reserve(EVENT_BATCH_SIZE);
-	std::vector<std::thread> threads(NUM_OF_CAMERAS_);
 
 	#ifdef READ_EVENT_FROM_AESTREAM
 	/**
@@ -45,14 +57,14 @@ void Mapper::mapperRun(){
 		// 3party/aestream_src/bin/aestream input file data/camera_0.csv output udp
 	#else
 	// google::FlushLogFiles(google::INFO);
-		threads[0] = std::thread(
+		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
 			"data/camera_0.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
-		threads[1] = std::thread(
+		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
 			"data/camera_1.csv",
@@ -62,17 +74,19 @@ void Mapper::mapperRun(){
 	#endif
 	std::thread pose_reader(&Mapper::tfCallback, this);
 
-
-	std::thread mapper_thread(&Mapper::mappingLoop, this);
+	// std::thread mapper_thread(&Mapper::mappingLoop, this);
+	mapper_thread_ = std::thread(&Mapper::mappingLoop, this);
 
 	// dsi_merger(std::ref(camera1_events), std::ref(camera2_events));
 	#ifdef READ_EVENT_FROM_AESTREAM
 		camera1_thread.join();
 		// camera2_thread.join();
 	#else
-		threads[0].join();
-		threads[1].join();
+	camera1_thread_csv.join();
+	camera2_thread_csv.join();
 	#endif
+
+	pose_reader.join();
 }
 
 Mapper::~Mapper()
@@ -94,26 +108,40 @@ void Mapper::tfCallback(){
             tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
 			tf2::msg::TransformStamped T_hand_eye = tf2::eigenToTransform(Eigen::Affine3d(mat4_hand_eye));
 			T_hand_eye.timestamp = tf_stamp_;
-			T_hand_eye.child_frame_id = "hand";
-			T_hand_eye.frame_id = bootstrap_frame_id_;
+			T_hand_eye.frame_id = "hand";
+			T_hand_eye.child_frame_id = frame_id_;
+			// T_hand_eye.child_frame_id = bootstrap_frame_id_;
             // Broadcast hand eye transform
 			// TODO: update pose evetying that listens to tf here, that is pose.
             // broadcaster_.sendTransform(stamped_T_hand_eye);
 		}
 		if (shared_state_->pose_state_.pose.child_frame_id == frame_id_ || shared_state_->pose_state_.pose.child_frame_id == "/"+frame_id_) {
+			std::cout << "Give second camerea a pose!" << std::endl;
 			tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
 			tf2::msg::TransformStamped T_0_1, T_0_2;
-			T_0_1 = tf2::eigenToTransform(Eigen::Affine3d(mat4_1_0.inverse()));
-			T_0_1.timestamp = tf_stamp_;
-			T_0_1.child_frame_id = frame_id_;
-			T_0_1.frame_id = "dvs1";
+			T_0_1 = tf2::eigenToTransform(Eigen::Affine3d(mat4_1_0));
+			int temp = shared_state_->pose_state_.event_stamp;
+			std::cout << temp << std::endl;
+			temp -= 10;
+			std::cout << temp << std::endl;
+			// std::cout << shared_state_->events_right_.data.size() << std::endl;
+			T_0_1.timestamp = shared_state_->events_right_.data[temp].timestamp;
+			// T_0_1.timestamp = tf_stamp_;
+			std::cout << tf2::timeToSec(T_0_1.timestamp) << std::endl;
+			T_0_1.frame_id = frame_id_;
+			T_0_1.child_frame_id = "dvs1";
+			// std::cout << tf2::timeToSec(tf_stamp_) << std::endl;
             tf_->setTransform(T_0_1, "mapper");
+			std::cout << tf_->allFramesAsYAML() << std::endl;
 
-            if (frame_id_ == bootstrap_frame_id_) {
-                // keep bootstrap frame also as regular frame for future use
-                shared_state_->pose_state_.pose.child_frame_id = regular_frame_id_;
-                tf_->setTransform(shared_state_->pose_state_.pose, "mapper");
-            }
+			// tf_->lookupTransform("cam0", "dvs1", T_0_1.timestamp);
+
+
+            // if (frame_id_ == bootstrap_frame_id_) {
+            //     // keep bootstrap frame also as regular frame for future use
+            //     shared_state_->pose_state_.pose.child_frame_id = regular_frame_id_;
+            //     tf_->setTransform(shared_state_->pose_state_.pose, "mapper");
+            // }
 		}
 		std::chrono::high_resolution_clock::time_point t_end_callback = std::chrono::high_resolution_clock::now();
 		shared_state_->pose_state_.pose_ready = false;
@@ -128,20 +156,10 @@ bool Mapper::waitForTransformSimple(
 	const tf2::Duration & polling_sleep)
 {
 	auto start = std::chrono::steady_clock::now();
-	// std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(start.time_since_epoch()).count() << " ms since epoch" << std::endl;
-	// std::cout << tf2::durationToSec(timeout) << " seconds" << std::endl;
-	// while ((std::chrono::steady_clock::now() - start) < timeout) {
-	// 	std::cout << target_frame << ", " << source_frame << std::endl;
-
-	// 	std::this_thread::sleep_for(polling_sleep);
-	// }
 	if (buffer->canTransform(target_frame, source_frame, time)) {
-		std::cout << target_frame << ", " << source_frame << std::endl;
-		LOG(INFO) << "target frame can be transformed";
 		return true;
 	}
 	else{
-		// std::cout << "false" << std::endl;
 		return false;
 	}
 }
@@ -167,11 +185,11 @@ void Mapper::mappingLoop()
 	std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
 
 	std::string error_msg;
+	std::cout << tf2::timeToSec(current_ts_) << std::endl;
 	while (running_){
         if (!shared_state_->pcl_state_.pcl_listeners){
 			pc_global_->clear();
 		}
-
 
         tf2::msg::TransformStamped latest_tf;
 
@@ -184,23 +202,28 @@ void Mapper::mappingLoop()
 			tf2::durationFromSec(0.01))
 		){
 			latest_tf = tf_->lookupTransform(world_frame_id_, frame_id_, tf2::TimePointZero);
-            latest_tf_stamp_ = latest_tf.timestamp;
-        } else {
+			// std::cout << "lookup succeded!" << std::endl;
+			latest_tf_stamp_ = latest_tf.timestamp;
+
+		} else {
 			// LOG(WARNING) << error_msg;
 			continue;
 		}
-        if (auto_trigger_ && initialized_ && !map_initialized && tf2::durationToSec(latest_tf_stamp_ - current_ts_) > init_wait_t_) {
-            // LOG(INFO) << "GENERATING INITIAL MAP AUTOMATICALLY.";
-            state_ = MAPPING;
 
+        if (auto_trigger_ && initialized_ && !map_initialized && tf2::durationToSec(latest_tf_stamp_ - current_ts_) > init_wait_t_) {
+			// LOG(INFO) << "GENERATING INITIAL MAP AUTOMATICALLY.";
+            state_ = MAPPING;
+			// std::cout << "Mapping" << std::endl;
         }
-        if (state_ != MAPPING)
+
+        if (state_ != MAPPING){
 			// TODO: Handle this?
-			return;
+			continue;
+		}
 		std::vector<Event> ev_subset_left_, ev_subset_right_, ev_subset_tri_;
 		int last_tracked_ev_left, last_tracked_ev_right;
 		if (current_ts_ >= latest_tf_stamp_) {
-
+			continue;;
 		}
 		{
 			std::lock_guard<std::mutex> lock(data_mutex_);
@@ -216,20 +239,22 @@ void Mapper::mappingLoop()
 			}
 			// Check that there is enough events in both cameras to make a new map
 			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP) {
-				// LOG(INFO) << "Not enough events yet...";
+				// std::cout << "Not enough events yet..." << std::endl;;
 				continue;
 			}
-			// LOG(INFO) << "Creating subset of events with size: "<< NUM_EV_PER_MAP;
 			current_ts_ = latest_tf_stamp_;
 			double_t duration = tf2::durationToSec(current_ts_ - shared_state_->events_left_.data[last_tracked_ev_left - NUM_EV_PER_MAP].timestamp);
-			// LOG(INFO) << "Duration: "<<duration;
+			// std::cout << "Duration: "<<duration << std::endl;
 			//              ros::Time ev_subset_start_ts = (events_left_.end()-NUM_EV_PER_MAP)->ts;
 			if (duration > max_duration_){
 				// LOG(INFO) << "Looking too far back in the past. skip";
+				std::cout << "Looking too far back in the past. skip" << std::endl;
 				continue;
 			}
 			if (duration < min_duration_){
 				// LOG(INFO) << "Time interval is not big enough. There might be flashing events. Skip.";
+				std::cout << "Time interval is not big enough. There might be flashing events. Skip." << std::endl;
+
 				continue;
 			}
 			ev_subset_left_ = std::vector<Event>(
@@ -241,6 +266,9 @@ void Mapper::mappingLoop()
 				shared_state_->events_right_.data.begin()+last_tracked_ev_right
 			);
 		}
+		std::cout << "Size of left events: " << shared_state_->events_left_.data.size() << std::endl;
+		std::cout << "Size of right events: " << shared_state_->events_right_.data.size() << std::endl;
+		std::cout << "MappingAtTime!" << std::endl;
 		MappingAtTime(current_ts_, ev_subset_left_, ev_subset_right_, ev_subset_tri_, frame_id_);
 
 		if (on_demand_)
@@ -272,6 +300,8 @@ void Mapper::MappingAtTime(
     EMVS::MapperEMVS mapper2(cam2, dsi_shape);
     mapper2.name="2";
 
+
+	std::cout << "choosing method" << std::endl;
     switch(process_method)
     {
     case 1:
@@ -303,6 +333,7 @@ void Mapper::MappingAtTime(
         // LOG(INFO) << "Incorrect process method selected.. exiting";
         exit(0);
     }
+	std::cout << "method chosen" << std::endl;
 
     // Convert DSI to depth maps using argmax and noise filtering
     mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
@@ -314,6 +345,8 @@ void Mapper::MappingAtTime(
     opts_pc.min_num_neighbors_ = min_num_neighbors;
     mapper_fused.getPointcloud(depth_map, semidense_mask, opts_pc, pc_, T_rv_w_);
     //    mapper0.getPointcloud(depth_map, semidense_mask, opts_pc, pc_, T_rv_w_);
+
+
 
 	publishMsgs(frame_id);
 }
@@ -334,13 +367,15 @@ void Mapper::publishMsgs(std::string frame_id){
 }
 
 void Mapper::publishImgs(std::string frame_id){
-	// LOG(INFO) << "Publishing message!!!!!!!!!!!!!!!!!!!!!!!!! ";
+	LOG(INFO) << "Publishing images!!!!!!!!!!!!!!!!!!!!!!!!! ";
     // cv_bridge::CvImagePtr cv_ptr(new cv_bridge::CvImage);
     // cv_ptr->encoding = "mono8";
     // cv_ptr->header.stamp = ros::Time(current_ts_);
     // cv_ptr->header.frame_id = frame_id;
     // cv_ptr->image = event_image0_;
     // ev_img_pub_.publish(cv_ptr->toImageMsg());
+	std::cout << "publish images with id: " << frame_id << std::endl;
+	// cv::imwrite("images/event_image0_.png", event_image0_);
 
     // if (invDepthMap_pub_.getNumSubscribers() > 0 || conf_map_pub_.getNumSubscribers() > 0) {
 
@@ -483,7 +518,11 @@ Event Mapper::parse_line(const std::string& line)
 		tokens.push_back(token);
 	}
 	Event e;
-	e.timestamp = tf2::TimePoint(tf2::Duration(std::stoull(tokens[0])));
+	// e.timestamp = tf2::TimePoint(tf2::Duration(std::stoull(tokens[0])));
+
+	uint64_t ts_us = std::stoull(tokens[0]);
+	e.timestamp = tf2::TimePoint(tf2::durationFromSec(ts_us * 1e-6));
+
 	e.x = std::stoi(tokens[1]);
 	e.y = std::stoi(tokens[2]);
 	e.polarity = std::stoi(tokens[3]);

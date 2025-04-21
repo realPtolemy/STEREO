@@ -7,9 +7,7 @@
 
 namespace tf2{
 namespace msg{
-	struct Transform {
-		// EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
+	struct alignas(32) Transform {
 		Eigen::Vector3d translation;
 		Eigen::Quaterniond rotation;
 

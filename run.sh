@@ -24,8 +24,13 @@ if [ "$ACTION1" = "clean" ] || [ "$ACTION1" = "build" ]; then
         mkdir "$BUILD_DIR"
     fi
     echo "Running CMake configuration..."
+
     cd "$BUILD_DIR"
-    cmake -G Ninja ..
+    if [ "$ACTION2" = "debug" ]; then
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ..
+    else
+        cmake -G Ninja ..
+    fi
     cd ..
 fi
 
@@ -37,18 +42,22 @@ if [ "$ACTION1" = "clean" ] || [ "$ACTION1" = "build" ] || [ "$ACTION1" = "compi
     cd ..
 fi
 
-if [ "$ACTION1" = "test" ] || [ "$ACTION2" = "test" ]; then
-    echo "Running tests..."
-    cd "$BUILD_DIR"
-    ctest --output-on-failure
-    cd ..
-    exit 0
-fi
+# if [ "$ACTION1" = "test" ] || [ "$ACTION2" = "test" ]; then
+#     echo "Running tests..."
+#     cd "$BUILD_DIR"
+#     ctest --output-on-failure
+#     cd ..
+#     exit 0
+# fi
 
 # Run
 if [ -f "$EXECUTABLE" ]; then
     echo "Running executable..."
-    "$EXECUTABLE"
+    if [ "$ACTION2" = "debug" ]; then
+        gdb "$EXECUTABLE"
+    else
+        "$EXECUTABLE"
+    fi
 else
     echo "Executable not found."
 fi

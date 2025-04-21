@@ -71,8 +71,10 @@ private:
     std::string world_frame_id_;
 
     bool idle_;  ///< whether the tracking is idle or active
+    bool first_event_;
 
     EventQueue events_;  ///< already processed and to process events
+    std::mutex events_mutex_;
 
     size_t cur_ev_, kf_ev_, noise_rate_, frame_size_, step_size_, event_rate_;
 

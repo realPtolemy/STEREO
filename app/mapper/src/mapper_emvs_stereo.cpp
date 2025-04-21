@@ -80,18 +80,33 @@ MapperEMVS::MapperEMVS(const PinholeCameraModel& cam,
 
 bool MapperEMVS::getPoseAt(std::shared_ptr<tf2::BufferCore> tf_, const tf2::TimePoint& t, std::string world_frame_id, std::string frame_id, Transformation& T) {
   std::string* error_msg = new std::string();
+
+  double time = tf2::timeToSec(t);
+
+//   if(time == 0.653799){
+//     std::cout << "Time: " << tf2::timeToSec(t) << std::endl;
+//     std::cout << "World: " << world_frame_id << std::endl;
+//     std::cout << "Frame id: " << frame_id << std::endl;
+//   }
+
+//   if(frame_id == "dvs1"){
+//     std::cout << "Time: " << tf2::timeToSec(t) << std::endl;
+//   }
+
+//   if(time == 0.822208){
+//     std::cout << "Time: " << tf2::timeToSec(t) << std::endl;
+//   }
+
   if (!tf_->canTransform(world_frame_id, frame_id, t, error_msg)) {
-    //   LOG(WARNING) << t.toNSec() << " : " << *error_msg;
       return false;
     } else {
-        //tf::StampedTransform tr;
-        // msg::TransformStamped tr;
-
-        // tf_->lookupTransform(world_frame_id, frame_id, t);
         tf2::msg::TransformStamped tr = tf_->lookupTransform(world_frame_id, frame_id, t);
+        std::cout << frame_id << std::endl;
+        // std::cout << "Time: " << tf2::timeToSec(t) << std::endl;
 
         // tf::transformTFToKindr(tr, &T);
-
+        Transformation temp(tr.transform.rotation, tr.transform.translation);
+        T = temp;
         return true;
     }
 }
@@ -126,11 +141,21 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
         Transformation T_w_ev; // from event camera to world
         Transformation T_rv_ev; // from event camera to reference viewpoint
+        // if(cam_name == "cam0")
+            // std::cout << tf2::timeToSec(frame_ts) << std::endl;
+        // 0.822208
         if(!getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev))
         {
+            // std::cout << world_frame_id  << std::endl;
+            // std::cout << cam_name << std::endl;
+            // std::cout << tf2::timeToSec(frame_ts) << std::endl;
             current_event_++;
             continue;
         }
+        if(cam_name == "dvs1"){
+            std::cout << "dvs1" << std::endl;
+        }
+        std::cout << "pose found" << std::endl;
 
         T_rv_ev = T_rv_w * T_w_ev;
 
@@ -153,6 +178,19 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
         // Compute H_z0 in pixel coordinates using the intrinsic parameters
         Eigen::Matrix3d H_z0_inv_px = K_ * H_z0_inv * virtual_cam_.getKinv();
+        if(cam_name == "dvs1"){
+            std::cout << "H_z0_inv:\n" << H_z0_inv << std::endl;
+            std::cout << "K_:\n" << K_ << std::endl;
+            std::cout << "Kinv:\n" << virtual_cam_.getKinv() << std::endl;
+            std::cout << "T_w_ev:\n" << T_w_ev << std::endl;
+            std::cout << "T_rv_w:\n" << T_rv_w << std::endl;
+            std::cout << "T_ev_rv:\n" << T_ev_rv << std::endl;
+            std::cout << "Translation t:\n" << t.transpose() << std::endl;
+            std::cout << "T_ev_rv matrix for dvs1:\n" << T_ev_rv.getTransformationMatrix() << std::endl;
+            std::cout << "Rotation R:\n" << R << std::endl;
+            // std::cout << "precomputed_rectified_points_:\n" << precomputed_rectified_points_ << std::endl;
+        }
+
         Eigen::Matrix3d H_z0_px = H_z0_inv_px.inverse();
 
         // Use a 4x4 matrix to allow Eigen to optimize the speed
@@ -166,21 +204,41 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
         {
             const Event& e = events[current_event_++];
             Eigen::Vector4d p;
-
             p.head<2>() = precomputed_rectified_points_.col(e.y * width_ + e.x);
+
             // p.head<2>() = precomputed_rectified_points_.col(e.y * width_ + e.x).cast<double>();
             p[2] = 1.;
             p[3] = 0.;
 
+
             p = H_z0_px_4x4 * p;
+
+            // if(cam_name == "cam0")
+                // std::cout << "Before division p: " << p.transpose() << std::endl;
+
             p /= p[2];
+
+            // if(cam_name == "dvs1"){
+            //     std::cout << p << std::endl;
+            //     std::cout << "WEIRD MATRIX:\n" << H_z0_px_4x4 << std::endl;
+            //     // std::cout << "precomputed_rectified_points_:\n" << precomputed_rectified_points_ << std::endl;
+            // }
 
             event_locations_z0.push_back(p);
         }
     }
 
+
+    // if(cam_name == "dvs1"){
+    //     // std::cout << p << std::endl;
+    //     // std::cout << "WEIRD MATRIX:\n" << H_z0_px_4x4 << std::endl;
+    //     std::cout << "precomputed_rectified_points_:\n" << precomputed_rectified_points_ << std::endl;
+    // }
+
     dsi_.resetGrid();
     fillVoxelGrid(event_locations_z0, camera_centers);
+    if(cam_name == "dvs1")
+        dsi_.printDataArray();
     return true;
 }
 
@@ -239,6 +297,16 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
                 {
                     // Bilinear voting
                     dsi_.accumulateGridValueAt(X[i], Y[i], pgrid);
+
+                    // // Assuming you know the current depth_plane (k) for this slice:
+                    if(dvs_cam_.cam_name == "cam1"){
+                        float updated_value = dsi_.getGridValueAt(X[i], Y[i], depth_plane);
+                        if(updated_value != 0){
+                            std::cout << "Updated grid value at (" << X[i] << "," << Y[i] << ") in slice "
+                            << depth_plane << " is: " << updated_value << std::endl;
+                        }
+                    }
+
                 }
             }
         }
@@ -285,11 +353,17 @@ void MapperEMVS::setupDSI()
 cv::Point2d fisheye_rectifyPoint(const cv::Point2d& uv_raw,
                                  const cv::Matx33d& K_, const cv::Mat& D_, const cv::Matx33d& R_, const cv::Matx34d& P_)
 {
-    cv::Point2f raw32 = uv_raw, rect32;
-    const cv::Mat src_pt(1, 1, CV_32FC2, &raw32.x);
-    cv::Mat dst_pt(1, 1, CV_32FC2, &rect32.x);
-    cv::fisheye::undistortPoints(src_pt, dst_pt, K_, D_, R_, P_);
-    return rect32;
+    // cv::Point2f raw32 = uv_raw, rect32;
+    // const cv::Mat src_pt(1, 1, CV_32FC2, &raw32.x);
+    // cv::Mat dst_pt(1, 1, CV_32FC2, &rect32.x);
+
+    cv::Point2d raw64 = uv_raw, rect64;
+    cv::Mat src_pt(1, 1, CV_64FC2, &raw64.x);
+    cv::Mat dst_pt(1, 1, CV_64FC2, &rect64.x);
+
+    cv::undistortPoints(src_pt, dst_pt, K_, D_, R_, P_);
+    // cv::fisheye::undistortPoints(src_pt, dst_pt, K_, D_, R_, P_);
+    return rect64;
 }
 
 
@@ -329,13 +403,16 @@ void MapperEMVS::precomputeRectifiedPoints()
             else if (fisheye_distortion)
             {
                 // fisheye distortion
-                rectified_point = fisheye_rectifyPoint(cv::Point2d(x,y), K_, D_, R_, P_);
+                rectified_point = dvs_cam_.rectifyPoint(cv::Point2d(x,y));
+                // rectified_point = fisheye_rectifyPoint(cv::Point2d(x,y), K_, D_, R_, P_);
             }
             else
             {
                 // LOG(ERROR) << "Distortion model not set properly!";
                 return;
             }
+            // if(dvs_cam_.cam_name == "cam1")
+            //     std::cout << "POINT: (" << rectified_point.x << "," << rectified_point.y << ")" << std::endl;
             precomputed_rectified_points_.col(y * width_ + x) = Eigen::Vector2d(rectified_point.x, rectified_point.y);
         }
     }
@@ -390,6 +467,7 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
     int nloops = 100;
     for (int i=1; i<=nloops; i++){
 #endif
+        std::cout << "method: " << method << std::endl;
         switch (method)
         {
         case 0:
@@ -411,6 +489,7 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
             dsi_.collapseMaxZSlice(&confidence_map, &depth_cell_indices);
             break;
         }
+
 #ifdef TIMING_LOOP
     }
 #endif
@@ -450,6 +529,7 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
                               cv::THRESH_BINARY,
                               options_depth_map.adaptive_threshold_kernel_size_,
                               -options_depth_map.adaptive_threshold_c_);
+
 #ifdef TIMING_LOOP
     }
 #endif
@@ -539,10 +619,12 @@ void MapperEMVS::getPointcloud(
     Eigen::Matrix4d T_w_rv = T_rv_w.inverse().getTransformationMatrix().cast<double>();
     for(int y=0; y<depth_map.rows; ++y)
     {
+
         for(int x=0; x<depth_map.cols; ++x)
         {
             if(mask.at<uint8_t>(y,x) > 0)
             {
+                std::cout << "loop\n";
                 BearingVector b_rv = virtual_cam_.projectPixelTo3dRay(Keypoint(x,y));
                 b_rv.normalize();
                 Eigen::Vector3d xyz_rv = (b_rv / b_rv[2] * depth_map.at<float>(y,x));
@@ -553,12 +635,21 @@ void MapperEMVS::getPointcloud(
                 p_w.y = xyz_world.y();
                 p_w.z = xyz_world.z();
                 p_w.intensity = 1.0 / xyz_rv.z();
+                std::cout << "Point: ["
+                << p_w.x << ", "
+                << p_w.y << ", "
+                << p_w.z << "], Intensity: "
+                << p_w.intensity << std::endl;
                 pc_->push_back(p_w);
             }
         }
     }
 
     // Filter point cloud to remove outliers (Section 5.2.5 in the IJCV paper)
+    if (!pc_ || pc_->empty()) {
+        std::cerr << "[ERROR] RadiusOutlierRemoval: input cloud is null or empty." << std::endl;
+        return;
+    }
     PointCloud::Ptr cloud_filtered (new PointCloud);
     pcl::RadiusOutlierRemoval<PointType> outlier_rm;
     outlier_rm.setInputCloud(pc_);
