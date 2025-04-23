@@ -29,7 +29,6 @@ if(ENABLE_SANITIZERS)
   	target_link_options(my_executable PRIVATE -fsanitize=address,undefined)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/cmake/CompilerSettings.cmake)
 
 target_include_directories(my_executable PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -37,19 +36,19 @@ target_include_directories(my_executable PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mapper/include
     ${CMAKE_CURRENT_SOURCE_DIR}/tracker/include
     ${CMAKE_CURRENT_SOURCE_DIR}/talking_test/include
-    ${OpenCV_INCLUDE_DIRS}
-    ${PCL_INCLUDE_DIRS}
-    ${EIGEN3_INSTALL_DIR}/include/eigen3
-    ${LZ4_INSTALL_DIR}/include
-    ${SOPHUS_INSTALL_DIR}/include
+    # ${OpenCV_INCLUDE_DIRS}
+    # ${PCL_INCLUDE_DIRS}
+    # ${EIGEN3_INSTALL_DIR}/include/eigen3
+    # ${LZ4_INSTALL_DIR}/include
+    # ${SOPHUS_INSTALL_DIR}/include
     ${CMAKE_SOURCE_DIR}/external/minkindr/include
     # ${GLOG_INSTALL_DIR}/include
 )
 target_link_libraries(my_executable PRIVATE
-    ${OpenCV_LIBS}
+    # ${OpenCV_LIBS}
     cartesian3dgrid
-    ${PCL_LIBRARIES}
+    # ${PCL_LIBRARIES}
     tf2
-    glog::glog
-    ${LZ4_LIBRARIES}
+    deps
+    # ${LZ4_LIBRARIES}
 )

@@ -4,7 +4,7 @@
 #include "mapper/mapper.hpp"
 #include "tracker/tracker.hpp"
 #include "shared_state.hpp"
-#include <glog/logging.h>
+// #include <glog/logging.h>
 #include <unistd.h>
 
 

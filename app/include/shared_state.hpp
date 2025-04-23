@@ -9,7 +9,7 @@
 #include "event.hpp"
 #include "udp/udp.hpp"
 
-#include <glog/logging.h>
+// #include <glog/logging.h>
 #include <tf2/msg/pose_stamped.hpp>
 #include <tf2/time.hpp>
 #include "tf2/buffer_core.hpp"

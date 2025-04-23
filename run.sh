@@ -38,17 +38,9 @@ fi
 if [ "$ACTION1" = "clean" ] || [ "$ACTION1" = "build" ] || [ "$ACTION1" = "compile" ]; then
     echo "Compiling project..."
     cd "$BUILD_DIR"
-    cmake --build .
+    cmake --build . -- -j2
     cd ..
 fi
-
-# if [ "$ACTION1" = "test" ] || [ "$ACTION2" = "test" ]; then
-#     echo "Running tests..."
-#     cd "$BUILD_DIR"
-#     ctest --output-on-failure
-#     cd ..
-#     exit 0
-# fi
 
 # Run
 if [ -f "$EXECUTABLE" ]; then
