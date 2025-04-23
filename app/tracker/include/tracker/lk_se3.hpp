@@ -6,8 +6,8 @@
 #ifndef LK_SE3_H
 #define LK_SE3_H
 
-#include <event.hpp>
-#include <camera.hpp>
+#include "app/event.hpp"
+#include "app/camera.hpp"
 #include <pcl/common/transforms.h>
 
 #include <Eigen/StdVector>

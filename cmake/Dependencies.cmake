@@ -4,26 +4,64 @@ if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
 
+# function(fetch_install name repo tag)
+# 	set(src    		"${CMAKE_BINARY_DIR}/_deps/${name}-src")
+# 	set(INSTALL_DIR "${CMAKE_SOURCE_DIR}/3party/${name}_src")
+# 	set(build  		"${CMAKE_BINARY_DIR}/_deps/${name}-build")
+# 	if(NOT EXISTS 	"${INSTALL_DIR}")
+
+# 		ExternalProject_Add(
+# 			${name} #“Internal” name you’ll use in add_dependencies()
+# 			GIT_REPOSITORY 	${repo}
+# 			GIT_TAG	 		${tag}
+# 			SOURCE_DIR    	${src}
+# 			BINARY_DIR    	${build}
+# 			INSTALL_DIR   	${INSTALL_DIR}
+# 			CMAKE_ARGS
+# 				-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+# 				${ARGN}
+# 			UPDATE_COMMAND ""
+# 		)
+# 	endif()
+# endfunction()
+
 function(fetch_install name repo tag)
 	set(src    		"${CMAKE_BINARY_DIR}/_deps/${name}-src")
 	set(INSTALL_DIR "${CMAKE_SOURCE_DIR}/3party/${name}_src")
 	set(build  		"${CMAKE_BINARY_DIR}/_deps/${name}-build")
 	if(NOT EXISTS 	"${INSTALL_DIR}")
+        FetchContent_Declare(
+            ${name}
+            GIT_REPOSITORY ${repo}
+            GIT_TAG ${tag}
+        )
+        FetchContent_GetProperties(${name})
+        if(NOT ${name}_POPULATED)
+            FetchContent_Populate(${name})
+        endif()
+        execute_process(
+            COMMAND ${CMAKE_COMMAND}
+            -S ${CMAKE_BINARY_DIR}/_deps/${name}-src
+            -B ${build}
+            -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
+            -DBUILD_SHARED_LIBS=OFF
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+            ${ARGN}
+        )
 
-		ExternalProject_Add(
-			${name} #“Internal” name you’ll use in add_dependencies()
-			GIT_REPOSITORY 	${repo}
-			GIT_TAG	 		${tag}
-			SOURCE_DIR    	${src}
-			BINARY_DIR    	${build}
-			INSTALL_DIR   	${INSTALL_DIR}
-			CMAKE_ARGS
-				-DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-				${ARGN}
-			UPDATE_COMMAND ""
-		)
+        message(STATUS "Building ${name}...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --build ${build} --parallel 2
+        )
+
+        message(STATUS "Installing ${name}...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} --install ${build}
+        )
+
 	endif()
 endfunction()
+
 
 # ———————————————————
 # Zlib
@@ -80,6 +118,7 @@ fetch_install(
 
 # ———————————————————
 # FLANN
+set(ENV{PKG_CONFIG_PATH} "${CMAKE_SOURCE_DIR}/3party/lz4_src/lib/pkgconfig")
 fetch_install(
 	flann
 	https://github.com/flann-lib/flann.git
@@ -154,6 +193,7 @@ if(NOT EXISTS ${BOOST_INSTALL})
 			)
   	endif()
 endif()
+set(Boost_NO_SYSTEM_PATHS ON)
 
 # ———————————————————
 # Sophus
@@ -166,70 +206,41 @@ fetch_install(
 )
 # ———————————————————
 # PCL
-set(PCL_INSTALL_DIR ${CMAKE_SOURCE_DIR}/3party/pcl_src)
-set(PCL_BUILD_DIR ${CMAKE_BINARY_DIR}/_deps/pcl-build)
-if(NOT EXISTS ${PCL_INSTALL_DIR})
-    message(STATUS "Fetching PCL...")
-    FetchContent_Declare(
-        pcl
-        GIT_REPOSITORY https://github.com/PointCloudLibrary/pcl.git
-        GIT_TAG master
-        SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/pcl-src
-    )
-    FetchContent_GetProperties(pcl)
-    if(NOT pcl_POPULATED)
-        FetchContent_Populate(pcl)
-        execute_process(
-            COMMAND ${CMAKE_COMMAND}
-            -S ${CMAKE_BINARY_DIR}/_deps/pcl-src
-            -B ${PCL_BUILD_DIR}
-            -DCMAKE_INSTALL_PREFIX=${PCL_INSTALL_DIR}
-            -DBUILD_SHARED_LIBS=OFF
-            -DPCL_SHARED_LIBS=OFF
-            -DZLIB_ROOT=${CMAKE_SOURCE_DIR}/3party/zlib_src
-            -DEigen3_DIR=${CMAKE_SOURCE_DIR}/3party/eigen_src/share/eigen3/cmake
-            -DBOOST_ROOT=${CMAKE_SOURCE_DIR}/3party/boost_src
-            -DBoost_DIR=${CMAKE_SOURCE_DIR}/3party/boost_src/lib/cmake/Boost-1.87.0
-            -DBOOST_LIBRARY_DIRS=${CMAKE_SOURCE_DIR}/3party/boost_src/lib
-            -DFLANN_ROOT=${CMAKE_SOURCE_DIR}/3party/flann_src
-            # -DBUILD_registration=OFF
-            # -DBUILD_surface=OFF
-            -DBUILD_visualization=OFF
-            -DBUILD_global_tests=OFF
-            # -DBUILD_ml=OFF
-            -DBUILD_tools=OFF
-            -DWITH_VTK=OFF
-            -DWITH_QT=OFF
-            -DWITH_QHULL=OFF
-            -DWITH_PNG=OFF
-            -DWITH_OPENGL=OFF
-            -DWITH_LIBUSB=OFF
-            -DWITH_OPENNI=OFF
-            -DWITH_PCAP=OFF
-            -DWITH_OPENNI2=OFF
-            -DWITH_CUDA=OFF
-            -DWITH_ENSENSO=OFF
-            -DWITH_DAVIDSDK=OFF
-            -DWITH_DSSDK=OFF
-            -DWITH_RSSDK=OFF
-            -DWITH_RSSDK2=OFF
-        )
-
-        # Build PCL
-        message(STATUS "Building PCL...")
-        execute_process(
-            COMMAND ${CMAKE_COMMAND} --build ${PCL_BUILD_DIR} --parallel 4
-            RESULT_VARIABLE PCL_BUILD_RESULT
-        )
-
-        # Install PCL
-        message(STATUS "Installing PCL...")
-        execute_process(
-            COMMAND ${CMAKE_COMMAND} --install ${PCL_BUILD_DIR}
-            RESULT_VARIABLE PCL_INSTALL_RESULT
-        )
-    endif()
-endif()
+fetch_install(
+    pcl
+    https://github.com/PointCloudLibrary/pcl.git
+    pcl-1.15.0
+    -DBUILD_SHARED_LIBS=OFF
+    -DPCL_SHARED_LIBS=OFF
+    -DZLIB_ROOT=${CMAKE_SOURCE_DIR}/3party/zlib_src
+    -DCMAKE_CXX_FLAGS=-I${CMAKE_SOURCE_DIR}/3party/lz4_src/include
+    -DZLIB_LIBRARY=${CMAKE_SOURCE_DIR}/3party/zlib_src/lib
+    -DZLIB_INCLUDE_DIR=${CMAKE_SOURCE_DIR}/3party/zlib_src/include
+    -DEigen3_DIR=${CMAKE_SOURCE_DIR}/3party/eigen_src/share/eigen3/cmake
+    -DBOOST_ROOT=${CMAKE_SOURCE_DIR}/3party/boost_src
+    -DBoost_DIR=${CMAKE_SOURCE_DIR}/3party/boost_src/lib/cmake/Boost-1.87.0
+    -DFLANN_ROOT=${CMAKE_SOURCE_DIR}/3party/flann_src
+    -DBoost_USE_STATIC_LIBS=ON
+    -DBoost_USE_STATIC_RUNTIME=ON
+    -DBUILD_visualization=OFF
+    -DBUILD_global_tests=OFF
+    -DBUILD_tools=OFF
+    -DWITH_VTK=OFF
+    -DWITH_QT=OFF
+    -DWITH_QHULL=OFF
+    -DWITH_PNG=OFF
+    -DWITH_OPENGL=OFF
+    -DWITH_LIBUSB=OFF
+    -DWITH_OPENNI=OFF
+    -DWITH_PCAP=OFF
+    -DWITH_OPENNI2=OFF
+    -DWITH_CUDA=OFF
+    -DWITH_ENSENSO=OFF
+    -DWITH_DAVIDSDK=OFF
+    -DWITH_DSSDK=OFF
+    -DWITH_RSSDK=OFF
+    -DWITH_RSSDK2=OFF
+)
 
 list(APPEND CMAKE_PREFIX_PATH
   "${CMAKE_SOURCE_DIR}/3party/zlib_src"
@@ -238,7 +249,6 @@ list(APPEND CMAKE_PREFIX_PATH
   "${CMAKE_SOURCE_DIR}/3party/flann_src"
   "${CMAKE_SOURCE_DIR}/3party/opencv_src"
   "${CMAKE_SOURCE_DIR}/3party/boost_src"
-  "${CMAKE_SOURCE_DIR}/3party/sophus_src"
   "${CMAKE_SOURCE_DIR}/3party/pcl_src"
 )
 
@@ -246,8 +256,7 @@ find_package(ZLIB   REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(FLANN  REQUIRED)
-find_package(SOPHUS  REQUIRED)
-# find_package(LZ4    REQUIRED)
+find_package(Boost  REQUIRED)
 find_package(PCL    REQUIRED)
 
 add_library(deps INTERFACE)
@@ -259,6 +268,7 @@ target_include_directories(deps INTERFACE
   ${CMAKE_SOURCE_DIR}/3party/opencv_src
   ${CMAKE_SOURCE_DIR}/3party/sophus_src
   ${CMAKE_SOURCE_DIR}/3party/pcl_src
+  ${CMAKE_SOURCE_DIR}/3party/lz4_src
 
   # plus any CMake‐found pkg’s include vars:
   ${CMAKE_SOURCE_DIR}/3party/zlib_src/include
@@ -266,12 +276,13 @@ target_include_directories(deps INTERFACE
   ${CMAKE_SOURCE_DIR}/3party/opencv_src/include/opencv4
   ${CMAKE_SOURCE_DIR}/3party/pcl_src/include/pcl-1.15
   ${CMAKE_SOURCE_DIR}/3party/sophus_src/include
+  ${CMAKE_SOURCE_DIR}/3party/lz4_src/include
 )
 
-# 3) Forward all of the link‐libs / targets:
 target_link_libraries(deps INTERFACE
-  ZLIB::ZLIB            # from find_package(ZLIB)
-  Eigen3::Eigen         # from find_package(Eigen3)
-  ${OpenCV_LIBS}        # or OpenCV::opencv_core… if you prefer imported targets
-  ${PCL_LIBRARIES}      # or PCL::pcl_common,… etc
+#   ZLIB::ZLIB
+#   Eigen3::Eigen
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
+  ${CMAKE_SOURCE_DIR}/3party/lz4_src/lib/liblz4.a
 )

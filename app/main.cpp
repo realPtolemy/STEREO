@@ -3,7 +3,7 @@
 #include <string>
 #include "mapper/mapper.hpp"
 #include "tracker/tracker.hpp"
-#include "shared_state.hpp"
+#include "app/shared_state.hpp"
 // #include <glog/logging.h>
 #include <unistd.h>
 

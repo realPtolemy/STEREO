@@ -367,7 +367,7 @@ void Mapper::publishMsgs(std::string frame_id){
 }
 
 void Mapper::publishImgs(std::string frame_id){
-	LOG(INFO) << "Publishing images!!!!!!!!!!!!!!!!!!!!!!!!! ";
+	// LOG(INFO) << "Publishing images!!!!!!!!!!!!!!!!!!!!!!!!! ";
     // cv_bridge::CvImagePtr cv_ptr(new cv_bridge::CvImage);
     // cv_ptr->encoding = "mono8";
     // cv_ptr->header.stamp = ros::Time(current_ts_);

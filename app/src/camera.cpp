@@ -1,4 +1,4 @@
-#include "camera.hpp"
+#include "app/camera.hpp"
 #include "iostream"
 #include <filesystem>
 

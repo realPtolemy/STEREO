@@ -1,4 +1,4 @@
-#include "shared_state.hpp"
+#include "app/shared_state.hpp"
 
 #include <pcl/ModelCoefficients.h>
 #include <pcl/point_types.h>

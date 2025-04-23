@@ -1,12 +1,12 @@
 #ifndef MAPPER_HPP
 #define MAPPER_HPP
 
-#include "camera.hpp"
-#include "event.hpp"
+#include "app/camera.hpp"
+#include "app/event.hpp"
 #include "mapper/mapper_emvs_stereo.hpp"
 #include "mapper/transformation.hpp"
 #include "mapper/pointcloud_processing.hpp"
-#include "shared_state.hpp"
+#include "app/shared_state.hpp"
 #include "tf2/time.hpp"
 #include "tf2/LinearMath/tf2_eigen.hpp"
 #include "mapper/process1_live.hpp"

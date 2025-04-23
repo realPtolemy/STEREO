@@ -2,9 +2,9 @@
 #define TRACKER_H
 
 // #include <dvs_msgs/EventArray.h>
-#include "camera.hpp"
-#include "event.h"
-#include "shared_state.hpp"
+#include "app/camera.hpp"
+#include "app/event.hpp"
+#include "app/shared_state.hpp"
 
 // #include <deqeue>
 

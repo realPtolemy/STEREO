@@ -29,7 +29,6 @@ if(ENABLE_SANITIZERS)
   	target_link_options(my_executable PRIVATE -fsanitize=address,undefined)
 endif()
 
-
 target_include_directories(my_executable PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/udp/include
@@ -45,10 +44,7 @@ target_include_directories(my_executable PRIVATE
     # ${GLOG_INSTALL_DIR}/include
 )
 target_link_libraries(my_executable PRIVATE
-    # ${OpenCV_LIBS}
     cartesian3dgrid
-    # ${PCL_LIBRARIES}
     tf2
     deps
-    # ${LZ4_LIBRARIES}
 )
