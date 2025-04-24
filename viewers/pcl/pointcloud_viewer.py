@@ -61,4 +61,4 @@ if __name__ == "__main__":
     packet, uncompressed_size = receive_packet()
     # if you serialized a PointXYZI cloud, pass has_intensity=True
     cloud = deserialize_pc(packet, uncompressed_size, has_intensity=False)
-    o3d.visualization.draw_geometries([cloud])
+    o3d.visualization.draw_geometries([cloud], width=1024, height=768)
