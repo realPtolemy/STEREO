@@ -10,7 +10,8 @@
 
 #include <iostream>
 
-struct CameraInfo {
+struct CameraInfo
+{
     // Intrinsic parameters
     cv::Matx33d K_cv;                      // OpenCV camera matrix
     Eigen::Matrix3d K_eigen;               // Eigen camera matrix
@@ -39,7 +40,8 @@ typedef Eigen::Vector3d Point;
 typedef Eigen::Vector2d Keypoint;
 typedef Eigen::Vector3d BearingVector;
 
-class PinholeCameraModel {
+class PinholeCameraModel
+{
 private:
     // void readYAML(const std::string& filename, CameraInfo& camera);
     void readYAML(const std::string& filename);

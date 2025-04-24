@@ -5,6 +5,7 @@
 #include "tf2/time.hpp"
 #include "tf2/msg/quaternion.hpp"
 
+namespace tf2{
 namespace msg{
     struct QuaternionStamped{
         // === Header ===
@@ -18,6 +19,7 @@ namespace msg{
         QuaternionStamped()
             : quaternion(Eigen::Quaterniond::Identity()) {}
     };
+}
 }
 
 #endif

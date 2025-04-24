@@ -1,0 +1,10 @@
+prefix: ./env
+channels:
+  - open3d-admin
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - open3d
+  - lz4

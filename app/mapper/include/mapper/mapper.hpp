@@ -144,7 +144,7 @@ private:
      * @param event_queue A queue that stores batched events.
      */
     void camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera1_events, EventQueue<Event> &event_queue);
-    void camera_thread_udp(Server server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue);
+    void camera_thread_udp(Server& server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue);
     Event parse_bufferd_data(std::string &buffered_data);
     void mappingLoop();
     void MappingAtTime(

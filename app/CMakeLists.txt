@@ -35,13 +35,7 @@ target_include_directories(my_executable PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mapper/include
     ${CMAKE_CURRENT_SOURCE_DIR}/tracker/include
     ${CMAKE_CURRENT_SOURCE_DIR}/talking_test/include
-    # ${OpenCV_INCLUDE_DIRS}
-    # ${PCL_INCLUDE_DIRS}
-    # ${EIGEN3_INSTALL_DIR}/include/eigen3
-    # ${LZ4_INSTALL_DIR}/include
-    # ${SOPHUS_INSTALL_DIR}/include
     ${CMAKE_SOURCE_DIR}/external/minkindr/include
-    # ${GLOG_INSTALL_DIR}/include
 )
 target_link_libraries(my_executable PRIVATE
     cartesian3dgrid

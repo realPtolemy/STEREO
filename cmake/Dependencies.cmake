@@ -194,7 +194,8 @@ if(NOT EXISTS ${BOOST_INSTALL})
   	endif()
 endif()
 set(Boost_NO_SYSTEM_PATHS ON)
-
+set(Boost_USE_STATIC_LIBS        ON)
+set(Boost_USE_STATIC_RUNTIME     ON)
 # ———————————————————
 # Sophus
 fetch_install(
@@ -220,6 +221,7 @@ fetch_install(
     -DBOOST_ROOT=${CMAKE_SOURCE_DIR}/3party/boost_src
     -DBoost_DIR=${CMAKE_SOURCE_DIR}/3party/boost_src/lib/cmake/Boost-1.87.0
     -DFLANN_ROOT=${CMAKE_SOURCE_DIR}/3party/flann_src
+    -DCMAKE_CXX_FLAGS="-mavx"
     -DBoost_USE_STATIC_LIBS=ON
     -DBoost_USE_STATIC_RUNTIME=ON
     -DBUILD_visualization=OFF

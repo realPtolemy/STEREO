@@ -52,7 +52,7 @@ void Mapper::mapperRun(){
 	 */
 		Server camera1_server(3333);
 		// Server camera2_server(port2)
-		std::thread camera1_thread(&Mapper::camera_thread_udp, this, camera1_server, std::ref(camera1_events), std::ref(shared_state_->events_left_));
+		std::thread camera1_thread(&Mapper::camera_thread_udp, this, std::ref(camera1_server), std::ref(camera1_events), std::ref(shared_state_->events_left_));
 		// std::thread camera2_thread(camera_thread_udp, camera2_server, std::ref(camera2_events), std::ref(shared_state_->events_right_));
 		// 3party/aestream_src/bin/aestream input file data/camera_0.csv output udp
 	#else
@@ -463,12 +463,13 @@ void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<E
   	event_file.close();
 }
 
-void Mapper::camera_thread_udp(Server server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue){
+void Mapper::camera_thread_udp(Server& server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue)
+{
 
 	while (true) {
 		// std::string buffered_data = server.receive();
 		// server.receive();
-		server.receive_aestream();
+		server.receive_aestream(); // Use the passed-in server instance to receive data
 		/**
 		 * 	The event data that aestream sent is in the format:
 		 * 	First 32 bits:

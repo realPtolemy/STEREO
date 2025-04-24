@@ -4,7 +4,8 @@
 #include <cstdint>
 #include "tf2/time.hpp"
 
-struct Event {
+struct Event
+{
   // uint64_t timestamp;
   tf2::TimePoint timestamp;
   uint16_t x;

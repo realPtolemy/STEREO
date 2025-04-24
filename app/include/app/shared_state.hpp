@@ -21,7 +21,8 @@
 typedef pcl::PointCloud<pcl::PointXYZI>::Ptr Pointcloud;
 
 template <typename T>
-struct EventQueue {
+struct EventQueue
+{
     std::mutex mtx;
     std::condition_variable cv_event;
     bool event_ready = false;
@@ -51,7 +52,8 @@ private:
 	}
 };
 
-struct pcl_state {
+struct pcl_state
+{
     std::mutex pcl_mtx;
     std::condition_variable pcl_cv;
     bool pcl_ready = false;
@@ -59,7 +61,8 @@ struct pcl_state {
     Pointcloud pcl;
 };
 
-struct pose_state {
+struct pose_state
+{
     std::mutex pose_mtx;
     // Behövs condition variable?
     std::condition_variable pose_cv;
@@ -68,7 +71,8 @@ struct pose_state {
     tf2::msg::TransformStamped pose;
 };
 
-class SharedState{
+class SharedState
+{
 private:
 
 public:

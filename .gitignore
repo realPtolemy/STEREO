@@ -8,3 +8,4 @@ CMakeCache.txt
 /.cache
 /3party_old
 /log
+viewers/pcl/env/*

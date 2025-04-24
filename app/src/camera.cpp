@@ -4,7 +4,8 @@
 
 PinholeCameraModel::PinholeCameraModel() {}
 
-PinholeCameraModel::PinholeCameraModel(int width, int height, double fx, double fy, double cx, double cy) {
+PinholeCameraModel::PinholeCameraModel(int width, int height, double fx, double fy, double cx, double cy)
+{
     camera_info.fx_ = fx;
     camera_info.fy_ = fy;
     camera_info.cx_ = cx;
@@ -26,7 +27,8 @@ PinholeCameraModel::PinholeCameraModel(const std::string& filename)
     readYAML(filename);
 }
 
-void PinholeCameraModel::readYAML(const std::string& filename) {
+void PinholeCameraModel::readYAML(const std::string& filename)
+{
     cv::FileStorage fs(filename, cv::FileStorage::READ);
     cv::Mat K, distCoeffs;
 
@@ -85,7 +87,8 @@ void PinholeCameraModel::readYAML(const std::string& filename) {
 }
 
 // Convert OpenCV matrix to Eigen
-Eigen::Matrix3d PinholeCameraModel::toEigen(const cv::Matx33d& m) const {
+Eigen::Matrix3d PinholeCameraModel::toEigen(const cv::Matx33d& m) const
+{
     Eigen::Matrix3d out;
     for (int r = 0; r < 3; ++r)
         for (int c = 0; c < 3; ++c)
