@@ -24,6 +24,7 @@ def main():
     print("-+-+-+-+- Input Calibration Board Information -+-+-+-+-")
     inner_rows = int(input("Number of INNER rows: "))
     inner_cols = int(input("Number of INNER columns: "))
+    square_size = float(input("Chessboard square size (in millimeters): "))
     board_size = (inner_rows, inner_cols)
     
     # --- Prompt for Only Generating Chessboard Corners ---
@@ -61,7 +62,8 @@ def main():
     # Prepare object points which will reflect ground truth for the chessboard’s geometry.
     # e.g. (0,0,0), (1,0,0), …,(inner_rows-1, inner_cols-1, 0)
     objp = np.zeros((inner_rows * inner_cols, 3), np.float32)
-    objp[:, :2] = np.mgrid[0:inner_rows, 0:inner_cols].T.reshape(-1, 2)
+    # objp[:, :2] = np.mgrid[0:inner_rows, 0:inner_cols].T.reshape(-1, 2) # Without square_size adjustment
+    objp[:, :2] = np.mgrid[0:inner_rows, 0:inner_cols].T.reshape(-1, 2) * square_size
     
     objpoints = []  # 3D points in real world space
     imgpoints = []  # 2D points in image plane
