@@ -1,17 +1,16 @@
 """
 Stereo Camera Calibration and Rectification Script
 ------------------------------------------------
-This script is tailored for a dog-mounted stereo camera setup with a 5–10 cm baseline, nearly parallel cameras, and same height. It handles image quality differences (clutter, lighting variations) and prioritizes close-range images (< 0.5 m). It performs:
+This script is tailored for a dog-mounted stereo camera setup with a 5–10 cm baseline, nearly parallel cameras, and same height. It performs:
 1. Prompts for calibration board dimensions, square size, input/output paths, and mono calibration YAML files.
-2. Detects chessboard corners with robust settings and preprocessing to minimize clutter/lighting effects.
-3. Estimates chessboard distance and filters distant images (> 0.5 m).
-4. Logs image pairs that fail corner detection or have high reprojection errors.
-5. Loads intrinsic parameters from mono calibration YAML files.
-6. Filters image pairs based on per-image reprojection errors (tight threshold).
-7. Performs stereo calibration with fixed intrinsics, optimized for small baseline.
-8. Generates rectified images with epipolar lines and reprojection visualization for debugging.
-9. Saves calibration, rectification, and reprojection data in YAML/text/image formats.
-10. Terminates when complete.
+2. Detects chessboard corners with robust settings and saves annotated images.
+3. Logs image pairs that fail corner detection or have high reprojection errors.
+4. Loads intrinsic parameters from mono calibration YAML files.
+5. Filters image pairs based on per-image reprojection errors.
+6. Performs stereo calibration with fixed intrinsics, optimized for small baseline.
+7. Generates rectified images with epipolar lines and reprojection visualization for debugging.
+8. Saves calibration, rectification, and reprojection data in YAML/text/image formats.
+9. Terminates when complete.
 
 Based on OpenCV stereo calibration documentation as of 2025:
 https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#ga91018d80e2a93ade37539f01e6f07de5
@@ -27,10 +26,12 @@ def compute_per_image_reproj_error(objpoints, imgpoints_left, imgpoints_right, m
     """Compute per-image reprojection errors for stereo calibration."""
     errors = []
     for i, (objp, imgl, imgr) in enumerate(zip(objpoints, imgpoints_left, imgpoints_right)):
+        # Project points for left camera
         rvec, tvec = cv.solvePnP(objp, imgl, mtx_left, dist_left)[1:]
         proj_left = cv.projectPoints(objp, rvec, tvec, mtx_left, dist_left)[0].reshape(-1, 2)
         error_left = np.mean(np.sqrt(np.sum((imgl.reshape(-1, 2) - proj_left) ** 2, axis=1)))
         
+        # Project points for right camera
         rvec, tvec = cv.solvePnP(objp, imgr, mtx_right, dist_right)[1:]
         proj_right = cv.projectPoints(objp, rvec, tvec, mtx_right, dist_right)[0].reshape(-1, 2)
         error_right = np.mean(np.sqrt(np.sum((imgr.reshape(-1, 2) - proj_right) ** 2, axis=1)))
@@ -38,46 +39,48 @@ def compute_per_image_reproj_error(objpoints, imgpoints_left, imgpoints_right, m
         errors.append((error_left, error_right))
     return errors
 
-def estimate_chessboard_distance(objp, imgpoints, mtx, dist):
-    """Estimate the z-distance (in meters) of the chessboard from the camera."""
-    rvec, tvec = cv.solvePnP(objp, imgpoints, mtx, dist)[1:]
-    z_distance = tvec[2][0] / 1000.0  # Convert mm to meters
-    return z_distance
-
 def visualize_reprojection(img, imgpoints, proj_points, filename, output_dir):
-    """Visualize detected (green) and projected (red) points with connecting lines (blue)."""
+    """Visualize detected and projected points with connecting lines."""
     img_copy = img.copy()
     for det, proj in zip(imgpoints.reshape(-1, 2), proj_points.reshape(-1, 2)):
         det = tuple(map(int, det))
         proj = tuple(map(int, proj))
+        # Draw detected point (green)
         cv.circle(img_copy, det, 5, (0, 255, 0), 1)
+        # Draw projected point (red)
         cv.circle(img_copy, proj, 5, (0, 0, 255), 1)
+        # Draw line connecting them (blue)
         cv.line(img_copy, det, proj, (255, 0, 0), 1)
     cv.imwrite(os.path.join(output_dir, filename), img_copy)
     return img_copy
 
 def main():
+    # --- Prompt for Calibration Board Information ---
     print("-+-+-+-+- Input Calibration Board Information -+-+-+-+-")
     inner_rows = int(input("Number of INNER rows: "))
     inner_cols = int(input("Number of INNER columns: "))
     square_size = float(input("Chessboard square size (in millimeters): "))
     board_size = (inner_rows, inner_cols)
     
+    # --- Prompt for Only Generating Chessboard Corners ---
     print("\n-+-+-+-+- Only Generate Chessboard Corner Images? -+-+-+-+-")
     print('Answer "y" if you have not yet filtered out images that create poor chessboard corner estimation\nAnswer "n" if you already have removed poor quality images and want to find and store calibration and rectification data')
     only_corners_input = input("Answer (y/n): ").strip().lower()
     only_chessboard = only_corners_input.startswith('y')
     
+    # --- Prompt for Input and Output Paths ---
     print("\n-+-+-+-+- Choose Input and Output Paths -+-+-+-+-")
     left_input_path = input("Left camera input path: ").strip()
     right_input_path = input("Right camera input path: ").strip()
     output_path = input("Output path: ").strip()
     file_suffix = input("Output filename suffix (e.g., '1', 'test', 'calib_v1', without extension): ").strip()
     
+    # --- Prompt for Mono Calibration Files ---
     print("\n-+-+-+-+- Choose Mono Calibration Files -+-+-+-+-")
     left_calib_yaml = input("Path to left camera mono calibration YAML: ").strip()
     right_calib_yaml = input("Path to right camera mono calibration YAML: ").strip()
     
+    # Create output subdirectories
     chessboard_dir = os.path.join(output_path, "chessboardCorners")
     calib_data_dir = os.path.join(output_path, "calibrationData")
     rect_sample_dir = os.path.join(output_path, "rectificationSample")
@@ -90,6 +93,7 @@ def main():
     os.makedirs(reproj_sample_dir, exist_ok=True)
     os.makedirs(error_log_dir, exist_ok=True)
     
+    # --- Load Mono Calibration Parameters ---
     print("\n== Loading Mono Calibration Parameters ==")
     try:
         fs = cv.FileStorage(left_calib_yaml, cv.FILE_STORAGE_READ)
@@ -116,6 +120,7 @@ def main():
     print(f"Right camera matrix:\n{mtx_right}")
     print(f"Right distortion coefficients: {dist_right.flatten()}")
     
+    # --- Read Paired Images ---
     left_images = sorted(glob.glob(os.path.join(left_input_path, "*.png")))
     right_images = sorted(glob.glob(os.path.join(right_input_path, "*.png")))
     
@@ -126,15 +131,16 @@ def main():
         print("No PNG images found. Exiting.")
         return
     
-    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
+    # --- Prepare for Chessboard Corner Detection ---
+    criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     objp = np.zeros((inner_rows * inner_cols, 3), np.float32)
     objp[:, :2] = np.mgrid[0:inner_cols, 0:inner_rows].T.reshape(-1, 2) * square_size
     
-    objpoints = []
-    imgpoints_left = []
-    imgpoints_right = []
-    no_corners_list = []
-    image_pairs = []
+    objpoints = []  # 3D points in real world space
+    imgpoints_left = []  # 2D points in left image plane
+    imgpoints_right = []  # 2D points in right image plane
+    no_corners_list = []  # List to store file names for image pairs without detected corners
+    image_pairs = []  # Store image pair filenames
     
     print("\n== Starting Chessboard Pattern Detection ==")
     for i, (left_path, right_path) in enumerate(zip(left_images, right_images)):
@@ -148,38 +154,29 @@ def main():
             no_corners_list.append((os.path.basename(left_path), os.path.basename(right_path)))
             continue
         
-        print("  Converting to grayscale and preprocessing...")
+        print("  Converting to grayscale...")
         left_gray = cv.cvtColor(left_img, cv.COLOR_BGR2GRAY)
         right_gray = cv.cvtColor(right_img, cv.COLOR_BGR2GRAY)
-        left_gray = cv.GaussianBlur(left_gray, (3, 3), 0)
-        right_gray = cv.GaussianBlur(right_gray, (3, 3), 0)
-        left_gray = cv.equalizeHist(left_gray)
-        right_gray = cv.equalizeHist(right_gray)
         
         print("  Detecting chessboard corners...")
+        #ret_left, corners_left = cv.findChessboardCorners(
+        #    left_gray, board_size, flags=cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_NORMALIZE_IMAGE
+        #)
+        #ret_right, corners_right = cv.findChessboardCorners(
+        #    right_gray, board_size, flags=cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_NORMALIZE_IMAGE
+        #)
         ret_left, corners_left = cv.findChessboardCorners(
-            left_gray, board_size, flags=cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_FAST_CHECK
+            left_gray, board_size, None
         )
         ret_right, corners_right = cv.findChessboardCorners(
-            right_gray, board_size, flags=cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_FAST_CHECK
+            right_gray, board_size, None
         )
-        
         if ret_left and ret_right:
             print("  Corners detected in both images.")
-            print("  Refining corners...")
-            corners_left_refined = cv.cornerSubPix(left_gray, corners_left, (5, 5), (-1, -1), criteria)
-            corners_right_refined = cv.cornerSubPix(right_gray, corners_right, (5, 5), (-1, -1), criteria)
-            
-            # Estimate chessboard distance
-            z_distance_left = estimate_chessboard_distance(objp, corners_left_refined, mtx_left, dist_left)
-            z_distance_right = estimate_chessboard_distance(objp, corners_right_refined, mtx_right, dist_right)
-            max_distance = 0.5  # 0.5 meters
-            if z_distance_left > max_distance or z_distance_right > max_distance:
-                print(f"  Skipping pair: Chessboard too far (Left: {z_distance_left:.2f} m, Right: {z_distance_right:.2f} m)")
-                no_corners_list.append((os.path.basename(left_path), os.path.basename(right_path)))
-                continue
-            
             objpoints.append(objp)
+            print("  Refining corners...")
+            corners_left_refined = cv.cornerSubPix(left_gray, corners_left, (11, 11), (-1, -1), criteria)
+            corners_right_refined = cv.cornerSubPix(right_gray, corners_right, (11, 11), (-1, -1), criteria)
             imgpoints_left.append(corners_left_refined)
             imgpoints_right.append(corners_right_refined)
             
@@ -207,7 +204,7 @@ def main():
         with open(error_log_file, "w") as f:
             for left_name, right_name in no_corners_list:
                 f.write(f"Left: {left_name}, Right: {right_name}\n")
-        print(f"Chessboard corners could not be found or too far for {len(no_corners_list)} image pairs.")
+        print(f"Chessboard corners could not be found for {len(no_corners_list)} image pairs.")
         print(f"Log of problematic image pairs can be found in:\n {error_log_file}")
     
     print("== Completed Chessboard Pattern Detection ==")
@@ -216,9 +213,11 @@ def main():
         print("\nOnly chessboard corner images were generated. Exiting script.")
         return
     
+    # --- Use All Image Pairs ---
     print("\n== Image Pair Selection ==")
     print(f"  Detected {len(objpoints)} valid image pairs. Using all pairs for calibration.")
     
+    # --- Validate Input Data ---
     print("\n== Validating Input Data for Stereo Calibration ==")
     print(f"    Number of object points: {len(objpoints)}")
     print(f"    Number of left image points: {len(imgpoints_left)}")
@@ -249,6 +248,7 @@ def main():
             print(f"    Error: NaN or Inf in imgpoints_right at index {i}")
             return
     
+    # --- Stereo Calibration ---
     print("\n== Starting Stereo Calibration ==")
     flags = (
         cv.CALIB_FIX_INTRINSIC +
@@ -280,9 +280,11 @@ def main():
         print(f"  Unexpected error in cv.stereoCalibrate after {elapsed_time:.2f} seconds: {str(e)}")
         return
     
+    # Compute per-image reprojection errors and visualize reprojection
     print("  Computing per-image reprojection errors and visualizing...")
     per_image_errors = []
     for i, (objp, imgl, imgr, (left_name, right_name, left_img, right_img)) in enumerate(zip(objpoints, imgpoints_left, imgpoints_right, image_pairs)):
+        # Left camera
         rvec, tvec = cv.solvePnP(objp, imgl, mtx_left, dist_left)[1:]
         proj_left = cv.projectPoints(objp, rvec, tvec, mtx_left, dist_left)[0].reshape(-1, 2)
         error_left = np.mean(np.sqrt(np.sum((imgl.reshape(-1, 2) - proj_left) ** 2, axis=1)))
@@ -290,6 +292,7 @@ def main():
             left_img, imgl, proj_left, f"left_reproj_{left_name}", reproj_sample_dir
         )
         
+        # Right camera
         rvec, tvec = cv.solvePnP(objp, imgr, mtx_right, dist_right)[1:]
         proj_right = cv.projectPoints(objp, rvec, tvec, mtx_right, dist_right)[0].reshape(-1, 2)
         error_right = np.mean(np.sqrt(np.sum((imgr.reshape(-1, 2) - proj_right) ** 2, axis=1)))
@@ -299,6 +302,7 @@ def main():
         
         per_image_errors.append((error_left, error_right))
         
+        # Display the first pair for immediate inspection
         if i == 0:
             cv.imshow('Left Reprojection Sample', left_reproj_img)
             cv.imshow('Right Reprojection Sample', right_reproj_img)
@@ -312,7 +316,8 @@ def main():
             f.write(f"{image_pairs[i][0]} | {image_pairs[i][1]} | {left_err:.4f} | {right_err:.4f}\n")
     print(f"Per-image reprojection errors saved to:\n {error_log_file}")
     
-    error_threshold = 0.5
+    # Filter image pairs with high errors
+    error_threshold = 1.0
     valid_indices = [
         i for i, (left_err, right_err) in enumerate(per_image_errors)
         if left_err < error_threshold and right_err < error_threshold
@@ -325,6 +330,7 @@ def main():
         image_pairs = [image_pairs[i] for i in valid_indices]
         print(f"  Remaining valid image pairs: {len(objpoints)}")
     
+    # Rerun stereo calibration with filtered data
     if len(objpoints) >= 3:
         print("  Rerunning cv.stereoCalibrate with filtered image pairs...")
         start_time = time.time()
@@ -353,6 +359,7 @@ def main():
         print("  Error: Too few valid image pairs after filtering (< 3). Exiting.")
         return
     
+    # Save stereo calibration data
     stereo_calib_yaml = os.path.join(calib_data_dir, f"stereo_calibration_{file_suffix}.yaml")
     fs = cv.FileStorage(stereo_calib_yaml, cv.FILE_STORAGE_WRITE)
     fs.write("cameraMatrixLeft", mtx_left)
@@ -366,11 +373,13 @@ def main():
     fs.release()
     print("Stereo calibration data saved to:\n", stereo_calib_yaml)
     
+    # Save parameters to text file for debugging
     with open(os.path.join(calib_data_dir, f"stereo_params_{file_suffix}.txt"), "w") as f:
         f.write(f"Reprojection Error: {ret}\n")
         f.write(f"R:\n{R}\n")
         f.write(f"T:\n{T}\n")
     
+    # --- Stereo Rectification ---
     print("\n== Performing Stereo Rectification ==")
     start_time = time.time()
     try:
@@ -402,6 +411,7 @@ def main():
         print(f"  Unexpected error in cv.stereoRectify after {elapsed_time:.2f} seconds: {str(e)}")
         return
     
+    # Compute rectification maps
     print("  Computing rectification maps...")
     start_time = time.time()
     try:
@@ -442,6 +452,7 @@ def main():
         print(f"  Unexpected error in initUndistortRectifyMap after {elapsed_time:.2f} seconds: {str(e)}")
         return
     
+    # Save rectification data
     rect_yaml = os.path.join(calib_data_dir, f"rectification_data_{file_suffix}.yaml")
     fs = cv.FileStorage(rect_yaml, cv.FILE_STORAGE_WRITE)
     fs.write("R1", R1)
@@ -456,6 +467,7 @@ def main():
     fs.release()
     print("Rectification data saved to:\n", rect_yaml)
     
+    # --- Generate Rectified Sample Images ---
     print("  Generating rectified sample images...")
     left_sample = cv.imread(left_images[0])
     right_sample = cv.imread(right_images[0])
@@ -479,12 +491,14 @@ def main():
         print(f"  Unexpected error in cv.remap after {elapsed_time:.2f} seconds: {str(e)}")
         return
     
+    # Draw epipolar lines to verify rectification
     left_rectified_with_lines = left_rectified.copy()
     right_rectified_with_lines = right_rectified.copy()
     for y in range(0, left_rectified.shape[0], 50):
         cv.line(left_rectified_with_lines, (0, y), (left_rectified.shape[1], y), (0, 255, 0), 1)
-        cv.line(right_rectified_with_lines, (0, y), (left_rectified.shape[1], y), (0, 255, 0), 1)
+        cv.line(right_rectified_with_lines, (0, y), (right_rectified.shape[1], y), (0, 255, 0), 1)
     
+    # Save rectified images
     left_sample_path = os.path.join(rect_sample_dir, f"left_rectified_sample_{file_suffix}.png")
     right_sample_path = os.path.join(rect_sample_dir, f"right_rectified_sample_{file_suffix}.png")
     left_lines_path = os.path.join(rect_sample_dir, f"left_rectified_lines_{file_suffix}.png")
