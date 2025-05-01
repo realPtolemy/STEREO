@@ -172,15 +172,72 @@ if len(objpoints) > 0:
         flags=flags
     )
     print(f"Stereo reprojection error: {ret_stereo:.3f} pixels")
-
-    # Save reprojection annotated images
-
     
     # Step 9: Stereo rectification
     R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(
         mtx_left, dist_left, mtx_right, dist_right, image_size, R, T
     )
     print("Stereo calibration and rectification completed.")
+
+    # Save reprojection annotated images
+    print("Generating and saving reprojection images...")
+    for idx, (left_fname, right_fname) in enumerate(image_pairs):
+        if idx >= len(objpoints):
+            continue  # Skip pairs where chessboard was not detected
+        
+        # Read original images in color for visualization
+        img_left = cv2.imread(left_fname)
+        img_right = cv2.imread(right_fname)
+        
+        if img_left is None or img_right is None:
+            print(f"Failed to load pair for reprojection: {left_fname}, {right_fname}")
+            continue
+
+        # Compute per-image pose using solvePnP
+        # Left camera
+        ret, rvec_left, tvec_left = cv2.solvePnP(objpoints[idx], imgpoints_left[idx], mtx_left, dist_left)
+        if not ret:
+            print(f"Failed to solvePnP for left image: {left_fname}")
+            continue
+        proj_left = cv2.projectPoints(objpoints[idx], rvec_left, tvec_left, mtx_left, dist_left)[0].reshape(-1, 2)
+
+        # Right camera
+        ret, rvec_right, tvec_right = cv2.solvePnP(objpoints[idx], imgpoints_right[idx], mtx_right, dist_right)
+        if not ret:
+            print(f"Failed to solvePnP for right image: {right_fname}")
+            continue
+        proj_right = cv2.projectPoints(objpoints[idx], rvec_right, tvec_right, mtx_right, dist_right)[0].reshape(-1, 2)
+
+        # Draw reprojected corners (red) and detected corners (green)
+        img_left_color = img_left.copy()
+        img_right_color = img_right.copy()
+        
+        # Draw detected corners (green)
+        for corner in imgpoints_left[idx]:
+            center = (int(corner[0][0]), int(corner[0][1]))
+            cv2.circle(img_left_color, center, 5, (0, 255, 0), -1)
+        for corner in imgpoints_right[idx]:
+            center = (int(corner[0][0]), int(corner[0][1]))
+            cv2.circle(img_right_color, center, 5, (0, 255, 0), -1)
+        
+        # Draw reprojected corners (red)
+        for point in proj_left:
+            center = (int(point[0]), int(point[1]))
+            cv2.circle(img_left_color, center, 5, (0, 0, 255), -1)
+        for point in proj_right:
+            center = (int(point[0]), int(point[1]))
+            cv2.circle(img_right_color, center, 5, (0, 0, 255), -1)
+        
+        # Save reprojected images
+        left_reproj_path = os.path.join(
+            output_dir, ANNOTATIONS_SUBDIR, f"left_reprojected_{os.path.basename(left_fname)}"
+        )
+        right_reproj_path = os.path.join(
+            output_dir, ANNOTATIONS_SUBDIR, f"right_reprojected_{os.path.basename(right_fname)}"
+        )
+        cv2.imwrite(left_reproj_path, img_left_color)
+        cv2.imwrite(right_reproj_path, img_right_color)
+        print(f"Saved reprojected images: {left_reproj_path}, {right_reproj_path}")
 
     # Save stereo calibration results
     yaml_path = os.path.join(output_dir, PARAMETERS_SUBDIR, "stereo.yaml")
