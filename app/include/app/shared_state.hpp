@@ -82,11 +82,11 @@ public:
     ~SharedState() = default;
 
     const std::string m_calib_file_cam0 =
-        "calibration/calibrationData/camera_0_right_2025APR29.yaml";
+        "calibration/calibrationData/MONO_camera_1_left_2025MAY01.yaml";
     const std::string m_calib_file_cam1 =
-        "calibration/calibrationData/camera_1_left_2025APR29.yaml";
+        "calibration/calibrationData/MONO_camera_0_right_2025MAY01.yaml";
     const std::string stereo_calibfile_ =
-        "calibration/calibrationData/stereo.yaml";
+        "calibration/calibrationData/STEREO_both_cameras_2025MAY01.yaml";
 
     std::shared_ptr<tf2::BufferCore> tf_;
     pcl_state pcl_state_;

@@ -163,13 +163,13 @@ void Tracker::trackerRun(){
     std::cout << events_.size() << std::endl;
     if(first_event_){
         std::lock_guard<std::mutex> lock(events_mutex_);
-        tf2::msg::TransformStamped inital_pose;
-        inital_pose.frame_id = world_frame_id_;
+        tf2::msg::TransformStamped initial_pose;
+        initial_pose.frame_id = world_frame_id_;
         // inital_pose.child_frame_id = "camera0";
-        inital_pose.child_frame_id = "cam0";
+        initial_pose.child_frame_id = "cam0";
         // inital_pose.child_frame_id = frame_id_;
         int temp = events_.size() - 2*(events_.size() - 100000);
-        inital_pose.timestamp = events_[temp].timestamp;
+        initial_pose.timestamp = events_[temp].timestamp;
         // inital_pose.timestamp = events_.back().timestamp;
         // std::cout << tf2::timeToSec(events_.back().timestamp) << std::endl;
         {

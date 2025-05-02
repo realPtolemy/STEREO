@@ -44,51 +44,68 @@ Mapper::Mapper(SharedState &shared_state) :
 }
 
 void Mapper::mapperRun(){
+	std::cout << "[Mapper::mapperRun] Starting mapperRun, initializing event vectors..." << std::endl;
 	std::vector<Event> camera1_events, camera2_events;
 	camera1_events.reserve(EVENT_BATCH_SIZE);
 	camera2_events.reserve(EVENT_BATCH_SIZE);
+	std::cout << "[Mapper::mapperRun] Reserved space for camera1_events and camera2_events with EVENT_BATCH_SIZE = " << EVENT_BATCH_SIZE << std::endl;
 
 	#ifdef READ_EVENT_FROM_AESTREAM
 	/**
 	 * First a connection to the UDP stream has to be made.
 	 */
+	std::cout << "[Mapper::mapperRun] READ_EVENT_FROM_AESTREAM enabled, setting up UDP server for camera1..." << std::endl;
 		Server camera1_server(3333);
 		// Server camera2_server(port2)
 		std::thread camera1_thread(&Mapper::camera_thread_udp, this, std::ref(camera1_server), std::ref(camera1_events), std::ref(shared_state_->events_left_));
 		// std::thread camera2_thread(camera_thread_udp, camera2_server, std::ref(camera2_events), std::ref(shared_state_->events_right_));
 		// 3party/aestream_src/bin/aestream input file data/camera_0.csv output udp
+	std::cout << "[Mapper::mapperRun] UDP thread for camera1 created." << std::endl;
 	#else
+	std::cout << "[Mapper::mapperRun] READ_EVENT_FROM_AESTREAM disabled, using CSV files..." << std::endl;
 	// google::FlushLogFiles(google::INFO);
+	std::cout << "[Mapper::mapperRun] Creating thread for camera_1.csv..." << std::endl;
 		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0.csv",
+			"data/camera_1.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
+	std::cout << "[Mapper::mapperRun] Creating thread for camera_0.csv..." << std::endl;
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_1.csv",
+			"data/camera_0.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
 		);
+	std::cout << "[Mapper::mapperRun] CSV threads for camera_0.csv and camera_1.csv created." << std::endl;
 	#endif
+
+
+	std::cout << "[Mapper::mapperRun] Creating pose reader thread (tfCallback)..." << std::endl;
 	std::thread pose_reader(&Mapper::tfCallback, this);
 
+	std::cout << "[Mapper::mapperRun] Creating mapping loop thread..." << std::endl;
 	// std::thread mapper_thread(&Mapper::mappingLoop, this);
 	mapper_thread_ = std::thread(&Mapper::mappingLoop, this);
 
 	// dsi_merger(std::ref(camera1_events), std::ref(camera2_events));
 	#ifdef READ_EVENT_FROM_AESTREAM
+	std::cout << "[Mapper::mapperRun] Joining UDP camera1 thread..." << std::endl;
 		camera1_thread.join();
 		// camera2_thread.join();
 	#else
+	std::cout << "[Mapper::mapperRun] Joining CSV camera1 thread..." << std::endl;
 	camera1_thread_csv.join();
+	std::cout << "[Mapper::mapperRun] Joining CSV camera2 thread..." << std::endl;
 	camera2_thread_csv.join();
 	#endif
 
+	std::cout << "[Mapper::mapperRun] Joining pose reader thread..." << std::endl;
 	pose_reader.join();
+	std::cout << "[Mapper::mapperRun] All threads joined, mapperRun completed." << std::endl;
 }
 
 Mapper::~Mapper()

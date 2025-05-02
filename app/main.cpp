@@ -7,41 +7,47 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-    // const char* newDir = "/home/fredrik/KEX/STEREO/";
+    std::cout << "[main] Program starting..." << std::endl;
 
-    // if (chdir(newDir) != 0) {
-    //     perror("chdir failed");
-    //     return 1;
-    // }
-    // char cwd[1024];
-    // getcwd(cwd, sizeof(cwd));
-    // std::cout << "Current working directory: " << cwd << std::endl;
+    // Set working directory
+    /*const char* newDir = "/home/fredrik/KEX/STEREO/";
+    if (chdir(newDir) != 0) {
+        perror("[main] chdir failed");
+        return 1;
+    }
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+        std::cout << "[main] Current working directory: " << cwd << std::endl;
+    } else {
+        std::cerr << "[main] Failed to get current working directory" << std::endl;
+    }
+    */
+
+    // Point cloud processing (unchanged)
+    /* 
     Client client(3333);
     Server server(3334);
     pcl::PCDReader reader;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
     reader.read("data/table_scene_lms400.pcd", *cloud);
-    std::cout << "PointCloud before filtering has: " << cloud->size () << " data points." << std::endl; //*
-    // find_clusters(cloud);
+    std::cout << "[main] PointCloud before filtering has: " << cloud->size() << " data points." << std::endl;
     std::vector<uint8_t> res = serializePC(cloud);
-    while(true){
-        client.send_uint8_t(res, "127.0.0.1");
-        std::string status = server.receive_string();
-        if(status != "Done"){
-            std::cerr << "Package did not land well, message: " << status << std::endl;
-            break;
-        }
-        std::cout << "Packet aknowledged!" << std::endl;
-        break;
-    }
+    */ 
 
-    // SharedState shared_state;
-    // Mapper mapper(shared_state);
-    // Tracker tracker(shared_state);
-    // std::thread mapper_thread(&Mapper::mapperRun, &mapper);
-    // std::thread tracker_thread(&Tracker::trackerRun, &tracker);
+    // Initialize and run Mapper and Tracker
+    std::cout << "[main] Initializing SharedState, Mapper, and Tracker..." << std::endl;
+    SharedState shared_state;
+    Mapper mapper(shared_state);
+    Tracker tracker(shared_state);
+    
+    std::cout << "[main] Starting mapper and tracker threads..." << std::endl;
+    std::thread mapper_thread(&Mapper::mapperRun, &mapper);
+    std::thread tracker_thread(&Tracker::trackerRun, &tracker);
 
-    // mapper_thread.join();
-    // tracker_thread.join();
+    std::cout << "[main] Waiting for mapper and tracker threads to complete..." << std::endl;
+    mapper_thread.join();
+    tracker_thread.join();
+    
+    std::cout << "[main] Program completed." << std::endl;
     return 0;
 }
