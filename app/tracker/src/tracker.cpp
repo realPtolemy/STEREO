@@ -126,8 +126,11 @@ Tracker::Tracker(SharedState &shared_state):
 
 // Denna funktion ska kallas av tråden i main, konstruktorn kan inte kallas i en tråd
 void Tracker::trackerRun(){
+    std::cout << "[Tracker::trackerRun] Starting trackerRun, waiting for events..." << std::endl;
     std::thread pointcloud_thread(&Tracker::mapCallback, this);
+    std::cout << "[Tracker::trackerRun] Point cloud thread created." << std::endl;
     std::thread event_thread(&Tracker::eventCallback, this);
+    std::cout << "[Tracker::trackerRun] Event callback thread created." << std::endl;
     // std::thread tf_thread(&Tracker::tfCallback, this);
     // // Setup Subscribers
     // event_sub_ = nh_.subscribe("events", 0, &Tracker::eventCallback, this);
@@ -148,6 +151,7 @@ void Tracker::trackerRun(){
     #endif
 
     tracking_thread_ = std::thread(&Tracker::trackingThread, this);
+    std::cout << "[Tracker::trackerRun] Tracking thread created." << std::endl;
     // std::this_thread::sleep_for(std::chrono::seconds(1));
     // initialize(tf2::TimePointZero);
     // std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -156,7 +160,10 @@ void Tracker::trackerRun(){
     while (true) {
         {
             std::lock_guard<std::mutex> lock(events_mutex_);
-            if (events_.size() >= 100000) break;
+            if (events_.size() >= 100000) {
+                std::cout << "[Tracker::trackerRun] Reached 100,000 events, checking first_event_..." << std::endl;
+                break;
+            }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -172,20 +179,41 @@ void Tracker::trackerRun(){
         initial_pose.timestamp = events_[temp].timestamp;
         // inital_pose.timestamp = events_.back().timestamp;
         // std::cout << tf2::timeToSec(events_.back().timestamp) << std::endl;
+
+        std::cout << "[Tracker::trackerRun] Setting initial pose:" << std::endl;
+        std::cout << "  Timestamp: " << tf2::timeToSec(initial_pose.timestamp) << " seconds" << std::endl;
+        std::cout << "  Frame ID: " << initial_pose.frame_id << ", Child Frame ID: " << initial_pose.child_frame_id << std::endl;
+    /*
+        std::cout << "  Translation: [" 
+                  << initial_pose.transform.translation.x << ", "
+                  << initial_pose.transform.translation.y << ", "
+                  << initial_pose.transform.translation.z << "]" << std::endl;
+        std::cout << "  Rotation (quaternion): [" 
+                  << initial_pose.transform.rotation.w << ", "
+                  << initial_pose.transform.rotation.x << ", "
+                  << initial_pose.transform.rotation.y << ", "
+                  << initial_pose.transform.rotation.z << "]" << std::endl;
+    */
+        std::cout << "  Event index used: " << temp << " (total events: " << events_.size() << ")" << std::endl;
+
         {
             std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
             shared_state_->pose_state_.pose = initial_pose;
             shared_state_->pose_state_.event_stamp = events_.size() - 100000;
             shared_state_->pose_state_.pose_ready = true;
             tf_.get()->setTransform(initial_pose, "tracker");
+            std::cout << "[Tracker::trackerRun] Initial pose stored in shared_state and tf buffer." << std::endl;
             shared_state_->pose_state_.pose_cv.notify_one();
         }
+    } else {
+        std::cout << "[Tracker::trackerRun] first_event_ is false, no initial pose set." << std::endl;
     }
 
     // std::cout << tf_.get()->allFramesAsYAML() << std::endl;
-
+    std::cout << "[Tracker::trackerRun] Joining event and point cloud threads..." << std::endl;
     event_thread.join();
     pointcloud_thread.join();
+    std::cout << "[Tracker::trackerRun] trackerRun completed." << std::endl;
 }
 Tracker::~Tracker(){
     running_ = false;
