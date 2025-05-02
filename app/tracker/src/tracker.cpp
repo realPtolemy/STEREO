@@ -174,10 +174,10 @@ void Tracker::trackerRun(){
         // std::cout << tf2::timeToSec(events_.back().timestamp) << std::endl;
         {
             std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
-            shared_state_->pose_state_.pose = inital_pose;
-            shared_state_->pose_state_.event_stamp = temp;
+            shared_state_->pose_state_.pose = initial_pose;
+            shared_state_->pose_state_.event_stamp = events_.size() - 100000;
             shared_state_->pose_state_.pose_ready = true;
-            tf_.get()->setTransform(inital_pose, "tracker");
+            tf_.get()->setTransform(initial_pose, "tracker");
             shared_state_->pose_state_.pose_cv.notify_one();
         }
     }
@@ -283,21 +283,22 @@ void Tracker::reset() {
 // in the mapper.
 void Tracker::eventCallback() {
     static const bool discard_events_when_idle = false;
-    std::unique_lock<std::mutex> lock(shared_state_->events_left_.mtx);
+    std::unique_lock<std::mutex> lock(shared_state_->events_right_.mtx);
     while (true)
     {
         if (discard_events_when_idle && idle_) continue;
         clearEventQueue();
 
         // TODO: Gör det här bättre? Kolla på denna en gång till.
-        shared_state_->events_left_.cv_event.wait(lock, [this]{ return shared_state_->events_left_.event_ready;});
-        // events_ = shared_state_->events_left_.data;
-        // for (const auto& event : shared_state_->events_left_.chunk) {
+        shared_state_->events_right_.cv_event.wait(lock, [this]{ return shared_state_->events_right_.event_ready;});
+        // events_ = shared_state_->events_right_.data;
+        // for (const auto& event : shared_state_->events_right_.chunk) {
         //     std::cout << event.x << ", " << event.y << ", " << tf2::displayTimePoint(event.timestamp) << ", " << event.polarity << "\n";
         // }
         {
             std::lock_guard<std::mutex> lock(events_mutex_);
-            for (const auto& e : shared_state_->events_left_.chunk) {
+            // events_.push_back(shared_state_->events_right_.chunk);
+            for (const auto& e : shared_state_->events_right_.chunk) {
                 events_.push_back(e);
             }
         }
@@ -305,7 +306,7 @@ void Tracker::eventCallback() {
         if(!first_event_){
             first_event_ = true;
         }
-        shared_state_->events_left_.event_ready = false;
+        shared_state_->events_right_.event_ready = false;
     }
 }
 

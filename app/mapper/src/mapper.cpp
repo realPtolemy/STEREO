@@ -8,11 +8,13 @@ Mapper::Mapper(SharedState &shared_state) :
 	// PinholeCameraModel cam0(shared_state_->m_calib_file_cam0), cam1(shared_state_->m_calib_file_cam1);
 	cam0 = PinholeCameraModel(shared_state_->m_calib_file_cam0);
 	cam1 = PinholeCameraModel(shared_state_->m_calib_file_cam1);
+	cam0.readStereoCalib(shared_state_->stereo_calibfile_, mat4_1_0);
 	cam0.cam_name = "cam0";
 	cam1.cam_name = "cam1";
-	mat4_hand_eye = cam0.getHandEye().inverse() * cam1.getHandEye();
-	mat4_1_0 = mat4_hand_eye;
-	std::cout << mat4_1_0 << std::endl;
+	mat4_hand_eye = Eigen::Matrix4d::Identity();
+	// mat4_hand_eye = cam0.getHandEye().inverse() * cam1.getHandEye();
+	// mat4_1_0 = mat4_hand_eye;
+	// std::cout << mat4_1_0 << std::endl;
 
 	EMVS::ShapeDSI dsi_shape(dimX, dimY, dimZ, fov_deg, min_depth, max_depth);
 	initialized_ = false;
@@ -121,11 +123,7 @@ void Mapper::tfCallback(){
 			tf2::msg::TransformStamped T_0_1, T_0_2;
 			T_0_1 = tf2::eigenToTransform(Eigen::Affine3d(mat4_1_0));
 			int temp = shared_state_->pose_state_.event_stamp;
-			std::cout << temp << std::endl;
-			temp -= 10;
-			std::cout << temp << std::endl;
-			// std::cout << shared_state_->events_right_.data.size() << std::endl;
-			T_0_1.timestamp = shared_state_->events_right_.data[temp].timestamp;
+			T_0_1.timestamp = shared_state_->events_left_.data[temp].timestamp;
 			// T_0_1.timestamp = tf_stamp_;
 			std::cout << tf2::timeToSec(T_0_1.timestamp) << std::endl;
 			T_0_1.frame_id = frame_id_;

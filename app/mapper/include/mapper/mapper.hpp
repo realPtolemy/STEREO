@@ -115,7 +115,7 @@ private:
     bool on_demand_;
     bool accumulate_pc_;
 
-    int EVENT_BATCH_SIZE = 512;
+    int EVENT_BATCH_SIZE = 1024;
     int NUM_EV_PER_MAP = 100000;
     Transformation T_rv_w_;
 

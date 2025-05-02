@@ -62,6 +62,9 @@ private:
     // PinholeCameraModel(const std::string& filename, CameraInfo& camera);
     PinholeCameraModel(const std::string& filename);
 
+    void readStereoCalib(const std::string& filename, Eigen::Matrix4d& mat4_1_0);
+    // void readStereoCalib(const std::string& filename, PinholeCameraModel& other_camera);
+
     void loadCamerInfo(CameraInfo &info);
 
     std::string cam_name;
