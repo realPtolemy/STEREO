@@ -49,13 +49,10 @@ void Mapper::mapperRun(){
 	camera2_events.reserve(EVENT_BATCH_SIZE);
 
 	#ifdef READ_EVENT_FROM_AESTREAM
-	/**
-	 * First a connection to the UDP stream has to be made.
-	 */
-		Server camera1_server(3333);
-		// Server camera2_server(port2)
+		Server camera1_server(4001);
+		Server camera2_server(4002);
 		std::thread camera1_thread(&Mapper::camera_thread_udp, this, std::ref(camera1_server), std::ref(camera1_events), std::ref(shared_state_->events_left_));
-		// std::thread camera2_thread(camera_thread_udp, camera2_server, std::ref(camera2_events), std::ref(shared_state_->events_right_));
+		std::thread camera2_thread(&Mapper::camera_thread_udp, this, std::ref(camera2_server), std::ref(camera2_events), std::ref(shared_state_->events_right_));
 		// 3party/aestream_src/bin/aestream input file data/camera_0.csv output udp
 	#else
 	// google::FlushLogFiles(google::INFO);
@@ -82,7 +79,7 @@ void Mapper::mapperRun(){
 	// dsi_merger(std::ref(camera1_events), std::ref(camera2_events));
 	#ifdef READ_EVENT_FROM_AESTREAM
 		camera1_thread.join();
-		// camera2_thread.join();
+		camera2_thread.join();
 	#else
 	camera1_thread_csv.join();
 	camera2_thread_csv.join();
@@ -465,48 +462,45 @@ void Mapper::camera_thread_udp(Server& server, std::vector<Event> &camera_events
 {
 
 	while (true) {
-		// std::string buffered_data = server.receive();
-		// server.receive();
-		server.receive_aestream(); // Use the passed-in server instance to receive data
-		/**
-		 * 	The event data that aestream sent is in the format:
-		 * 	First 32 bits:
-		 * 			Upper 16 bits is x coordinate
-		 * 			Upper 16 bits MSB signals the packet has a timestamp
-		 * 			Lower 16 bits is y coordinate
-		 * 			Lower 16 bits MSB is the polarity
-		 * 	Reamning 32 bits is the timestamp
-		 */
-		// if (buffered_data.empty()) {
-		// 	// A packet can be lost on the way, the stream should not ebd becuse of that.
-		// 	continue;
-		// }
-
-		// parse_bufferd_data(buffered_data);
-		// std::cout << buffered_data << "\n";
+		const uint16_t* data;
+		ssize_t count;
+		std::tie(data, count) = server.receive_aestream(); 
+		if(count == 0){
+			continue;;
+		}		
+		parse_bufferd_data(data, count, camera_events);
+		std::lock_guard<std::mutex> lock(data_mutex_);
+		if (!initialized_) {
+			first_ev_ts = camera_events[0].timestamp;
+			initialized_ = true;
+			current_ts_ = first_ev_ts;
+		}
+		event_queue.push_back(std::move(camera_events));
+		camera_events.clear();
 	}
 }
 
-/*
-	Parse a line from a csv file and return an Event object.
-	Could be good to implemnt the time defintion from tf2, so convert the uint64_t to a timestamp,
-	what tf uses.
-*/
-// Event Mapper::parse_bufferd_data(std::string &buffered_data){
-// 	/**
-// 	 * A event is 8 bytes, with the timestamp
-// 	 */
-// 	int current_start_pos = 0;
-// 	int current_end_pos = 8;
-// 	std::string event_data;
-// 	while (current_end_pos != buffered_data.length())
-// 	{
-// 		event_data = buffered_data.substr(current_start_pos, current_end_pos);
 
-// 	}
-
-// 	// std::stringstream ss(buffered_data);
-// }
+void Mapper::parse_bufferd_data(const uint16_t* buffered_data, ssize_t length, std::vector<Event> &camera_events){
+	/**
+	* 	The event data that aestream sent is in the format:
+	* 	First 32 bits:
+	* 			Upper 16 bits is x coordinate
+	* 			Upper 16 bits MSB signals the packet has a timestamp
+	* 			Lower 16 bits is y coordinate
+	* 			Lower 16 bits MSB is the polarity
+	* 	Reamning 32 bits is the timestamp
+	*/
+	for(int i = 0; i < length; i+=4){
+		Event e;
+		e.x = buffered_data[i] & 0x7FFF;
+		e.y = buffered_data[i+1] & 0x7FFF;
+		e.polarity = buffered_data[1+1] & 0x8000;
+		uint32_t ts_us = (static_cast<uint32_t>(buffered_data[i + 3]) << 16) | buffered_data[i + 2];
+		e.timestamp = tf2::TimePoint(tf2::durationFromSec(ts_us * 1e-6));
+		camera_events.push_back(std::move(e));
+	}
+}
 
 Event Mapper::parse_line(const std::string& line)
 {
@@ -517,8 +511,6 @@ Event Mapper::parse_line(const std::string& line)
 		tokens.push_back(token);
 	}
 	Event e;
-	// e.timestamp = tf2::TimePoint(tf2::Duration(std::stoull(tokens[0])));
-
 	uint64_t ts_us = std::stoull(tokens[0]);
 	e.timestamp = tf2::TimePoint(tf2::durationFromSec(ts_us * 1e-6));
 

@@ -23,6 +23,8 @@ set(SOURCES
 
 add_executable(my_executable ${SOURCES})
 
+include(CompilerSettings)
+
 if(ENABLE_SANITIZERS)
   	message(STATUS "Building with AddressSanitizer and UndefinedBehaviorSanitizer")
 	target_compile_options(my_executable PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer -g)

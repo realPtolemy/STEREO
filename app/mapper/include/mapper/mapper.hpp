@@ -145,7 +145,7 @@ private:
      */
     void camera_thread_csv(const std::string &event_file_path, std::vector<Event> &camera1_events, EventQueue<Event> &event_queue);
     void camera_thread_udp(Server& server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue);
-    Event parse_bufferd_data(std::string &buffered_data);
+    void parse_bufferd_data(const uint16_t* buffered_data, ssize_t length, std::vector<Event> &camera_events);
     void mappingLoop();
     void MappingAtTime(
         tf2::TimePoint current_ts,

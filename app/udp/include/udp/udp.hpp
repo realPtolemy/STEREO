@@ -9,6 +9,7 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <tuple>
 
 class UDP
 {
@@ -42,7 +43,7 @@ public:
     Server(int port);
     std::string receive_string();
     ssize_t read();
-    void receive_aestream();
+    std::tuple<uint16_t*, ssize_t> receive_aestream();
 };
 
 #endif

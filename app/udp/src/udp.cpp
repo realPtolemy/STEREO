@@ -19,9 +19,6 @@ UDP::~UDP()
 
 void Client::send_string(const std::string& message, const std::string& clientIP, int clientPort)
 {
-    // sockaddr_in clientAddr{};
-    // clientAddr.sin_family = AF_INET;
-    // clientAddr.sin_port = htons(clientPort);
     inet_pton(AF_INET, clientIP.c_str(), &addr.sin_addr);
     sendto(sockfd, message.c_str(), message.size(), 0,
            (const struct sockaddr *)&addr, sizeof(addr));
@@ -71,18 +68,13 @@ Server::Server(int port)
     std::cout << "Server connected" << std::endl;
 }
 
-void Server::receive_aestream()
+std::tuple<uint16_t*, ssize_t> Server::receive_aestream()
 {
-    std::cout << "Reciving data" << std::endl;
-    read();
+    ssize_t n = read();
     auto data = reinterpret_cast<uint16_t*>(buffer.data());
-    // std::cout  << "X coord:" << (buffer[0] & 0x7FFF)
-    //            << ", Y coord:" << (buffer[1] & 0x7FFF)
-    //             // << ", polarity:" << (buffer[1] & 0x8000)
-    //            << ", timestamp:" <<buffer[2] << buffer[3] <<"\n";
+    return {data,n/2};
 }
 ssize_t Server::read(){
-    std::cout << "Reciving data" << std::endl;
     ssize_t n = recvfrom(
         sockfd,
         buffer.data(),
