@@ -1,4 +1,5 @@
 #include "mapper/mapper.hpp"
+#include <filesystem>
 
 Mapper::Mapper(SharedState &shared_state) :
 	shared_state_(&shared_state),
@@ -219,7 +220,7 @@ void Mapper::mappingLoop()
 			latest_tf = tf_->lookupTransform(world_frame_id_, frame_id_, tf2::TimePointZero);
 			// std::cout << "lookup succeded!" << std::endl;
 			latest_tf_stamp_ = latest_tf.timestamp;
-
+			std::cout << "[Mapper::mappingLoop] latest_tf_stamp_=" << tf2::timeToSec(latest_tf_stamp_) << "s" << std::endl;
 		} else {
 			// LOG(WARNING) << error_msg;
 			continue;
@@ -253,14 +254,20 @@ void Mapper::mappingLoop()
 				--last_tracked_ev_right;
 			}
 			// Check that there is enough events in both cameras to make a new map
+			std::cout << "[Mapper::mappingLoop] Event counts: last_tracked_ev_left=" << last_tracked_ev_left 
+			<< ", last_tracked_ev_right=" << last_tracked_ev_right 
+			<< ", NUM_EV_PER_MAP=" << NUM_EV_PER_MAP << std::endl;
 			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP) {
 				// std::cout << "Not enough events yet..." << std::endl;;
+				std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << last_tracked_ev_left 
+				<< ", right=" << last_tracked_ev_right << ", required=" << NUM_EV_PER_MAP << ")" << std::endl;
 				continue;
 			}
 			current_ts_ = latest_tf_stamp_;
 			double_t duration = tf2::durationToSec(current_ts_ - shared_state_->events_left_.data[last_tracked_ev_left - NUM_EV_PER_MAP].timestamp);
 			// std::cout << "Duration: "<<duration << std::endl;
 			//              ros::Time ev_subset_start_ts = (events_left_.end()-NUM_EV_PER_MAP)->ts;
+			std::cout << "[Mapper::mappingLoop] Duration=" << duration << "s, current_ts=" << tf2::timeToSec(current_ts_) << "s" << std::endl;
 			if (duration > max_duration_){
 				// LOG(INFO) << "Looking too far back in the past. skip";
 				std::cout << "Looking too far back in the past. skip" << std::endl;
