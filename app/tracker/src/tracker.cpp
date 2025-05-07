@@ -231,8 +231,9 @@ void Tracker::trackingThread() {
         std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
         // std::cout << keypoints_.size() << std::endl;
         if (!idle_ && keypoints_.size() > 0) {
-            std::cout << "running?" << std::endl;
+            std::cout << "[Tracker::trackingThread] Running estimateTrajectory" << std::endl;
             estimateTrajectory();
+            next_time = tf2::get_now() + interval;
         }
     }
 }
@@ -608,8 +609,7 @@ void Tracker::estimateTrajectory() {
                         events_per_kf = 100000;
     // nhp_.param("max_event_rate", 8000000),
     // nhp_.param("events_per_kf", 100000);
-    std::cout << "esimate" << std::endl;
-    return;
+    std::cout << "[Tracker::estimateTrajectory] Estimating trajectory" << std::endl;
     std::lock_guard<std::mutex> lock(data_mutex_);
 
     while (true) {

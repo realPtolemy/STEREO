@@ -218,8 +218,8 @@ void Mapper::mappingLoop()
 			tf2::durationFromSec(0.01))
 		){
 			latest_tf = tf_->lookupTransform(world_frame_id_, frame_id_, tf2::TimePointZero);
-			// std::cout << "lookup succeded!" << std::endl;
 			latest_tf_stamp_ = latest_tf.timestamp;
+			// DEBUGGING: Latest TF-time-stamp
 			std::cout << "[Mapper::mappingLoop] latest_tf_stamp_=" << tf2::timeToSec(latest_tf_stamp_) << "s" << std::endl;
 		} else {
 			// LOG(WARNING) << error_msg;
@@ -253,12 +253,20 @@ void Mapper::mappingLoop()
 			while (last_tracked_ev_right>0 && shared_state_->events_right_.data[last_tracked_ev_right].timestamp > latest_tf_stamp_){
 				--last_tracked_ev_right;
 			}
-			// Check that there is enough events in both cameras to make a new map
+
+			// DEBUGGING: Log timestamps of last events
+			std::cout << "[Mapper::mappingLoop] Last event timestamps: left=" 
+			          << (last_tracked_ev_left >= 0 ? tf2::timeToSec(shared_state_->events_left_.data[last_tracked_ev_left].timestamp) : -1) 
+			          << "s, right=" 
+			          << (last_tracked_ev_right >= 0 ? tf2::timeToSec(shared_state_->events_right_.data[last_tracked_ev_right].timestamp) : -1) 
+			          << "s" << std::endl;
+			// DEBUGGING: Check that there is enough events in both cameras to make a new map
 			std::cout << "[Mapper::mappingLoop] Event counts: last_tracked_ev_left=" << last_tracked_ev_left 
 			<< ", last_tracked_ev_right=" << last_tracked_ev_right 
 			<< ", NUM_EV_PER_MAP=" << NUM_EV_PER_MAP << std::endl;
+
 			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP) {
-				// std::cout << "Not enough events yet..." << std::endl;;
+				// DEBUGGING: Confirmation that there are not enough events
 				std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << last_tracked_ev_left 
 				<< ", right=" << last_tracked_ev_right << ", required=" << NUM_EV_PER_MAP << ")" << std::endl;
 				continue;
