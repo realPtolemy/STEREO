@@ -4,8 +4,6 @@ Mapper::Mapper(SharedState &shared_state) :
 	shared_state_(&shared_state),
 	tf_(shared_state_->tf_)
 {
-	// PinholeCameraModel cam0(m_calib_file_cam1, camera1), cam1(m_calib_file_cam2, camera2);
-	// PinholeCameraModel cam0(shared_state_->m_calib_file_cam0), cam1(shared_state_->m_calib_file_cam1);
 	cam0 = PinholeCameraModel(shared_state_->m_calib_file_cam0);
 	cam1 = PinholeCameraModel(shared_state_->m_calib_file_cam1);
 	cam0.readStereoCalib(shared_state_->stereo_calibfile_, mat4_1_0);
@@ -27,6 +25,8 @@ Mapper::Mapper(SharedState &shared_state) :
 
 	min_duration_ = .1;
 	max_duration_ = 1.;
+	init_wait_t_ = 0;
+	// init_wait_t_ = 3.;
 
 	world_frame_id_ = "world";
 	frame_id_ = "cam0";
@@ -49,8 +49,8 @@ void Mapper::mapperRun(){
 	camera2_events.reserve(EVENT_BATCH_SIZE);
 
 	#ifdef READ_EVENT_FROM_AESTREAM
-		Server camera1_server(4001);
-		Server camera2_server(4002);
+		UDP camera1_server(4001);
+		UDP camera2_server(4002);
 		std::thread camera1_thread(&Mapper::camera_thread_udp, this, std::ref(camera1_server), std::ref(camera1_events), std::ref(shared_state_->events_left_));
 		std::thread camera2_thread(&Mapper::camera_thread_udp, this, std::ref(camera2_server), std::ref(camera2_events), std::ref(shared_state_->events_right_));
 		// 3party/aestream_src/bin/aestream input file data/camera_0.csv output udp
@@ -73,10 +73,8 @@ void Mapper::mapperRun(){
 	#endif
 	std::thread pose_reader(&Mapper::tfCallback, this);
 
-	// std::thread mapper_thread(&Mapper::mappingLoop, this);
 	mapper_thread_ = std::thread(&Mapper::mappingLoop, this);
 
-	// dsi_merger(std::ref(camera1_events), std::ref(camera2_events));
 	#ifdef READ_EVENT_FROM_AESTREAM
 		camera1_thread.join();
 		camera2_thread.join();
@@ -122,7 +120,7 @@ void Mapper::tfCallback(){
 			int temp = shared_state_->pose_state_.event_stamp;
 			T_0_1.timestamp = shared_state_->events_left_.data[temp].timestamp;
 			// T_0_1.timestamp = tf_stamp_;
-			std::cout << tf2::timeToSec(T_0_1.timestamp) << std::endl;
+			// std::cout << tf2::timeToSec(T_0_1.timestamp) << std::endl;
 			T_0_1.frame_id = frame_id_;
 			T_0_1.child_frame_id = "dvs1";
 			// std::cout << tf2::timeToSec(tf_stamp_) << std::endl;
@@ -142,6 +140,7 @@ void Mapper::tfCallback(){
 		shared_state_->pose_state_.pose_ready = false;
 	}
 }
+
 bool Mapper::waitForTransformSimple(
 	const std::shared_ptr<tf2::BufferCore> & buffer,
 	const std::string & target_frame,
@@ -174,15 +173,14 @@ void Mapper::mappingLoop()
 
 	bool map_initialized = false;
 
-	// TODO: Fix ros::Rate and ros::ok()
     const tf2::Duration interval = tf2::durationFromSec(0.01);
     tf2::TimePoint next_time = tf2::get_now() + interval;
 	std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
 
 	std::string error_msg;
-	std::cout << tf2::timeToSec(current_ts_) << std::endl;
+	// std::cout << tf2::timeToSec(current_ts_) << std::endl;
 	while (running_){
-        if (!shared_state_->pcl_state_.pcl_listeners){
+		if (!shared_state_->pcl_state_.pcl_listeners){
 			pc_global_->clear();
 		}
 
@@ -204,43 +202,45 @@ void Mapper::mappingLoop()
 			// LOG(WARNING) << error_msg;
 			continue;
 		}
-
         if (auto_trigger_ && initialized_ && !map_initialized && tf2::durationToSec(latest_tf_stamp_ - current_ts_) > init_wait_t_) {
 			// LOG(INFO) << "GENERATING INITIAL MAP AUTOMATICALLY.";
             state_ = MAPPING;
-			// std::cout << "Mapping" << std::endl;
+			std::cout << "Mapping" << std::endl;
         }
 
         if (state_ != MAPPING){
 			// TODO: Handle this?
+			std::cout << "TIMING" << std::endl;
 			continue;
 		}
 		std::vector<Event> ev_subset_left_, ev_subset_right_, ev_subset_tri_;
 		int last_tracked_ev_left, last_tracked_ev_right;
 		if (current_ts_ >= latest_tf_stamp_) {
-			continue;;
+			continue;
 		}
 		{
 			std::lock_guard<std::mutex> lock(data_mutex_);
 			// Find the first events that's older than the previous saved tf.
-			last_tracked_ev_left = shared_state_->events_left_.data.size() - 1;
+			last_tracked_ev_left = shared_state_->events_left_.data.size() -1;
 			while (last_tracked_ev_left>0 && shared_state_->events_left_.data[last_tracked_ev_left].timestamp > latest_tf_stamp_){
 				--last_tracked_ev_left;
 			}
+
 			// The same for the right camera
-			last_tracked_ev_right = shared_state_->events_right_.data.size() - 1;
+			last_tracked_ev_right = shared_state_->events_right_.data.size() -1;
 			while (last_tracked_ev_right>0 && shared_state_->events_right_.data[last_tracked_ev_right].timestamp > latest_tf_stamp_){
 				--last_tracked_ev_right;
 			}
+
 			// Check that there is enough events in both cameras to make a new map
-			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP) {
-				// std::cout << "Not enough events yet..." << std::endl;;
+			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP){
+				// std::cout << "Left: "<< last_tracked_ev_left << std::endl;
+				// std::cout << "Right: "<< last_tracked_ev_left << std::endl;
 				continue;
 			}
+
 			current_ts_ = latest_tf_stamp_;
 			double_t duration = tf2::durationToSec(current_ts_ - shared_state_->events_left_.data[last_tracked_ev_left - NUM_EV_PER_MAP].timestamp);
-			// std::cout << "Duration: "<<duration << std::endl;
-			//              ros::Time ev_subset_start_ts = (events_left_.end()-NUM_EV_PER_MAP)->ts;
 			if (duration > max_duration_){
 				// LOG(INFO) << "Looking too far back in the past. skip";
 				std::cout << "Looking too far back in the past. skip" << std::endl;
@@ -261,10 +261,16 @@ void Mapper::mappingLoop()
 				shared_state_->events_right_.data.begin()+last_tracked_ev_right
 			);
 		}
-		std::cout << "Size of left events: " << shared_state_->events_left_.data.size() << std::endl;
-		std::cout << "Size of right events: " << shared_state_->events_right_.data.size() << std::endl;
-		std::cout << "MappingAtTime!" << std::endl;
-		MappingAtTime(current_ts_, ev_subset_left_, ev_subset_right_, ev_subset_tri_, frame_id_);
+		std::cout <<"------------------- Mapping at time: " << tf2::timeToSec(current_ts_)-tf2::timeToSec(first_ev_ts) << " seconds ----------------------" << std::endl;
+		std::cout <<"------------------- Mapping at time: " << tf2::timeToSec(current_ts_) << " ---------------------" << std::endl;
+		std::cout <<"------------------- Pose from: " << frame_id_ << " ---------------------" << std::endl;
+
+		std::cout <<"Using left events from " << tf2::timeToSec(ev_subset_left_.front().timestamp)-tf2::timeToSec(first_ev_ts) << "-" << tf2::timeToSec(ev_subset_left_.back().timestamp) - tf2::timeToSec(first_ev_ts) << std::endl;
+		std::cout <<"Using left events from " << tf2::timeToSec(ev_subset_left_.front().timestamp) << "-" << tf2::timeToSec(ev_subset_left_.back().timestamp) << std::endl;
+
+		std::cout <<"Using right events from " << tf2::timeToSec(ev_subset_right_.front().timestamp) - tf2::timeToSec(first_ev_ts) << "-" << tf2::timeToSec(ev_subset_right_.back().timestamp) - tf2::timeToSec(first_ev_ts) << std::endl;
+		std::cout <<"Using right events from " << tf2::timeToSec(ev_subset_right_.front().timestamp) << "-" << tf2::timeToSec(ev_subset_right_.back().timestamp) << std::endl;
+		MappingAtTime(current_ts_, ev_subset_right_, ev_subset_left_, ev_subset_tri_, frame_id_);
 
 		if (on_demand_)
 			state_ = IDLE;
@@ -439,9 +445,11 @@ void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<E
 	}
   	std::string line;
   	while (std::getline(event_file, line)) {
+		// std::cout << "Size of a line: "<< line.size() << std::endl;
 		Event e = parse_line(line);
   		camera_events.push_back(e);
   		if (camera_events.size() == EVENT_BATCH_SIZE){
+
 			std::lock_guard<std::mutex> lock(data_mutex_);
 			if (!initialized_) {
 				// Behvös en event_offset?
@@ -458,16 +466,127 @@ void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<E
   	event_file.close();
 }
 
-void Mapper::camera_thread_udp(Server& server, std::vector<Event> &camera_events, EventQueue<Event> &event_queue)
+/**
+ * Reads events from a csv file. A batch of events are read in at first.
+ * One batch contains many events, but the last event (last line) is most likely partially complete
+ * So save that leftover from previous batch and add it to the beginin of new batch, and then
+ * the event is whole and correct!
+ */
+void Mapper::camera_thread_csv_new(const std::string &event_file_path, EventQueueGrouped<SyncedEvents> &event_queue)
+{
+	std::ifstream file(event_file_path);
+    if (!file) {
+		std::cerr << "Error opening file.\n";
+        return;
+    }
+	const size_t BUFFER_SIZE = 1 << 16;
+    std::vector<char> buffer(BUFFER_SIZE);
+    std::string leftover;
+	SyncedEvents grouped_events;
+
+    while (file) {
+        file.read(buffer.data(), buffer.size());
+        std::streamsize bytesRead = file.gcount();
+        if (bytesRead <= 0) break;
+
+		// std::cout << "leftover: " << leftover << std::endl;
+
+        // Combine leftover + current buffer
+        std::string data = leftover + std::string(buffer.data(), bytesRead);
+
+        size_t pos = 0;
+        while (true) {
+            size_t newline = data.find('\n', pos);
+            if (newline == std::string::npos) break;
+
+            std::string lines = data.substr(pos, newline - pos);
+            pos = newline + 1;
+
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+			parse_lines(lines, event_queue, grouped_events);
+        }
+
+        // Save leftover (incomplete last line)
+        leftover = data.substr(pos);
+    }
+
+	// Add the last grouped events.
+	if (!grouped_events.events.empty()) {
+		event_queue.push_back(grouped_events);
+	}
+
+
+    // If the last line doesn't end with '\n'
+    if (!leftover.empty()) {
+        std::cout << "Parsed last (incomplete) line: " << leftover << "\n";
+    }
+
+	file.close();
+
+}
+void Mapper::parse_lines(const std::string& lines, EventQueueGrouped<SyncedEvents> &event_queue, SyncedEvents &grouped_events)
+{
+	std::istringstream ss(lines);
+	std::string line;
+
+	tf2::TimePoint timestamp;
+
+	std::string token;
+	std::istringstream lineStream;
+	std::vector<std::string> tokens;
+	while(std::getline(ss, line)){
+		lineStream.clear();
+		lineStream.str(line);
+		tokens.clear();
+		while (std::getline(lineStream, token, ',')) {
+			tokens.push_back(token);
+		}
+
+		if (tokens.size() < 4) continue;
+
+		Event e;
+		uint64_t ts_us = std::stoull(tokens[0]);
+		timestamp = tf2::TimePoint(tf2::durationFromSec(ts_us * 1e-6));
+
+		e.x = std::stoi(tokens[1]);
+		e.y = std::stoi(tokens[2]);
+		e.polarity = std::stoi(tokens[3]);
+
+		if(timestamp != grouped_events.timestamp){
+			{
+				std::lock_guard<std::mutex> lock(data_mutex_);
+				if(!initialized_){
+					first_ev_ts = timestamp;
+					initialized_ = true;
+					current_ts_ = first_ev_ts;
+				}
+			}
+			if (grouped_events.events.empty()) {
+				// First time: initialize the group
+				std::cout << "first event!" << std::endl;
+				grouped_events.timestamp = timestamp;
+				grouped_events.events.push_back(e);
+				continue;
+			}
+			// Timestamp changed: finalize previous and start new
+			event_queue.push_back(grouped_events);
+			grouped_events = SyncedEvents();
+			grouped_events.timestamp = timestamp;
+		}
+		grouped_events.events.push_back(e);
+	}
+}
+void Mapper::camera_thread_udp(UDP& udp, std::vector<Event> &camera_events, EventQueue<Event> &event_queue)
 {
 
 	while (true) {
 		const uint16_t* data;
 		ssize_t count;
-		std::tie(data, count) = server.receive_aestream(); 
+		std::tie(data, count) = udp.receive_aestream();
 		if(count == 0){
 			continue;;
-		}		
+		}
 		parse_bufferd_data(data, count, camera_events);
 		std::lock_guard<std::mutex> lock(data_mutex_);
 		if (!initialized_) {

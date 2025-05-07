@@ -7,33 +7,35 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-    // const char* newDir = "/home/fredrik/KEX/STEREO/";
+    // UDP udp(3333, 3334, "127.0.0.1");
+    // Server server(3334);
+    // pcl::PCDReader reader;
+    // Pointcloud cloud (new pcl::PointCloud<pcl::PointXYZI>);
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
+    // cloud->height = 480;
+    // cloud->width = 640;
+    // cloud->resize(640*480);
 
-    // if (chdir(newDir) != 0) {
-    //     perror("chdir failed");
-    //     return 1;
+    // pointCloudGenerator(cloud);
+    // reader.read("data/table_scene_lms400.pcd", *cloud);
+    // std::cout << "PointCloud before filtering has: " << cloud->size () << " data points." << std::endl; //*
+    // // find_clusters(cloud);
+    // std::vector<uint8_t> res = serializePC(cloud);
+    // while(true){
+    //     pointCloudGenerator(cloud);
+    //     cloud_f = find_clusters(cloud);
+    //     std::vector<uint8_t> res = serializePC(cloud_f);
+    //     udp.send_uint8_t(res);
+    //     std::string status = udp.receive_string();
+    //     if(status != "Done"){
+    //         std::cerr << "Package did not land well, message: " << status << std::endl;
+    //         break;
+    //     }
+    //     std::cout << "Packet aknowledged!" << std::endl;
+    //     std::this_thread::sleep_for(std::chrono::seconds(3));
+    //     break;
     // }
-    // char cwd[1024];
-    // getcwd(cwd, sizeof(cwd));
-    // std::cout << "Current working directory: " << cwd << std::endl;
-    Client client(3333);
-    Server server(3334);
-    pcl::PCDReader reader;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    reader.read("data/table_scene_lms400.pcd", *cloud);
-    std::cout << "PointCloud before filtering has: " << cloud->size () << " data points." << std::endl; //*
-    // find_clusters(cloud);
-    std::vector<uint8_t> res = serializePC(cloud);
-    while(true){
-        client.send_uint8_t(res, "127.0.0.1");
-        std::string status = server.receive_string();
-        if(status != "Done"){
-            std::cerr << "Package did not land well, message: " << status << std::endl;
-            break;
-        }
-        std::cout << "Packet aknowledged!" << std::endl;
-        break;
-    }
 
     // SharedState shared_state;
     // Mapper mapper(shared_state);

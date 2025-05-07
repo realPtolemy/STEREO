@@ -107,17 +107,9 @@ Tracker::Tracker(SharedState &shared_state):
     map_ = PointCloud::Ptr(new PointCloud);
     map_local_ = PointCloud::Ptr(new PointCloud);
 
-    // frame_id_ = std::string ("dvs0");
-    // world_frame_id_ = std::string ("world");
     frame_id_ = "cam0";
     world_frame_id_ = "world";
     auto_trigger_ = false;
-
-    // tf2::msg::TransformStamped inital_pose;
-    // inital_pose.frame_id = world_frame_id_;
-    // inital_pose.child_frame_id = "camera0";
-    // inital_pose.timestamp = tf2::TimePointZero;
-    // tf_.get()->setTransform(inital_pose, "tracker");
 
     c_ = PinholeCameraModel(shared_state_->m_calib_file_cam0);
 
@@ -128,19 +120,6 @@ Tracker::Tracker(SharedState &shared_state):
 void Tracker::trackerRun(){
     std::thread pointcloud_thread(&Tracker::mapCallback, this);
     std::thread event_thread(&Tracker::eventCallback, this);
-    // std::thread tf_thread(&Tracker::tfCallback, this);
-    // // Setup Subscribers
-    // event_sub_ = nh_.subscribe("events", 0, &Tracker::eventCallback, this);
-    // map_sub_ = nh_.subscribe("pointcloud", 0, &Tracker::mapCallback, this);
-    // remote_sub_ =
-    //     nh_.subscribe("remote_key", 0, &Tracker::remoteCallback, this);
-    // tf_sub_ = nh_.subscribe("tf", 0, &Tracker::tfCallback, this);
-    // camera_info_sub_ =
-    //     nh_.subscribe("camera_info", 1, &Tracker::cameraInfoCallback, this);
-
-    // // Setup Publishers
-    // poses_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("evo/pose", 0);
-    // remote_pub_ = nh_.advertise<const std_msgs::String>("remote_key", 0);
 
     #ifdef TRACKER_DEBUG_REFERENCE_IMAGE
         std::thread map_overlap(&Tracker::publishMapOverlapThread, this);
@@ -148,30 +127,46 @@ void Tracker::trackerRun(){
     #endif
 
     tracking_thread_ = std::thread(&Tracker::trackingThread, this);
-    // std::this_thread::sleep_for(std::chrono::seconds(1));
-    // initialize(tf2::TimePointZero);
-    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // std::cout << keypoints_.size() << std::endl;
 
     while (true) {
         {
             std::lock_guard<std::mutex> lock(events_mutex_);
-            if (events_.size() >= 100000) break;
+            if (events_.empty()) {
+                // std::cout << "loop" << std::endl;
+                continue;
+            }
+
+            // Check if we have enough events AND the time span is adequate
+            if (events_.size() >= 100000) {
+                // Calculate duration of the event window
+                double window_duration = tf2::timeToSec(events_.back().timestamp) -
+                                         tf2::timeToSec(events_[events_.size() - 100000].timestamp);
+
+                // Only proceed if the window duration meets our criteria (0.1s to 1.0s)
+                if (window_duration >= 0.1 && window_duration <= 1.0) {
+                    std::cout << window_duration << std::endl;
+                    std::cout << events_.size() << std::endl;
+                    std::cout << tf2::timeToSec(events_[events_.size()-100000].timestamp) << std::endl;
+                    break;
+                }
+            }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    std::cout << events_.size() << std::endl;
-    if(first_event_){
+    std::cout << "Found starting point" << std::endl;
+    if (!events_.empty()) {
         std::lock_guard<std::mutex> lock(events_mutex_);
+
+        // Use the middle of the event window as timestamp for initial pose
+        // This provides a more representative timestamp for the accumulated events
+        size_t midpoint_idx = events_.size() - 100000;  // middle of last 100k events
+        tf2::TimePoint midpoint_ts = events_[midpoint_idx].timestamp;
+
         tf2::msg::TransformStamped initial_pose;
         initial_pose.frame_id = world_frame_id_;
-        // initial_pose.child_frame_id = "camera0";
         initial_pose.child_frame_id = "cam0";
-        // initial_pose.child_frame_id = frame_id_;
-        int temp = events_.size() - 2*(events_.size() - 100000);
-        initial_pose.timestamp = events_[temp].timestamp;
-        // initial_pose.timestamp = events_.back().timestamp;
-        // std::cout << tf2::timeToSec(events_.back().timestamp) << std::endl;
+        initial_pose.timestamp = midpoint_ts;
+
         {
             std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
             shared_state_->pose_state_.pose = initial_pose;
@@ -181,9 +176,6 @@ void Tracker::trackerRun(){
             shared_state_->pose_state_.pose_cv.notify_one();
         }
     }
-
-    // std::cout << tf_.get()->allFramesAsYAML() << std::endl;
-
     event_thread.join();
     pointcloud_thread.join();
 }
@@ -197,11 +189,9 @@ Tracker::~Tracker(){
 void Tracker::trackingThread() {
     const tf2::Duration interval = tf2::durationFromSec(0.01);
     tf2::TimePoint next_time = tf2::get_now() + interval;
-    // LOG(INFO) << "Spawned tracking thread.";
 
     while (running_) {
         std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
-        // std::cout << keypoints_.size() << std::endl;
         if (!idle_ && keypoints_.size() > 0) {
             std::cout << "running?" << std::endl;
             estimateTrajectory();
@@ -260,8 +250,7 @@ void Tracker::initialize(const tf2::TimePoint& ts) {
     T_kf_ref_ = Eigen::Affine3f::Identity();
     T_ref_cam_ = Eigen::Affine3f::Identity();
 
-    while (cur_ev_ + 1 < events_.size() &&
-           events_[cur_ev_].timestamp < TF_kf_world.timestamp)
+    while (cur_ev_ + 1 < events_.size() && events_[cur_ev_].timestamp < TF_kf_world.timestamp)
         ++cur_ev_;
     // LOG(INFO) << "latest tf stamp: "<< tf2::timeToSec(TF_kf_world.timestamp);
     // LOG(INFO) << "latest event stamp: " << tf2::timeToSec(events_[cur_ev_].timestamp) << "id: " << cur_ev_ << " with events size:" << events_.size();

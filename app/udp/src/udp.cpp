@@ -1,15 +1,23 @@
 #include "udp/udp.hpp"
 #include <thread>
 
-UDP::UDP()
+UDP::UDP(int localPort, int dstPort, const std::string& clientIP)
 {
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0)
-        perror("Socket creation failed");
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
+    init_socket();
+    configureDestination(localPort,clientIP);
+    configureReceiver(dstPort);
+}
 
+UDP::UDP(int dstPort)
+{
+    init_socket();
+    configureReceiver(dstPort);
+}
+
+UDP::UDP(int localPort, const std::string& clientIP)
+{
+    init_socket();
+    configureDestination(localPort, clientIP);
 }
 
 UDP::~UDP()
@@ -17,19 +25,47 @@ UDP::~UDP()
     close(sockfd);
 }
 
-void Client::send_string(const std::string& message, const std::string& clientIP, int clientPort)
+void UDP::init_socket()
 {
-    inet_pton(AF_INET, clientIP.c_str(), &addr.sin_addr);
-    sendto(sockfd, message.c_str(), message.size(), 0,
-           (const struct sockaddr *)&addr, sizeof(addr));
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0) perror("Socket creation failed");
+}
+
+void UDP::configureReceiver(int port)
+{
+    memset(&local_addr, 0, sizeof(local_addr));
+    local_addr.sin_family = AF_INET;
+    local_addr.sin_addr.s_addr = INADDR_ANY;
+    local_addr.sin_port = htons(port);
+    if (bind(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0)
+        perror("Bind failed");
+}
+
+void UDP::configureDestination(int port, const std::string& clientIP)
+{
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(port);
+    inet_pton(AF_INET, clientIP.c_str(), &dest_addr.sin_addr);
+}
+
+void UDP::send_string(const std::string& message)
+{
+    sendto(
+        sockfd,
+        message.c_str(),
+        message.size(),
+        0,
+        (const struct sockaddr *)&dest_addr,
+        sizeof(dest_addr)
+    );
 }
 
 
-void Client::send_uint8_t(const std::vector<uint8_t>& message, const std::string& clientIP)
+void UDP::send_uint8_t(const std::vector<uint8_t>& message)
 {
     const size_t MAX_UDP_PAYLOAD = 60000;
     size_t offset = 0;
-    inet_pton(AF_INET, clientIP.c_str(), &addr.sin_addr);
     std::cout << message.size() << std::endl;
     while (offset < message.size()) {
         size_t chunk_size = std::min(MAX_UDP_PAYLOAD, message.size() - offset);
@@ -39,8 +75,8 @@ void Client::send_uint8_t(const std::vector<uint8_t>& message, const std::string
             chunk_ptr,
             chunk_size,
             0,
-            (const struct sockaddr *)&addr,
-            sizeof(addr)
+            (const struct sockaddr *)&dest_addr,
+            sizeof(dest_addr)
         );
 
         if (sent < 0) {
@@ -53,34 +89,51 @@ void Client::send_uint8_t(const std::vector<uint8_t>& message, const std::string
 
 }
 
-Client::Client(int port)
+void UDP::send_A1_high_command(UNITREE_LEGGED_SDK::HighCmd command)
 {
-    addr.sin_port = htons(port);
+    sendto(
+        sockfd,
+        reinterpret_cast<const char*>(&command),
+        sizeof(UNITREE_LEGGED_SDK::HighCmd),
+        0,
+        (const struct sockaddr *)&dest_addr,
+        sizeof(dest_addr)
+    );
 }
 
-
-Server::Server(int port)
+UNITREE_LEGGED_SDK::HighState UDP::receive_A1_high_state()
 {
+    ssize_t n = read();
 
-    addr.sin_port = htons(port);
-    if (bind(sockfd, (const struct sockaddr *)&addr, sizeof(addr)) < 0)
-        perror("Bind failed");
-    std::cout << "Server connected" << std::endl;
+    if (n < 0) {
+        std::cerr << "recvfrom failed" << std::endl;
+        return UNITREE_LEGGED_SDK::HighState();
+    }
+
+    if (n < sizeof(UNITREE_LEGGED_SDK::HighState)) {
+        std::cerr << "Incomplete HighState packet received" << std::endl;
+        return UNITREE_LEGGED_SDK::HighState();
+    }
+
+    UNITREE_LEGGED_SDK::HighState state;
+    std::memcpy(&state, buffer.data(), sizeof(UNITREE_LEGGED_SDK::HighState));
+    return state;
 }
 
-std::tuple<uint16_t*, ssize_t> Server::receive_aestream()
+std::tuple<uint16_t*, ssize_t> UDP::receive_aestream()
 {
     ssize_t n = read();
     auto data = reinterpret_cast<uint16_t*>(buffer.data());
     return {data,n/2};
 }
-ssize_t Server::read(){
+
+ssize_t UDP::read(){
     ssize_t n = recvfrom(
         sockfd,
         buffer.data(),
         BUFFER_SIZE,
         0,
-        (struct sockaddr *)&addr,
+        (struct sockaddr *)&local_addr,
         &len
     );
 
@@ -91,7 +144,7 @@ ssize_t Server::read(){
     return n;
 }
 
-std::string Server::receive_string()
+std::string UDP::receive_string()
 {
     int n = read();
     if (n <= 0) return {};

@@ -101,7 +101,7 @@ bool MapperEMVS::getPoseAt(std::shared_ptr<tf2::BufferCore> tf_, const tf2::Time
       return false;
     } else {
         tf2::msg::TransformStamped tr = tf_->lookupTransform(world_frame_id, frame_id, t);
-        std::cout << frame_id << std::endl;
+        // std::cout << frame_id << std::endl;
         // std::cout << "Time: " << tf2::timeToSec(t) << std::endl;
 
         // tf::transformTFToKindr(tr, &T);
@@ -141,19 +141,15 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
         Transformation T_w_ev; // from event camera to world
         Transformation T_rv_ev; // from event camera to reference viewpoint
-        // if(cam_name == "cam0")
-            // std::cout << tf2::timeToSec(frame_ts) << std::endl;
-        // 0.822208
+
         if(!getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev))
         {
-            // std::cout << world_frame_id  << std::endl;
-            // std::cout << cam_name << std::endl;
-            // std::cout << tf2::timeToSec(frame_ts) << std::endl;
             current_event_++;
             continue;
         }
-        if(cam_name == "dvs1"){
-            std::cout << "dvs1" << std::endl;
+
+        if(cam_name == "cam0"){
+            std::cout << "cam0" << std::endl;
         }
         std::cout << "pose found" << std::endl;
 
@@ -178,7 +174,7 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
         // Compute H_z0 in pixel coordinates using the intrinsic parameters
         Eigen::Matrix3d H_z0_inv_px = K_ * H_z0_inv * virtual_cam_.getKinv();
-        if(cam_name == "dvs1"){
+        // if(cam_name == "dvs1"){
             std::cout << "H_z0_inv:\n" << H_z0_inv << std::endl;
             std::cout << "K_:\n" << K_ << std::endl;
             std::cout << "Kinv:\n" << virtual_cam_.getKinv() << std::endl;
@@ -188,8 +184,7 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
             std::cout << "Translation t:\n" << t.transpose() << std::endl;
             std::cout << "T_ev_rv matrix for dvs1:\n" << T_ev_rv.getTransformationMatrix() << std::endl;
             std::cout << "Rotation R:\n" << R << std::endl;
-            // std::cout << "precomputed_rectified_points_:\n" << precomputed_rectified_points_ << std::endl;
-        }
+        // }
 
         Eigen::Matrix3d H_z0_px = H_z0_inv_px.inverse();
 
@@ -204,7 +199,10 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
         {
             const Event& e = events[current_event_++];
             Eigen::Vector4d p;
-            p.head<2>() = precomputed_rectified_points_.col(e.y * width_ + e.x);
+
+            size_t col_index = e.y * width_ + e.x;
+
+            p.head<2>() = precomputed_rectified_points_.col(col_index).eval();;
 
             // p.head<2>() = precomputed_rectified_points_.col(e.y * width_ + e.x).cast<double>();
             p[2] = 1.;
@@ -223,7 +221,6 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
             //     std::cout << "WEIRD MATRIX:\n" << H_z0_px_4x4 << std::endl;
             //     // std::cout << "precomputed_rectified_points_:\n" << precomputed_rectified_points_ << std::endl;
             // }
-
             event_locations_z0.push_back(p);
         }
     }
@@ -299,13 +296,13 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
                     dsi_.accumulateGridValueAt(X[i], Y[i], pgrid);
 
                     // // Assuming you know the current depth_plane (k) for this slice:
-                    if(dvs_cam_.cam_name == "cam1"){
-                        float updated_value = dsi_.getGridValueAt(X[i], Y[i], depth_plane);
-                        if(updated_value != 0){
-                            std::cout << "Updated grid value at (" << X[i] << "," << Y[i] << ") in slice "
-                            << depth_plane << " is: " << updated_value << std::endl;
-                        }
-                    }
+                    // if(dvs_cam_.cam_name == "cam0"){
+                    //     float updated_value = dsi_.getGridValueAt(X[i], Y[i], depth_plane);
+                    //     if(updated_value != 0){
+                    //         std::cout << "Updated grid value at (" << X[i] << "," << Y[i] << ") in slice "
+                    //         << depth_plane << " is: " << updated_value << std::endl;
+                    //     }
+                    // }
 
                 }
             }

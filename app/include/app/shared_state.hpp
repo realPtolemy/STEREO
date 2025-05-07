@@ -21,6 +21,38 @@
 typedef pcl::PointCloud<pcl::PointXYZI>::Ptr Pointcloud;
 
 template <typename T>
+struct EventQueueGrouped
+{
+    std::mutex mtx;
+    std::condition_variable cv_event;
+    bool event_ready = false;
+    std::deque<T> data;
+    SyncedEvents chunk;
+    ssize_t size;
+
+	void push_back(SyncedEvents& chunk) {
+		std::lock_guard<std::mutex> lock(mtx);
+        this->chunk = chunk;
+        size += chunk.events.size();
+        data.push_back(std::move(chunk));
+		checkSize();
+        event_ready = true;
+        cv_event.notify_one();
+	}
+private:
+    // Copied from ES-PTAM, added so that it handles a queue of vectors of events instead
+    void checkSize() {
+        static const size_t MAX_EVENT_QUEUE_LENGTH = 50000000;
+        while (size > MAX_EVENT_QUEUE_LENGTH && !data.empty()) {
+            const auto& front_chunk = data.front();
+            size -= front_chunk.events.size();
+            data.pop_front();
+        }
+    }
+
+};
+
+template <typename T>
 struct EventQueue
 {
     std::mutex mtx;
@@ -93,6 +125,8 @@ public:
     pose_state pose_state_;
     EventQueue<Event> events_left_;
     EventQueue<Event> events_right_;
+    // EventQueueGrouped<SyncedEvents> events_left_;
+    // EventQueueGrouped<SyncedEvents> events_right_;
     std::mutex data_mutex;
 };
 

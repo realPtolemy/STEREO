@@ -6,18 +6,15 @@ EXECUTABLE="./build/app/my_executable"
 ACTION1="$1"
 ACTION2="$2"
 
-# Default to 'run' if no argument is given
 if [ -z "$ACTION1" ]; then
     ACTION1="run"
 fi
 
-# Clean
 if [ "$ACTION1" = "clean" ]; then
     echo "Cleaning build directory..."
     rm -rf "$BUILD_DIR"
 fi
 
-# Build (includes mkdir + cmake config)
 if [ "$ACTION1" = "clean" ] || [ "$ACTION1" = "build" ]; then
     if [ ! -d "$BUILD_DIR" ]; then
         echo "Creating build directory..."
