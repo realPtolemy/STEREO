@@ -5,7 +5,6 @@
 #include "app/event.hpp"
 #include "mapper/mapper_emvs_stereo.hpp"
 #include "mapper/transformation.hpp"
-#include "mapper/pointcloud_processing.hpp"
 #include "app/shared_state.hpp"
 #include "tf2/time.hpp"
 #include "tf2/LinearMath/tf2_eigen.hpp"

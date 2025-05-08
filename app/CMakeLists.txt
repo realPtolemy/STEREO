@@ -10,7 +10,6 @@ set(SOURCES
     mapper/src/process1_live.cpp
     mapper/src/utils.cpp
     mapper/src/mapper_emvs_stereo.cpp
-    mapper/src/pointcloud_processing.cpp
     src/camera.cpp
     tracker/src/tracker.cpp
     tracker/src/lk_se3.cpp

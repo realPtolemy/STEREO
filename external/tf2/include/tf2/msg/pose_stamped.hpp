@@ -8,7 +8,7 @@ namespace tf2{
 namespace msg{
 	struct PoseStamped {
 		// === Header ===
-		uint32_t seq = 0;  // Optional: only needed if you care about message order
+		uint32_t seq = 0;
 		tf2::TimePoint timestamp;
 		std::string frame_id;
 

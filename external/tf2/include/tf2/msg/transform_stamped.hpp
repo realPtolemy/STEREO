@@ -8,7 +8,7 @@ namespace tf2{
 namespace msg{
 	struct TransformStamped {
 		// === Header ===
-		uint32_t seq = 0;  // Optional: only needed if you care about message order
+		uint32_t seq = 0;
 		tf2::TimePoint timestamp;
 		std::string frame_id;
 
@@ -17,14 +17,7 @@ namespace msg{
 
 		tf2::msg::Transform transform;
 
-		TransformStamped()
-  		: transform() {}
-		// Eigen::Vector3d translation;
-		// Eigen::Quaterniond rotation;
-
-		// TransformStamped()
-		// 	: translation(Eigen::Vector3d::Zero()),
-		// 	rotation(Eigen::Quaterniond::Identity()) {}
+		TransformStamped() : transform() {}
 	};
 }
 }

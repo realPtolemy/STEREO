@@ -3,7 +3,6 @@
 #include "mapper/mapper.hpp"
 #include "tracker/tracker.hpp"
 #include "app/shared_state.hpp"
-#include "mapper/pointcloud_processing.hpp"
 #include <unistd.h>
 
 int main(int argc, char **argv) {
