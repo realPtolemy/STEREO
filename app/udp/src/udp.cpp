@@ -4,20 +4,20 @@
 UDP::UDP(int localPort, int dstPort, const std::string& clientIP)
 {
     init_socket();
-    configureDestination(localPort,clientIP);
-    configureReceiver(dstPort);
+    configureDestination(dstPort,clientIP);
+    configureReceiver(localPort);
 }
 
-UDP::UDP(int dstPort)
+UDP::UDP(int localPort)
 {
     init_socket();
-    configureReceiver(dstPort);
+    configureReceiver(localPort);
 }
 
-UDP::UDP(int localPort, const std::string& clientIP)
+UDP::UDP(int dstPort, const std::string& clientIP)
 {
     init_socket();
-    configureDestination(localPort, clientIP);
+    configureDestination(dstPort, clientIP);
 }
 
 UDP::~UDP()
@@ -91,6 +91,9 @@ void UDP::send_uint8_t(const std::vector<uint8_t>& message)
 
 void UDP::send_A1_high_command(UNITREE_LEGGED_SDK::HighCmd command)
 {
+
+    uint8_t *raw = reinterpret_cast<uint8_t*>(&command);
+    command.crc = calculate_crc32(raw, sizeof(UNITREE_LEGGED_SDK::HighCmd) - 4);
     sendto(
         sockfd,
         reinterpret_cast<const char*>(&command),
@@ -128,13 +131,15 @@ std::tuple<uint16_t*, ssize_t> UDP::receive_aestream()
 }
 
 ssize_t UDP::read(){
+    sockaddr_in sender_addr;
+    socklen_t sender_len = sizeof(sender_addr);
     ssize_t n = recvfrom(
         sockfd,
         buffer.data(),
         BUFFER_SIZE,
         0,
         (struct sockaddr *)&local_addr,
-        &len
+        &sender_len
     );
 
     if (n < 0) {
@@ -151,4 +156,16 @@ std::string UDP::receive_string()
 
     std::string res(buffer.begin(), buffer.begin() + n);
     return res;
+}
+
+uint32_t UDP::calculate_crc32(const uint8_t *data, size_t length) {
+    uint32_t crc = 0xFFFFFFFF;
+    for (size_t i = 0; i < length; ++i) {
+        crc ^= (uint32_t)data[i];
+        for (int j = 0; j < 8; ++j) {
+            uint32_t mask = -(crc & 1);
+            crc = (crc >> 1) ^ (0xEDB88320 & mask);
+        }
+    }
+    return ~crc;
 }

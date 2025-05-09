@@ -24,6 +24,8 @@ protected:
     std::array<uint8_t, BUFFER_SIZE> buffer;
     socklen_t len = sizeof(local_addr);
 
+    uint32_t calculate_crc32(const uint8_t *data, size_t length);
+
 public:
     UDP(int localPort, int dstPort, const std::string& clientIP);
     UDP(int destintaionPort, const std::string& clientIP);

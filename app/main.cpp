@@ -4,6 +4,7 @@
 #include "tracker/tracker.hpp"
 #include "app/shared_state.hpp"
 #include <unistd.h>
+#include <depth_perception/robot_handler.hpp>
 
 int main(int argc, char **argv) {
     // UDP udp(3333, 3334, "127.0.0.1");
@@ -35,7 +36,7 @@ int main(int argc, char **argv) {
     //     std::this_thread::sleep_for(std::chrono::seconds(3));
     //     break;
     // }
-
+    RobotHandler robotHandler;
     // SharedState shared_state;
     // Mapper mapper(shared_state);
     // Tracker tracker(shared_state);

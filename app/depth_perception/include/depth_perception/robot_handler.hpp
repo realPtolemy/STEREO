@@ -11,8 +11,8 @@ private:
     typedef UNITREE_LEGGED_SDK::HighState HighState;
     HighCmd highCmd_;
     HighState highState_;
-    static constexpr int sendPort_ = 8082;
-    static constexpr int recivePort_ = 8090;
+    static constexpr int sendPort_ = 8007;
+    static constexpr int recivePort_ = 8080;
     std::string IP_ = "192.168.123.161";
     std::mutex mutex_;
     std::thread commThread_;
