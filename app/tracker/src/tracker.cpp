@@ -195,33 +195,49 @@ void Tracker::trackerRun(){
             // Set additional poses to simulate tracker updates
             size_t start_idx = events_.size() -100000;
             std::cout << "start index: " << start_idx << std::endl;
-            size_t end_idx = events_.size(); // Process up to 1000 more events
+            size_t end_idx = events_.size(); // Process up to approx. 1000000 events
             std::cout << "end index: " << end_idx <<std::endl;
-            for (size_t idx = start_idx + 1; idx < end_idx; idx += 100) { // Step by 100 events
-                // std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            for (size_t idx = start_idx; idx < end_idx; idx += 100) { // Step by 100 events, can be adjusted but not too high!
                 tf2::msg::TransformStamped additional_pose = initial_pose;
                 additional_pose.timestamp = events_[idx].timestamp;
-                std::cout << "THIS IS ADDITIONAL POSE: " << tf2::timeToSec(additional_pose.timestamp) << std::endl;
-               shared_state_->pose_state_.event_stamp = (idx);
+                
+                shared_state_->pose_state_.event_stamp = (idx);
                 tf_.get()->setTransform(additional_pose, "tracker");
+                
+                // DEBUGGING:
                 std::cout << "[Tracker::trackerRun] Added additional pose, timestamp=" 
                           << tf2::timeToSec(additional_pose.timestamp) << "s, index=" << idx << std::endl;
+                
                 shared_state_->pose_state_.pose = additional_pose;
                 shared_state_->pose_state_.pose_ready = true;
                 shared_state_->pose_state_.pose_cv.notify_one();
             }
         }
-        idle_ = false; // Ensure trackingThread can run
-        //std::cout << "idle_ set to false!" << std::endl;
+        // DEBUGGING:
+        std::cout << "[Tracker::trackerRun] Multiple poses have now been sent to shared_state." << std::endl;
+
+        //idle_ = false; // Ensure trackingThread can run REMOVE THIS??? CAUSES ISSUES I BELIEVE...
+
+        // DEBUGGING:
+        //std::cout << "[Tracker::trackerRun] idle_ is set ot FALSE, ensuring that trackingThread can run again." << std::endl;
+    
     } else {
         std::cout << "[Tracker::trackerRun] first_event_ is false, no initial pose set." << std::endl;
     }
 
-    // std::cout << tf_.get()->allFramesAsYAML() << std::endl;
+    // DEBUGGING:
     std::cout << "[Tracker::trackerRun] Joining event and point cloud threads..." << std::endl;
+    
     event_thread.join();
+    
+    // DEBUGGING:
+    std::cout << "[Tracker::trackerRun] event_thread has successfully joined!" << std::endl;
+
     pointcloud_thread.join();
-    std::cout << "[Tracker::trackerRun] trackerRun completed." << std::endl;
+    
+    // DEBUGGING:
+    std::cout << "[Tracker::trackerRun] event_thread has successfully joined!\n"
+        << "[Tracker::trackerRun] trackerRun completed." << std::endl;
 }
 Tracker::~Tracker(){
     running_ = false;
