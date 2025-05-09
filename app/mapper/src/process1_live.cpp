@@ -126,6 +126,7 @@ void process_1(
     for (int i=1; i<=nloops; i++){
 #endif
         mapper1.evaluateDSI(events1, tf_, right_cam_frame_id, "dvs1", T_rv_w);
+        
 #ifdef TIMING_LOOP
       }
 #endif
@@ -142,10 +143,10 @@ void process_1(
 
 
     if (events2.size()>0){
-
         // 3rd camera: back-project events into the DSI
         // LOG(INFO) << "Computing DSI for third camera";
         t_start_dsi = std::chrono::high_resolution_clock::now();
+
         mapper2.evaluateDSI(events2, tf_, world_frame_id, "dvs2", T_rv_w);
         t_end_dsi = std::chrono::high_resolution_clock::now();
         duration_dsi = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_dsi - t_start_dsi ).count();
@@ -163,9 +164,18 @@ void process_1(
 
   // 2. Fuse the DSIs
   {
+
+    // DEBUGGING:
+    //std::cout << "[process_1] mapper0 : Right camera\n" << std::endl;
+    //mapper0.dsi_.printDataArray();
+
     mapper_fused.dsi_.resetGrid();
     mapper_fused.dsi_.addTwoGrids(mapper0.dsi_); // Initialize DSI
 
+    // // DEBUGGING:
+    // std::cout << "mapper_fused\n" << std::endl;
+    // mapper_fused.dsi_.printDataArray();
+  
     // Sum of the two DSIs
     //mapper_fused.dsi_.addTwoGrids(mapper1.dsi_);
 
@@ -178,6 +188,11 @@ void process_1(
             mapper_fused.dsi_.minTwoGrids(mapper1.dsi_);
             break;
           case 2:
+
+            // DEBUGGING:
+            //std::cout << "[process_1] mapper1 : Left camera\n" << std::endl;
+            //mapper1.dsi_.printDataArray();
+
             mapper_fused.dsi_.harmonicMeanTwoGrids(mapper1.dsi_);
             break;
           case 3:
@@ -202,10 +217,10 @@ void process_1(
 #endif  
     std::chrono::high_resolution_clock::time_point t_end_fusion = std::chrono::high_resolution_clock::now();
     auto t_fusion = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_fusion - t_start_fusion ).count();
-    std::cout << "[process_1] Time to fuse DSIs: " << t_fusion << "ms" << std::endl;
+    std::cout << "[process_1] Time recquired to fuse DSIs: " << t_fusion << "ms" << std::endl;
 
     if (events2.size() > 0){
-        // LOG(INFO) << "Fusing 3rd DSI";
+      // ONLY RELEVANT IF A THIRD CAMERA (cam2) IS USED... IGNORE FOR NOW.
         switch(fusion_method){
           case 1:
             mapper_fused.dsi_.minTwoGrids(mapper2.dsi_);

@@ -236,7 +236,7 @@ void Tracker::trackerRun(){
     pointcloud_thread.join();
     
     // DEBUGGING:
-    std::cout << "[Tracker::trackerRun] event_thread has successfully joined!\n"
+    std::cout << "[Tracker::trackerRun] pointcloud_thread has successfully joined!\n"
         << "[Tracker::trackerRun] trackerRun completed." << std::endl;
 }
 Tracker::~Tracker(){

@@ -69,7 +69,7 @@ void Mapper::mapperRun(){
 		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_1_LONG.csv",
+			"data/camera_1_MOVING.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
@@ -77,7 +77,7 @@ void Mapper::mapperRun(){
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0_LONG.csv",
+			"data/camera_0_MOVING.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
 		);
@@ -119,7 +119,7 @@ Mapper::~Mapper()
 
 void Mapper::tfCallback(){
 	std::unique_lock<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
-	while (true)
+	while (running_)
 	{
 		shared_state_->pose_state_.pose_cv.wait(lock, [this]{ return shared_state_->pose_state_.pose_ready; });
 		std::chrono::high_resolution_clock::time_point t_start_callback = std::chrono::high_resolution_clock::now();

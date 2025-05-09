@@ -97,6 +97,11 @@ void PinholeCameraModel::readStereoCalib(const std::string& filename, Eigen::Mat
         fs["rotation_matrix"] >> R_lr;
         fs["translation_vector"] >> T_lr;
 
+        T_lr /= 1000;
+
+        std::cout << "#1 R_lr:\n" << R_lr << "\n#1 T_lr:\n" << T_lr << std::endl;
+
+
         // Invert to get right→left:
         cv::Mat R_rl = R_lr.t();
         cv::Mat T_rl = -R_rl * T_lr;
@@ -114,7 +119,7 @@ void PinholeCameraModel::readStereoCalib(const std::string& filename, Eigen::Mat
          T_rl.copyTo(H_rl(cv::Rect(3,0,1,3)));
          cv::cv2eigen(H_rl, mat4_1_0);
 
-         std::cout << "R_lr:\n" << R_lr << "\nT_lr:\n" << T_lr << "\nmat4_1_0:\n" << mat4_1_0 << std::endl;
+         std::cout << "#2 R_rl:\n" << R_rl << "\n#2 T_rl:\n" << T_rl << "\nmat4_1_0:\n" << mat4_1_0 << std::endl;
     }
     fs.release();
 }

@@ -129,7 +129,7 @@ public:
                 float prod = data_array_.at(p) * grid2.data_array_.at(p);
                 float sum  = data_array_.at(p) + grid2.data_array_.at(p);
                 data_array_.at(p) = 2*prod / (sum + eps);
-                // std::cout << "Data at grid2: " << grid2.data_array_.at(p) << std::endl;
+                 std::cout << "Data at grid2: " << grid2.data_array_.at(p) << std::endl;
                 // std::cout << "Data at grid1: " << data_array_.at(p) << std::endl;
                 // if (data_array_.at(p) != 0 ){
                 //     std::cout << data_array_.at(p) << std::endl;
