@@ -33,31 +33,36 @@ void RobotHandler::mainLoop()
 {
     while (true)
     {
-        if(sendCommand){
-            udp.send_A1_high_command(highCmd_);
-        }
+        // if(ssendCommand){
+        // }
+        udp.send_A1_high_command(highCmd_);
 
         // Condition variable? Någon mutex måste finnas här!
-        std::lock_guard<std::mutex> lock(mutex_);
+        // std::lock_guard<std::mutex> lock(mutex_);
+        xRockerBtnDataStruct key;
+        memcpy(&key, highState_.wirelessRemote, sizeof(xRockerBtnDataStruct));
         highState_ = udp.receive_A1_high_state();
-        uint16_t buttonBits = highState_.wirelessRemote[0] | (highState_.wirelessRemote[1] << 8);
-        std::cout << "R1 pressed?     " << ((buttonBits >> 0) & 1) << std::endl;
-        std::cout << "L1 pressed?     " << ((buttonBits >> 1) & 1) << std::endl;
-        std::cout << "Start pressed?  " << ((buttonBits >> 2) & 1) << std::endl;
-        std::cout << "Select pressed? " << ((buttonBits >> 3) & 1) << std::endl;
-        std::cout << "R2 pressed?     " << ((buttonBits >> 4) & 1) << std::endl;
-        std::cout << "L2 pressed?     " << ((buttonBits >> 5) & 1) << std::endl;
-        std::cout << "F1 pressed?     " << ((buttonBits >> 6) & 1) << std::endl;
-        std::cout << "F2 pressed?     " << ((buttonBits >> 7) & 1) << std::endl;
+        std::cout << "A pressed? " << (int)key.btn.components.A << "\n";
+        std::cout << "L1 pressed? " << (int)key.btn.components.L1 << "\n";
+        std::cout << "Start? " << (int)key.btn.components.start << "\n";
+        // uint16_t buttonBits = highState_.wirelessRemote[0] | (highState_.wirelessRemote[1] << 8);
+        // std::cout << "R1 pressed?     " << ((buttonBits >> 0) & 1) << std::endl;
+        // std::cout << "L1 pressed?     " << ((buttonBits >> 1) & 1) << std::endl;
+        // std::cout << "Start pressed?  " << ((buttonBits >> 2) & 1) << std::endl;
+        // std::cout << "Select pressed? " << ((buttonBits >> 3) & 1) << std::endl;
+        // std::cout << "R2 pressed?     " << ((buttonBits >> 4) & 1) << std::endl;
+        // std::cout << "L2 pressed?     " << ((buttonBits >> 5) & 1) << std::endl;
+        // std::cout << "F1 pressed?     " << ((buttonBits >> 6) & 1) << std::endl;
+        // std::cout << "F2 pressed?     " << ((buttonBits >> 7) & 1) << std::endl;
 
-        std::cout << "A pressed?      " << ((buttonBits >> 8) & 1) << std::endl;
-        std::cout << "B pressed?      " << ((buttonBits >> 9) & 1) << std::endl;
-        std::cout << "X pressed?      " << ((buttonBits >> 10) & 1) << std::endl;
-        std::cout << "Y pressed?      " << ((buttonBits >> 11) & 1) << std::endl;
-        std::cout << "Up pressed?     " << ((buttonBits >> 12) & 1) << std::endl;
-        std::cout << "Right pressed?  " << ((buttonBits >> 13) & 1) << std::endl;
-        std::cout << "Down pressed?   " << ((buttonBits >> 14) & 1) << std::endl;
-        std::cout << "Left pressed?   " << ((buttonBits >> 15) & 1) << std::endl;
+        // std::cout << "A pressed?      " << ((buttonBits >> 8) & 1) << std::endl;
+        // std::cout << "B pressed?      " << ((buttonBits >> 9) & 1) << std::endl;
+        // std::cout << "X pressed?      " << ((buttonBits >> 10) & 1) << std::endl;
+        // std::cout << "Y pressed?      " << ((buttonBits >> 11) & 1) << std::endl;
+        // std::cout << "Up pressed?     " << ((buttonBits >> 12) & 1) << std::endl;
+        // std::cout << "Right pressed?  " << ((buttonBits >> 13) & 1) << std::endl;
+        // std::cout << "Down pressed?   " << ((buttonBits >> 14) & 1) << std::endl;
+        // std::cout << "Left pressed?   " << ((buttonBits >> 15) & 1) << std::endl;
         //std::cout << "Forwards speed" <<highState_.forwardSpeed << std::endl;
         //std::cout <<"crc:" << highState_.crc <<std::endl;
         //uint8_t* ptr = reinterpret_cast<uint8_t*>(&highState_);
@@ -65,7 +70,7 @@ void RobotHandler::mainLoop()
         //      printf("%02x ", ptr[i]);
         //}
         std::cout << "\n";
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
     }
 

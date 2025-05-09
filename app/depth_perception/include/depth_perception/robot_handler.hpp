@@ -4,6 +4,7 @@
 #include "udp/udp.hpp"
 #include <mutex>
 #include <condition_variable>
+#include <A1/unitree_joystick.h>
 
 class RobotHandler{
 private:
@@ -12,7 +13,7 @@ private:
     HighCmd highCmd_;
     HighState highState_;
     static constexpr int sendPort_ = 8007;
-    static constexpr int recivePort_ = 8080;
+    static constexpr int recivePort_ = 8081;
     std::string IP_ = "192.168.123.161";
     std::mutex mutex_;
     std::thread commThread_;
