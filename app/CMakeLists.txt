@@ -14,8 +14,8 @@ set(SOURCES
     tracker/src/tracker.cpp
     tracker/src/lk_se3.cpp
     udp/src/udp.cpp
-    depth_perception/src/depth_perception.cpp
-    depth_perception/src/robot_handler.cpp
+    #depth_perception/src/depth_perception.cpp
+    #depth_perception/src/robot_handler.cpp
 )
 
 add_executable(my_executable ${SOURCES})
@@ -50,9 +50,9 @@ target_include_directories(my_executable PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/udp/include
     ${CMAKE_CURRENT_SOURCE_DIR}/mapper/include
     ${CMAKE_CURRENT_SOURCE_DIR}/tracker/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/depth_perception/include
+   # ${CMAKE_CURRENT_SOURCE_DIR}/depth_perception/include
     ${CMAKE_SOURCE_DIR}/external/minkindr/include
-    ${CMAKE_SOURCE_DIR}/external/unitree_legged_sdk/include
+   # ${CMAKE_SOURCE_DIR}/external/unitree_legged_sdk/include
 )
 target_link_libraries(my_executable PRIVATE
     cartesian3dgrid
