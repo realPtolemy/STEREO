@@ -28,7 +28,7 @@
 // Alg 1: fuse DSI across cameras
 void process_1(
     const std::string world_frame_id,
-    const std::string left_cam_frame_id,
+    const std::string right_cam_frame_id,
     const PinholeCameraModel& cam0,
     const PinholeCameraModel& cam1,
     const PinholeCameraModel& cam2,
@@ -69,32 +69,37 @@ void process_1(
 
     Transformation T_w_rv, T_w_l, T_w_r;
     try {
-      mapper0.getPoseAt(tf_, ts, world_frame_id, left_cam_frame_id, T_w_l);
-      mapper1.getPoseAt(tf_, ts, left_cam_frame_id, "dvs1", T_w_r);
+      mapper0.getPoseAt(tf_, ts, world_frame_id, right_cam_frame_id, T_w_r);
+      mapper1.getPoseAt(tf_, ts, right_cam_frame_id, "dvs1", T_w_l);
     } catch (const tf2::TransformException& ex) {
       std::cerr << "[process_1] Transform lookup failed: " << ex.what() << std::endl;
       return;
     }
 //    trajectory1.getPoseAt(ros::Time(t_mid), T_w_r);
+
     //Put camera somewhere along the baseline between 2 cameras
     Eigen::Matrix4d baseline = Eigen::Matrix4d::Identity(4,4);
     baseline(0, 3) = opts_depth_map.rv_pos;
     Transformation baselineTransform(baseline);
-    T_w_rv = T_w_l * baselineTransform;
+    T_w_rv = T_w_r * baselineTransform;
     T_rv_w = T_w_rv.inverse();
 
     // DEBUGGING:
-    std::cout << "[process_1] Pose T_w_l: \n" << T_w_l.getTransformationMatrix() << std::endl;
     std::cout << "[process_1] Pose T_w_r: \n" << T_w_r.getTransformationMatrix() << std::endl;
+    std::cout << "[process_1] Pose T_w_l: \n" << T_w_l.getTransformationMatrix() << std::endl;
 
 
     // Left camera: back-project events into the DSI
     // LOG(INFO) << "Computing DSI for first camera";
+    
+    // DEBUGGING:
+    std::cout << "[process_1] Beginning evaluation of DSI for camera0" << std::endl; 
+
     std::chrono::high_resolution_clock::time_point t_start_dsi = std::chrono::high_resolution_clock::now();
 #ifdef TIMING_LOOP
     for(int i=1; i<=nloops; i++){
 #endif
-      mapper0.evaluateDSI(events0, tf_, world_frame_id, left_cam_frame_id, T_rv_w);
+      mapper0.evaluateDSI(events0, tf_, world_frame_id, right_cam_frame_id, T_rv_w);
 #ifdef TIMING_LOOP
       }
 #endif
@@ -102,7 +107,7 @@ void process_1(
     auto duration_dsi = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_dsi - t_start_dsi ).count();
 
     // DEBUGGING:
-    std::cout << "[process_1] Time to evaluate DSI for camera0: " << duration_dsi << " milliseconds" << std::endl;
+    std::cout << "[process_1] Time required to evaluate DSI for camera0: " << duration_dsi << " milliseconds" << std::endl;
     
 
     // LOG(INFO) << "Time to evaluate DSI: " << duration_dsi << " milliseconds";
@@ -112,11 +117,15 @@ void process_1(
 
     // Right camera: back-project events into the DSI
     // LOG(INFO) << "Computing DSI for second camera";
+    
+    // DEBUGGING:
+    std::cout << "[process_1] Beginning evaluation of DSI for camera1" << std::endl;
     t_start_dsi = std::chrono::high_resolution_clock::now();
+ 
 #ifdef TIMING_LOOP
     for (int i=1; i<=nloops; i++){
 #endif
-        mapper1.evaluateDSI(events1, tf_, left_cam_frame_id, "dvs1", T_rv_w);
+        mapper1.evaluateDSI(events1, tf_, right_cam_frame_id, "dvs1", T_rv_w);
 #ifdef TIMING_LOOP
       }
 #endif
@@ -124,7 +133,7 @@ void process_1(
     duration_dsi = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_dsi - t_start_dsi ).count();
 
     // DEBUGGING:
-    std::cout << "[process_1] Time to evaluate DSI for camera1: " << duration_dsi << " milliseconds" << std::endl;
+    std::cout << "[process_1] Time required to evaluate DSI for camera1: " << duration_dsi << " milliseconds" << std::endl;
 
     // LOG(INFO) << "Time to evaluate DSI: " << duration_dsi << " milliseconds";
     // LOG(INFO) << "Number of events processed: " << events1.size() << " events";
@@ -187,11 +196,10 @@ void process_1(
             std::cerr << "[process_1] Improper fusion method selected: " << fusion_method << std::endl;
             return;
           }
+          
 #ifdef TIMING_LOOP
       }
-#endif
-
-
+#endif  
     std::chrono::high_resolution_clock::time_point t_end_fusion = std::chrono::high_resolution_clock::now();
     auto t_fusion = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_fusion - t_start_fusion ).count();
     std::cout << "[process_1] Time to fuse DSIs: " << t_fusion << "ms" << std::endl;

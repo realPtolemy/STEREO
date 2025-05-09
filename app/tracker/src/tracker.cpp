@@ -205,8 +205,8 @@ void Tracker::trackerRun(){
                 tf_.get()->setTransform(additional_pose, "tracker");
                 
                 // DEBUGGING:
-                std::cout << "[Tracker::trackerRun] Added additional pose, timestamp=" 
-                          << tf2::timeToSec(additional_pose.timestamp) << "s, index=" << idx << std::endl;
+                //std::cout << "[Tracker::trackerRun] Added additional pose, timestamp=" 
+                //          << tf2::timeToSec(additional_pose.timestamp) << "s, index=" << idx << std::endl;
                 
                 shared_state_->pose_state_.pose = additional_pose;
                 shared_state_->pose_state_.pose_ready = true;

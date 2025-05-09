@@ -138,7 +138,7 @@ void Mapper::tfCallback(){
 		if (shared_state_->pose_state_.pose.child_frame_id == frame_id_ || shared_state_->pose_state_.pose.child_frame_id == "/"+frame_id_) {
 			
 			// THIS IS WHERE THE PROBLEM IS!!!!!! FOR LEFT CAMERA (RIGHT IS OK)
-			std::cout << "Give second camera a pose!" << std::endl;
+			//std::cout << "Give second camera a pose!" << std::endl;
 			//tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
 			//std::cout << "TimePoint tf_stamp_: " << tf2::timeToSec(tf_stamp_) << std::endl;
 			tf2::msg::TransformStamped T_0_1, T_0_2;
@@ -146,12 +146,12 @@ void Mapper::tfCallback(){
 			int temp = shared_state_->pose_state_.event_stamp;
 			T_0_1.timestamp = shared_state_->events_left_.data[temp].timestamp;
 			// T_0_1.timestamp = tf_stamp_;
-			std::cout << "TimePoint T_0_1: " << tf2::timeToSec(T_0_1.timestamp) << std::endl;
+			//std::cout << "TimePoint T_0_1: " << tf2::timeToSec(T_0_1.timestamp) << std::endl;
 			T_0_1.frame_id = frame_id_;
 			T_0_1.child_frame_id = "dvs1";
 			// std::cout << tf2::timeToSec(tf_stamp_) << std::endl;
             tf_->setTransform(T_0_1, "mapper");
-			std::cout << "tf_->allFramesAsYAML:\n" << tf_->allFramesAsYAML() << std::endl;
+			// std::cout << "tf_->allFramesAsYAML:\n" << tf_->allFramesAsYAML() << std::endl;
 			// PROBLEM IS ABOVE!! FOR LEFT CAMERA
 
 			// tf_->lookupTransform("cam0", "dvs1", T_0_1.timestamp);
@@ -388,24 +388,47 @@ void Mapper::MappingAtTime(
 		std::cout << "[Mapper::MappingAtTime] Sucessfully called process_1" << std::endl;
         
 		break;
+
     default:
         // LOG(INFO) << "Incorrect process method selected.. exiting";
 		// DEBUGGING:
 		std::cerr << "[Mapper::MappingAtTime] Incorrect process method selected: " << process_method << std::endl;
         exit(0);
     }
-
+	
 	// DEBUGGING: 
 	std::cout << "[Mapper::MappingAtTime] Method chosen" << std::endl;
+
+
     mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
     if (depth_map.empty() || confidence_map.empty()) {
-        std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map or confidence_map" << std::endl;
+		
+		// DEBUGGING:
+        std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map or confidence_map!" << std::endl;
+
         return;
+    } else if (semidense_mask.empty()) {
+		std::cerr << "[Mapper::MappingAtTime] Error: Empty semidense_mask!" << std::endl;
+	}
+
+	// Debug: Print non-zero pixel coordinates in semidense_mask
+    std::cout << "[Mapper::MappingAtTime] Non-zero pixels in semidense_mask:" << std::endl;
+    int non_zero_count = 0;
+    for (int y = 0; y < semidense_mask.rows; ++y) {
+        for (int x = 0; x < semidense_mask.cols; ++x) {
+            if (semidense_mask.at<uint8_t>(y, x) > 0) {
+                std::cout << "Pixel (" << x << ", " << y << ") = " << static_cast<int>(semidense_mask.at<uint8_t>(y, x)) << std::endl;
+                non_zero_count++;
+            }
+        }
     }
+    std::cout << "[Mapper::MappingAtTime] Total non-zero pixels: " << non_zero_count 
+              << " (out of " << semidense_mask.rows * semidense_mask.cols << ")" << std::endl;
 
     // Convert DSI to depth maps using argmax and noise filtering
-    mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
+    // mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
     //    mapper0.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
+
 
     // Convert semi-dense depth map to point cloud
     EMVS::OptionsPointCloud opts_pc;

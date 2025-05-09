@@ -101,16 +101,20 @@ void PinholeCameraModel::readStereoCalib(const std::string& filename, Eigen::Mat
         cv::Mat R_rl = R_lr.t();
         cv::Mat T_rl = -R_rl * T_lr;
 
+
         // 3x4 [R|T]
-        cv::Mat ext_rl(3, 4, CV_64F);
-        R_rl.copyTo(ext_rl(cv::Rect(0,0,3,3)));
-        T_rl.copyTo(ext_rl(cv::Rect(3,0,1,3)));
-        cv::cv2eigen(ext_rl, mat4_1_0);
+        // cv::Mat ext_rl(3, 4, CV_64F);
+        // R_rl.copyTo(ext_rl(cv::Rect(0,0,3,3)));
+        // T_rl.copyTo(ext_rl(cv::Rect(3,0,1,3)));
+        // cv::cv2eigen(ext_rl, mat4_1_0);
 
         // // 4x4 Homogenous matrix
-        // cv::Mat H_rl = cv::Mat::eye(4, 4, CV_64F);
-        // R_rl.copyTo(H_rl(cv::Rect(0,0,3,3)));
-        // T_rl.copyTo(H_rl(cv::Rect(3,0,1,3)));
+         cv::Mat H_rl = cv::Mat::eye(4, 4, CV_64F);
+         R_rl.copyTo(H_rl(cv::Rect(0,0,3,3)));
+         T_rl.copyTo(H_rl(cv::Rect(3,0,1,3)));
+         cv::cv2eigen(H_rl, mat4_1_0);
+
+         std::cout << "R_lr:\n" << R_lr << "\nT_lr:\n" << T_lr << "\nmat4_1_0:\n" << mat4_1_0 << std::endl;
     }
     fs.release();
 }

@@ -132,6 +132,9 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
     static std::vector<Eigen::Vector3d> camera_centers;
     camera_centers.clear();
 
+    // DEBUGGING:
+    std::cout << "[MapperEMVS::evaluateDSI] Beginning process of packaging events as frame_size_events..." << std::endl;
+
     // Loop through the events, grouping them in packets of frame_size_ events
     size_t current_event_ = 0;
     while(current_event_ + packet_size_ < events.size())
@@ -162,10 +165,7 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
             current_event_++;
             continue;
         }
-        // std::cout << "AND I REACH THE SECTION AFTER CONTINUE" << std::endl;
-        if(cam_name == "dvs1"){
-            std::cout << "dvs1" << std::endl;
-        }
+
         // std::cout << "pose found" << std::endl;
 
         T_rv_ev = T_rv_w * T_w_ev;
@@ -188,18 +188,22 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
         // Compute H_z0 in pixel coordinates using the intrinsic parameters
         Eigen::Matrix3d H_z0_inv_px = K_ * H_z0_inv * virtual_cam_.getKinv();
-        if(cam_name == "dvs1"){
-            std::cout << "H_z0_inv:\n" << H_z0_inv << std::endl;
-            std::cout << "K_:\n" << K_ << std::endl;
-            std::cout << "Kinv:\n" << virtual_cam_.getKinv() << std::endl;
-            std::cout << "T_w_ev:\n" << T_w_ev << std::endl;
-            std::cout << "T_rv_w:\n" << T_rv_w << std::endl;
-            std::cout << "T_ev_rv:\n" << T_ev_rv << std::endl;
-            std::cout << "Translation t:\n" << t.transpose() << std::endl;
-            std::cout << "T_ev_rv matrix for dvs1:\n" << T_ev_rv.getTransformationMatrix() << std::endl;
-            std::cout << "Rotation R:\n" << R << std::endl;
-            // std::cout << "precomputed_rectified_points_:\n" << precomputed_rectified_points_ << std::endl;
-        }
+        
+        // DEBUGGING:
+        
+        // if(cam_name == "dvs1"){
+        //     std::cout << "FOR LEFT CAMERA" << std::endl;
+        //     std::cout << "H_z0_inv:\n" << H_z0_inv << std::endl;
+        //     std::cout << "K_:\n" << K_ << std::endl;
+        //     std::cout << "Kinv:\n" << virtual_cam_.getKinv() << std::endl;
+        //     std::cout << "T_w_ev:\n" << T_w_ev << std::endl;
+        //     std::cout << "T_rv_w:\n" << T_rv_w << std::endl;
+        //     std::cout << "T_ev_rv:\n" << T_ev_rv << std::endl;
+        //     std::cout << "Translation t:\n" << t.transpose() << std::endl;
+        //     std::cout << "T_ev_rv matrix for dvs1:\n" << T_ev_rv.getTransformationMatrix() << std::endl;
+        //     std::cout << "Rotation:\n" << R << std::endl;
+        //     //std::cout << "precomputed_rectified_points_:\n" << precomputed_rectified_points_ << std::endl;
+        // }
 
         Eigen::Matrix3d H_z0_px = H_z0_inv_px.inverse();
 
@@ -238,6 +242,8 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
         }
     }
 
+    // DEBUGGING:
+    std::cout << "[MapperEMVS::evaluateDSI] Events have successfully been packaged as frame_size_events." << std::endl;
 
     // if(cam_name == "dvs1"){
     //     // std::cout << p << std::endl;
@@ -246,9 +252,20 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
     // }
 
     dsi_.resetGrid();
+
+    // DEBUGGING:
+    std::cout << "[MapperEMVS::evaluateDSI] DSI grid is successfully reset." << std::endl;
+    // for(auto& event : event_locations_z0){
+    //     std::cout << "EVENT: " << event << std::endl;
+    // }
     fillVoxelGrid(event_locations_z0, camera_centers);
-    if(cam_name == "cam1")
-        dsi_.printDataArray();
+
+    // DEBUGGING:
+    std::cout << "[MapperEMVS::evaluateDSI] Voxel grid is sucessfully filled." << std::endl;
+
+    //if(cam_name == "cam1")
+    //    dsi_.printDataArray();
+
     return true;
 }
 
@@ -260,6 +277,9 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
     // It maps events from plane Z0 to all the planes Zi of the DSI using Eq. (15)
     // and then votes for the corresponding voxel using bilinear voting.
 
+    // DEBUGGING:
+    std::cout << "[MapperEMVS::fillVoxelGrid] Entered the function..." << std::endl;
+
     // For efficiency reasons, we split each packet into batches of N events each
     // which allows to better exploit the L1 cache
     static const int N = 128;
@@ -267,10 +287,17 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
 
     const float z0 = raw_depths_vec_[0];
 
+    // DEBUGGING:
+    std::cout << "[MapperEMVS::fillVoxelGrid] Trying to set up parallel threads..." << std::endl;    
 
     // Parallelize over the planes of the DSI with OpenMP
     // (each thread will process a different depth plane)
+
 #pragma omp parallel for num_threads(7) if (event_locations_z0.size() >= 20000)
+
+    // DEBUGGING:
+    //std::cout << "[MapperEMVS::fillVoxelGrid] Threads are up and running..." << std::endl;
+
     for(size_t depth_plane = 0; depth_plane < raw_depths_vec_.size(); ++depth_plane)
     {
         const Eigen::Vector4d* pe = &event_locations_z0[0];
@@ -308,17 +335,20 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
                     // Bilinear voting
                     dsi_.accumulateGridValueAt(X[i], Y[i], pgrid);
 
-                    // // Assuming you know the current depth_plane (k) for this slice:
-                    if(dvs_cam_.cam_name == "cam1"){
-                        float updated_value = dsi_.getGridValueAt(X[i], Y[i], depth_plane);
-                        if(updated_value != 0){
-                            std::cout << "Updated grid value at (" << X[i] << "," << Y[i] << ") in slice "
-                            << depth_plane << " is: " << updated_value << std::endl;
-                        }
-                    }
-
+                    // REMOVE THIS??!?!? Just causes issues with parallelization and seem to be for debugging only?!?
+                    // Assuming you know the current depth_plane (k) for this slice:
+                    //if(dvs_cam_.cam_name == "cam1"){
+                    //    float updated_value = dsi_.getGridValueAt(X[i], Y[i], depth_plane);
+                    //    if(updated_value != 0){
+                    //        std::cout << "Updated grid value at (" << X[i] << "," << Y[i] << ") in slice "
+                    //         << depth_plane << " is: " << updated_value << std::endl;
+                    //     }
+                    // }
                 }
             }
+            
+            // DEBUGGING:
+            //std::cout << "[MapperEMVS::fillVoxelGrid] Voxel Grid Successfully updated..." << std::endl;
         }
     }
 }
@@ -466,7 +496,7 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
 }
 
 
-void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map, cv::Mat &mask, const OptionsDepthMap &options_depth_map, cv::Mat& depth_map_dense, int method)
+void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map, cv::Mat &semidense_mask, const OptionsDepthMap &options_depth_map, cv::Mat& depth_map_dense, int method)
 {
     // Reference: Section 5.2.3 in the IJCV paper.
 
@@ -477,7 +507,7 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
     int nloops = 100;
     for (int i=1; i<=nloops; i++){
 #endif
-        std::cout << "method: " << method << std::endl;
+        std::cout << "method: " << confidence_map << std::endl;
         switch (method)
         {
         case 0:
@@ -532,8 +562,14 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
 #ifdef TIMING_LOOP
     for (int i=1; i<=nloops; i++){
 #endif
+
+
+//std::cout << "THIS IS CONFIDENCE SO THAT FREDRIK CAN SEE: " << confidence_8bit << std::endl;
+// std::cout << "THIS IS CONFIDENCE MAP: " << confidence_map << std::endl;
+
+
         cv::adaptiveThreshold(confidence_8bit,
-                              mask,
+                              semidense_mask,
                               1,
                               cv::ADAPTIVE_THRESH_GAUSSIAN_C,
                               cv::THRESH_BINARY,
@@ -552,15 +588,15 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
     cv::Mat depth_cell_indices_filtered;
     huangMedianFilter(depth_cell_indices,
                       depth_cell_indices_filtered,
-                      mask,
+                      semidense_mask,
                       options_depth_map.median_filter_size_);
 
     // Remove the outer border to suppress boundary effects
     const int border_size = std::max(options_depth_map.adaptive_threshold_kernel_size_ / 2, 1);
-    removeMaskBoundary(mask, border_size);
+    removeMaskBoundary(semidense_mask, border_size);
 
     // Densify the depth map by inpainting
-    cv::Mat inpaint_mask = 1 - mask;
+    cv::Mat inpaint_mask = 1 - semidense_mask;
     cv::Mat depth_cell_indices_inpainted;
     cv::inpaint(depth_cell_indices_filtered,inpaint_mask, depth_cell_indices_inpainted, 3, cv::INPAINT_TELEA);
 
