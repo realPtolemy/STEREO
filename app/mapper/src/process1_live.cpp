@@ -25,7 +25,6 @@
 
 //#define TIMING_LOOP
 
-
 // Alg 1: fuse DSI across cameras
 void process_1(
     const std::string world_frame_id,
@@ -53,13 +52,29 @@ void process_1(
   int nloops = 100;
 #endif
 
+  // DEBUGGING:
+  if (events0.empty() || events1.empty())
+  {
+    std::cerr << "[process_1] Error: Empty event vectors, events0=" << events0.size()
+              << ", events1=" << events1.size() << std::endl;
+    return;
+  }
+  std::cout << "[process_1] Number of events: camera0=" << events0.size()
+            << ", camera1=" << events1.size()
+            << ", camera2=" << events2.size() << std::endl;
+
   // 1. Back-project events into the DSI
   {
     // LOG(INFO) << "Setting DSI reference at specific timestamp: " << ts;
 
     Transformation T_w_rv, T_w_l, T_w_r;
-    mapper0.getPoseAt(tf_, ts, world_frame_id, left_cam_frame_id, T_w_l);
-    mapper1.getPoseAt(tf_, ts, left_cam_frame_id, "dvs1", T_w_r);
+    try {
+      mapper0.getPoseAt(tf_, ts, world_frame_id, left_cam_frame_id, T_w_l);
+      mapper1.getPoseAt(tf_, ts, left_cam_frame_id, "dvs1", T_w_r);
+    } catch (const tf2::TransformException& ex) {
+      std::cerr << "[process_1] Transform lookup failed: " << ex.what() << std::endl;
+      return;
+    }
 //    trajectory1.getPoseAt(ros::Time(t_mid), T_w_r);
     //Put camera somewhere along the baseline between 2 cameras
     Eigen::Matrix4d baseline = Eigen::Matrix4d::Identity(4,4);
@@ -67,6 +82,11 @@ void process_1(
     Transformation baselineTransform(baseline);
     T_w_rv = T_w_l * baselineTransform;
     T_rv_w = T_w_rv.inverse();
+
+    // DEBUGGING:
+    std::cout << "[process_1] Pose T_w_l: \n" << T_w_l.getTransformationMatrix() << std::endl;
+    std::cout << "[process_1] Pose T_w_r: \n" << T_w_r.getTransformationMatrix() << std::endl;
+
 
     // Left camera: back-project events into the DSI
     // LOG(INFO) << "Computing DSI for first camera";
@@ -80,6 +100,10 @@ void process_1(
 #endif
     std::chrono::high_resolution_clock::time_point t_end_dsi = std::chrono::high_resolution_clock::now();
     auto duration_dsi = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_dsi - t_start_dsi ).count();
+
+    // DEBUGGING:
+    std::cout << "[process_1] Time to evaluate DSI for camera0: " << duration_dsi << " milliseconds" << std::endl;
+    
 
     // LOG(INFO) << "Time to evaluate DSI: " << duration_dsi << " milliseconds";
     // LOG(INFO) << "Number of events processed: " << events0.size() << " events";
@@ -98,6 +122,10 @@ void process_1(
 #endif
     t_end_dsi = std::chrono::high_resolution_clock::now();
     duration_dsi = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_dsi - t_start_dsi ).count();
+
+    // DEBUGGING:
+    std::cout << "[process_1] Time to evaluate DSI for camera1: " << duration_dsi << " milliseconds" << std::endl;
+
     // LOG(INFO) << "Time to evaluate DSI: " << duration_dsi << " milliseconds";
     // LOG(INFO) << "Number of events processed: " << events1.size() << " events";
     // LOG(INFO) << "Number of events processed per second: " << static_cast<float>(events1.size()) / (1000.f * static_cast<float>(duration_dsi)) << " Mev/s";
@@ -117,6 +145,7 @@ void process_1(
         // LOG(INFO) << "Number of events processed per second: " << static_cast<float>(events2.size()) / (1000.f * static_cast<float>(duration_dsi)) << " Mev/s";
         // LOG(INFO) << "Mean square = " << mapper2.dsi_.computeMeanSquare();
       }
+
   }
 
   // set up prefix including output path
@@ -155,7 +184,7 @@ void process_1(
             mapper_fused.dsi_.maxTwoGrids(mapper1.dsi_);
             break;
           default:
-            // LOG(INFO) << "Improper fusion method selected";
+            std::cerr << "[process_1] Improper fusion method selected: " << fusion_method << std::endl;
             return;
           }
 #ifdef TIMING_LOOP
@@ -165,7 +194,7 @@ void process_1(
 
     std::chrono::high_resolution_clock::time_point t_end_fusion = std::chrono::high_resolution_clock::now();
     auto t_fusion = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_fusion - t_start_fusion ).count();
-    // LOG(INFO) << "Time to fuse DSIs: "<<t_fusion <<"ms";
+    std::cout << "[process_1] Time to fuse DSIs: " << t_fusion << "ms" << std::endl;
 
     if (events2.size() > 0){
         // LOG(INFO) << "Fusing 3rd DSI";
@@ -187,6 +216,7 @@ void process_1(
             break;
           default:
             // LOG(INFO) << "Improper fusion method selected";
+            std::cerr << "[process_1] Improper fusion method selected for 3rd DSI: " << fusion_method << std::endl;
             return;
           }
       }

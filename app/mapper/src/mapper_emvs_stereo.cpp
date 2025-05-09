@@ -101,7 +101,7 @@ bool MapperEMVS::getPoseAt(std::shared_ptr<tf2::BufferCore> tf_, const tf2::Time
       return false;
     } else {
         tf2::msg::TransformStamped tr = tf_->lookupTransform(world_frame_id, frame_id, t);
-        std::cout << frame_id << std::endl;
+        // std::cout << frame_id << std::endl;
         // std::cout << "Time: " << tf2::timeToSec(t) << std::endl;
 
         // tf::transformTFToKindr(tr, &T);
@@ -136,6 +136,9 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
     size_t current_event_ = 0;
     while(current_event_ + packet_size_ < events.size())
     {
+        // DEBUGGING: 
+        //std::cout << "I HAVE ACCESSED WHILE LOOP" << std::endl;
+        
         // Events in a packet are assigned the same timestamp (mid-point), for efficiency
         tf2::TimePoint frame_ts = events[current_event_ + packet_size_ / 2].timestamp;
 
@@ -144,6 +147,13 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
         // if(cam_name == "cam0")
             // std::cout << tf2::timeToSec(frame_ts) << std::endl;
         // 0.822208
+
+        // getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev) queries the transform buffer (tf_) to retrieve the
+        // cameras pose (T_w_ev, from camera to world frame) at timestamp frame_ts for the camera named cam_name (e.g. cam0 or dvs1)
+        
+        // DEBUGGING:
+        // std::cout << tf_->allFramesAsYAML() << std::endl;
+        
         if(!getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev))
         {
             // std::cout << world_frame_id  << std::endl;
@@ -152,13 +162,13 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
             current_event_++;
             continue;
         }
+        // std::cout << "AND I REACH THE SECTION AFTER CONTINUE" << std::endl;
         if(cam_name == "dvs1"){
             std::cout << "dvs1" << std::endl;
         }
-        std::cout << "pose found" << std::endl;
+        // std::cout << "pose found" << std::endl;
 
         T_rv_ev = T_rv_w * T_w_ev;
-
         const Transformation T_ev_rv = T_rv_ev.inverse();
         // const Eigen::Matrix3d R = T_ev_rv.getRotationMatrix().cast<float>();
         // const Eigen::Vector3d t = T_ev_rv.getPosition().cast<float>();
@@ -237,7 +247,7 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
     dsi_.resetGrid();
     fillVoxelGrid(event_locations_z0, camera_centers);
-    if(cam_name == "dvs1")
+    if(cam_name == "cam1")
         dsi_.printDataArray();
     return true;
 }
