@@ -139,9 +139,9 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
     size_t current_event_ = 0;
     while(current_event_ + packet_size_ < events.size())
     {
-        // DEBUGGING: 
+        // DEBUGGING:
         //std::cout << "I HAVE ACCESSED WHILE LOOP" << std::endl;
-        
+
         // Events in a packet are assigned the same timestamp (mid-point), for efficiency
         tf2::TimePoint frame_ts = events[current_event_ + packet_size_ / 2].timestamp;
 
@@ -153,10 +153,10 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
         // getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev) queries the transform buffer (tf_) to retrieve the
         // cameras pose (T_w_ev, from camera to world frame) at timestamp frame_ts for the camera named cam_name (e.g. cam0 or dvs1)
-        
+
         // DEBUGGING:
         // std::cout << tf_->allFramesAsYAML() << std::endl;
-        
+
         if(!getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev))
         {
             // std::cout << world_frame_id  << std::endl;
@@ -188,9 +188,9 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
         // Compute H_z0 in pixel coordinates using the intrinsic parameters
         Eigen::Matrix3d H_z0_inv_px = K_ * H_z0_inv * virtual_cam_.getKinv();
-        
+
         // DEBUGGING:
-        
+
         // if(cam_name == "dvs1"){
         //     std::cout << "FOR LEFT CAMERA" << std::endl;
         //     std::cout << "H_z0_inv:\n" << H_z0_inv << std::endl;
@@ -288,7 +288,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
     const float z0 = raw_depths_vec_[0];
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::fillVoxelGrid] Trying to set up parallel threads..." << std::endl;    
+    std::cout << "[MapperEMVS::fillVoxelGrid] Trying to set up parallel threads..." << std::endl;
 
     // Parallelize over the planes of the DSI with OpenMP
     // (each thread will process a different depth plane)
@@ -346,7 +346,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
                     // }
                 }
             }
-            
+
             // DEBUGGING:
             //std::cout << "[MapperEMVS::fillVoxelGrid] Voxel Grid Successfully updated..." << std::endl;
         }
@@ -463,10 +463,14 @@ void MapperEMVS::convertDepthIndicesToValues(const cv::Mat &depth_cell_indices, 
 {
     // Convert depth indices to depth values, for all pixels
     depth_map = cv::Mat(depth_cell_indices.rows, depth_cell_indices.cols, CV_32F);
+    // std::cout << depth_cell_indices.cols << std::endl;
+    // std::cout << depth_cell_indices.rows << std::endl;
+    // std::cout << depth_map.size() << std::endl;
     for(int y=0; y<depth_cell_indices.rows; ++y)
     {
         for(int x=0; x<depth_cell_indices.cols; ++x)
         {
+            // std::cout << (int)depth_cell_indices.at<uchar>(y,x) << std::endl;
             depth_map.at<float>(y,x) = depths_vec_.cellIndexToDepth(depth_cell_indices.at<uchar>(y,x));
         }
     }
@@ -507,7 +511,6 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
     int nloops = 100;
     for (int i=1; i<=nloops; i++){
 #endif
-        std::cout << "method: " << confidence_map << std::endl;
         switch (method)
         {
         case 0:
@@ -536,7 +539,6 @@ void MapperEMVS::getDepthMapFromDSI(cv::Mat& depth_map, cv::Mat &confidence_map,
     std::chrono::high_resolution_clock::time_point t_end = std::chrono::high_resolution_clock::now();
     auto t_max = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start ).count();
         // LOG(INFO) << "Time for argmax "<<t_max<<" ms";
-
     if (options_depth_map.full_sequence && options_depth_map.save_conf_stats){
         double min, max;
         cv::Mat conf_nonzero_mask = confidence_map>0;
@@ -670,7 +672,6 @@ void MapperEMVS::getPointcloud(
         {
             if(mask.at<uint8_t>(y,x) > 0)
             {
-                std::cout << "loop\n";
                 BearingVector b_rv = virtual_cam_.projectPixelTo3dRay(Keypoint(x,y));
                 b_rv.normalize();
                 Eigen::Vector3d xyz_rv = (b_rv / b_rv[2] * depth_map.at<float>(y,x));
@@ -681,11 +682,11 @@ void MapperEMVS::getPointcloud(
                 p_w.y = xyz_world.y();
                 p_w.z = xyz_world.z();
                 p_w.intensity = 1.0 / xyz_rv.z();
-                std::cout << "Point: ["
-                << p_w.x << ", "
-                << p_w.y << ", "
-                << p_w.z << "], Intensity: "
-                << p_w.intensity << std::endl;
+                // std::cout << "Point: ["
+                // << p_w.x << ", "
+                // << p_w.y << ", "
+                // << p_w.z << "], Intensity: "
+                // << p_w.intensity << std::endl;
                 pc_->push_back(p_w);
             }
         }

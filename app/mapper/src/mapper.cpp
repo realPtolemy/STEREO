@@ -26,7 +26,7 @@ Mapper::Mapper(SharedState &shared_state) :
 	pc_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
 	pc_global_ = EMVS::PointCloud::Ptr(new EMVS::PointCloud);
 
-	min_duration_ = .1;
+	min_duration_ = .01;
 	max_duration_ = 1.;
 
 	world_frame_id_ = "world";
@@ -69,7 +69,7 @@ void Mapper::mapperRun(){
 		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_1_MOVING.csv",
+			"data/camera_1_old.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
@@ -77,7 +77,7 @@ void Mapper::mapperRun(){
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0_MOVING.csv",
+			"data/camera_0_old.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
 		);
@@ -136,7 +136,7 @@ void Mapper::tfCallback(){
             // broadcaster_.sendTransform(stamped_T_hand_eye);
 		}
 		if (shared_state_->pose_state_.pose.child_frame_id == frame_id_ || shared_state_->pose_state_.pose.child_frame_id == "/"+frame_id_) {
-			
+
 			// THIS IS WHERE THE PROBLEM IS!!!!!! FOR LEFT CAMERA (RIGHT IS OK)
 			//std::cout << "Give second camera a pose!" << std::endl;
 			//tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
@@ -226,7 +226,10 @@ void Mapper::mappingLoop()
 			// DEBUGGING: Latest TF-time-stamp
 			//std::cout << "[Mapper::mappingLoop] latest_tf_stamp_=" << tf2::timeToSec(latest_tf_stamp_) << "s" << std::endl;
 		} else {
-			// LOG(WARNING) << error_msg;
+			// // LOG(WARNING) << error_msg;
+			// if(map_initialized){
+				// std::cout << "STUCK\n";
+			// }
 			continue;
 		}
 
@@ -243,7 +246,7 @@ void Mapper::mappingLoop()
 		std::vector<Event> ev_subset_left_, ev_subset_right_, ev_subset_tri_;
 		int last_tracked_ev_left, last_tracked_ev_right;
 		if (current_ts_ >= latest_tf_stamp_) {
-			continue;;
+			continue;
 		}
 		{
 			std::lock_guard<std::mutex> lock(data_mutex_);
@@ -258,22 +261,22 @@ void Mapper::mappingLoop()
 				--last_tracked_ev_right;
 			}
 
-			
+
 			// DEBUGGING: Log timestamps of last events
-			// std::cout << "[Mapper::mappingLoop] Last event timestamps: left=" 
-			//           << (last_tracked_ev_left >= 0 ? tf2::timeToSec(shared_state_->events_left_.data[last_tracked_ev_left].timestamp) : -1) 
-			//           << "s, right=" 
-			//           << (last_tracked_ev_right >= 0 ? tf2::timeToSec(shared_state_->events_right_.data[last_tracked_ev_right].timestamp) : -1) 
+			// std::cout << "[Mapper::mappingLoop] Last event timestamps: left="
+			//           << (last_tracked_ev_left >= 0 ? tf2::timeToSec(shared_state_->events_left_.data[last_tracked_ev_left].timestamp) : -1)
+			//           << "s, right="
+			//           << (last_tracked_ev_right >= 0 ? tf2::timeToSec(shared_state_->events_right_.data[last_tracked_ev_right].timestamp) : -1)
 			//           << "s" << std::endl;
 			// DEBUGGING: Check that there is enough events in both cameras to make a new map
-			// std::cout << "[Mapper::mappingLoop] Event counts: last_tracked_ev_left=" << last_tracked_ev_left 
-			// << ", last_tracked_ev_right=" << last_tracked_ev_right 
+			// std::cout << "[Mapper::mappingLoop] Event counts: last_tracked_ev_left=" << last_tracked_ev_left
+			// << ", last_tracked_ev_right=" << last_tracked_ev_right
 			// << ", NUM_EV_PER_MAP=" << NUM_EV_PER_MAP << std::endl;
-			
+
 			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP) {
 				// DEBUGGING: Confirmation that there are not enough events
-				// std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << last_tracked_ev_left 
-				// << ", right=" << last_tracked_ev_right << ", required=" << NUM_EV_PER_MAP << ")" << std::endl;
+				std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << last_tracked_ev_left
+				<< ", right=" << last_tracked_ev_right << ", required=" << NUM_EV_PER_MAP << ")" << std::endl;
 				continue;
 			}
 			current_ts_ = latest_tf_stamp_;
@@ -302,11 +305,11 @@ void Mapper::mappingLoop()
 				shared_state_->events_right_.data.begin()+last_tracked_ev_right
 			);
 		}
-		
+
 		// DEBUGGING
 		std::cout << "Size of left events: " << shared_state_->events_left_.data.size() << std::endl;
 		std::cout << "Size of right events: " << shared_state_->events_right_.data.size() << std::endl;
-		
+
 		std::cout << "MappingAtTime!" << std::endl;
 		MappingAtTime(current_ts_, ev_subset_left_, ev_subset_right_, ev_subset_tri_, frame_id_);
 
@@ -329,7 +332,7 @@ void Mapper::MappingAtTime(
 ){
 	// DEBUGGING:
 	if (events_left_.empty() || events_right_.empty()) {
-        std::cerr << "[Mapper::MappingAtTime] Error: Empty event subsets, left=" << events_left_.size() 
+        std::cerr << "[Mapper::MappingAtTime] Error: Empty event subsets, left=" << events_left_.size()
                   << ", right=" << events_right_.size() << std::endl;
         return;
     }
@@ -349,7 +352,7 @@ void Mapper::MappingAtTime(
     mapper2.name="2";
 
 	// DEBUGGING:
-	std::cout << "[Mapper::MappingAtTime] Event subset sizes: left=" << events_left_.size() 
+	std::cout << "[Mapper::MappingAtTime] Event subset sizes: left=" << events_left_.size()
 	<< ", right=" << events_right_.size() << ", tri=" << events_tri_.size() << std::endl;
 	std::cout << "[Mapper::MappingAtTime] Choosing method" << std::endl;
 
@@ -358,7 +361,7 @@ void Mapper::MappingAtTime(
     case 1:
         // Compute two DSIs (one for each camera) and fuse them.
         // Only fusion across stereo camera, i.e., Alg. 1 of MC-EMVS (Ghosh and Gallego, AISY 2022) is implemented here
-		
+
 		// DEBUGGING:
 		std::cout << "[Mapper::MappingAtTime] Calling process_1" << std::endl;
 
@@ -386,7 +389,7 @@ void Mapper::MappingAtTime(
 
 		// Debugging:
 		std::cout << "[Mapper::MappingAtTime] Sucessfully called process_1" << std::endl;
-        
+
 		break;
 
     default:
@@ -395,14 +398,15 @@ void Mapper::MappingAtTime(
 		std::cerr << "[Mapper::MappingAtTime] Incorrect process method selected: " << process_method << std::endl;
         exit(0);
     }
-	
-	// DEBUGGING: 
+
+	// DEBUGGING:
 	std::cout << "[Mapper::MappingAtTime] Method chosen" << std::endl;
 
-
+	// if(initialized_)
+		// mapper1.dsi_.printDataArray();
     mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
     if (depth_map.empty() || confidence_map.empty()) {
-		
+
 		// DEBUGGING:
         std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map or confidence_map!" << std::endl;
 
@@ -412,18 +416,18 @@ void Mapper::MappingAtTime(
 	}
 
 	// Debug: Print non-zero pixel coordinates in semidense_mask
-    std::cout << "[Mapper::MappingAtTime] Non-zero pixels in semidense_mask:" << std::endl;
-    int non_zero_count = 0;
-    for (int y = 0; y < semidense_mask.rows; ++y) {
-        for (int x = 0; x < semidense_mask.cols; ++x) {
-            if (semidense_mask.at<uint8_t>(y, x) > 0) {
-                std::cout << "Pixel (" << x << ", " << y << ") = " << static_cast<int>(semidense_mask.at<uint8_t>(y, x)) << std::endl;
-                non_zero_count++;
-            }
-        }
-    }
-    std::cout << "[Mapper::MappingAtTime] Total non-zero pixels: " << non_zero_count 
-              << " (out of " << semidense_mask.rows * semidense_mask.cols << ")" << std::endl;
+    // std::cout << "[Mapper::MappingAtTime] Non-zero pixels in semidense_mask:" << std::endl;
+    // int non_zero_count = 0;
+    // for (int y = 0; y < semidense_mask.rows; ++y) {
+    //     for (int x = 0; x < semidense_mask.cols; ++x) {
+    //         if (semidense_mask.at<uint8_t>(y, x) > 0) {
+    //             std::cout << "Pixel (" << x << ", " << y << ") = " << static_cast<int>(semidense_mask.at<uint8_t>(y, x)) << std::endl;
+    //             non_zero_count++;
+    //         }
+    //     }
+    // // }
+    // std::cout << "[Mapper::MappingAtTime] Total non-zero pixels: " << non_zero_count
+    //           << " (out of " << semidense_mask.rows * semidense_mask.cols << ")" << std::endl;
 
     // Convert DSI to depth maps using argmax and noise filtering
     // mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
@@ -454,6 +458,7 @@ void Mapper::publishMsgs(std::string frame_id){
 	// TODO: Add a bool flag here, representing that the tracker is activated and wants pcl
 	if(!pc_->empty()){
 		pc_->header.stamp = tf2::timeToSec(current_ts_);
+		// std::cout << "POTINC CLOUD!!!!!!: " << pc_-> << std::endl;
 		std::lock_guard<std::mutex> lock(shared_state_->pcl_state_.pcl_mtx);
 		shared_state_->pcl_state_.pcl = pc_;
 		shared_state_->pcl_state_.pcl_ready = true;

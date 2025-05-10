@@ -59,7 +59,7 @@ private:
     double fov_deg = 0.0;
     int dimX = 0;
     int dimY = 0;
-    int dimZ = 100;
+    int dimZ = 256;
     int max_confidence = 0;
     bool full_seq = false;
     bool save_conf_stats = false;

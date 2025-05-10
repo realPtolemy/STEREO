@@ -91,9 +91,9 @@ void process_1(
 
     // Left camera: back-project events into the DSI
     // LOG(INFO) << "Computing DSI for first camera";
-    
+
     // DEBUGGING:
-    std::cout << "[process_1] Beginning evaluation of DSI for camera0" << std::endl; 
+    std::cout << "[process_1] Beginning evaluation of DSI for camera0" << std::endl;
 
     std::chrono::high_resolution_clock::time_point t_start_dsi = std::chrono::high_resolution_clock::now();
 #ifdef TIMING_LOOP
@@ -108,7 +108,7 @@ void process_1(
 
     // DEBUGGING:
     std::cout << "[process_1] Time required to evaluate DSI for camera0: " << duration_dsi << " milliseconds" << std::endl;
-    
+
 
     // LOG(INFO) << "Time to evaluate DSI: " << duration_dsi << " milliseconds";
     // LOG(INFO) << "Number of events processed: " << events0.size() << " events";
@@ -117,16 +117,16 @@ void process_1(
 
     // Right camera: back-project events into the DSI
     // LOG(INFO) << "Computing DSI for second camera";
-    
+
     // DEBUGGING:
     std::cout << "[process_1] Beginning evaluation of DSI for camera1" << std::endl;
     t_start_dsi = std::chrono::high_resolution_clock::now();
- 
+
 #ifdef TIMING_LOOP
     for (int i=1; i<=nloops; i++){
 #endif
         mapper1.evaluateDSI(events1, tf_, right_cam_frame_id, "dvs1", T_rv_w);
-        
+
 #ifdef TIMING_LOOP
       }
 #endif
@@ -175,7 +175,7 @@ void process_1(
     // // DEBUGGING:
     // std::cout << "mapper_fused\n" << std::endl;
     // mapper_fused.dsi_.printDataArray();
-  
+
     // Sum of the two DSIs
     //mapper_fused.dsi_.addTwoGrids(mapper1.dsi_);
 
@@ -191,7 +191,7 @@ void process_1(
 
             // DEBUGGING:
             //std::cout << "[process_1] mapper1 : Left camera\n" << std::endl;
-            //mapper1.dsi_.printDataArray();
+            // mapper1.dsi_.printDataArray();
 
             mapper_fused.dsi_.harmonicMeanTwoGrids(mapper1.dsi_);
             break;
@@ -211,10 +211,10 @@ void process_1(
             std::cerr << "[process_1] Improper fusion method selected: " << fusion_method << std::endl;
             return;
           }
-          
+          // mapper_fused.dsi_.printDataArray();
 #ifdef TIMING_LOOP
       }
-#endif  
+#endif
     std::chrono::high_resolution_clock::time_point t_end_fusion = std::chrono::high_resolution_clock::now();
     auto t_fusion = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_fusion - t_start_fusion ).count();
     std::cout << "[process_1] Time recquired to fuse DSIs: " << t_fusion << "ms" << std::endl;

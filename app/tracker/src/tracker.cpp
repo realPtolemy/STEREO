@@ -112,7 +112,7 @@ Tracker::Tracker(SharedState &shared_state):
     // world_frame_id_ = std::string ("world");
     frame_id_ = "cam0";
     world_frame_id_ = "world";
-    auto_trigger_ = false;
+    auto_trigger_ = true;
 
     // tf2::msg::TransformStamped inital_pose;
     // inital_pose.frame_id = world_frame_id_;
@@ -188,7 +188,7 @@ void Tracker::trackerRun(){
             shared_state_->pose_state_.event_stamp = events_.size() - 100000;
             shared_state_->pose_state_.pose_ready = true;
             tf_.get()->setTransform(initial_pose, "tracker");
-            std::cout << "[Tracker::trackerRun] Initial pose stored in shared_state and tf buffer, timestamp=" 
+            std::cout << "[Tracker::trackerRun] Initial pose stored in shared_state and tf buffer, timestamp="
                       << tf2::timeToSec(initial_pose.timestamp) << "s" << std::endl;
             shared_state_->pose_state_.pose_cv.notify_one();
 
@@ -200,14 +200,14 @@ void Tracker::trackerRun(){
             for (size_t idx = start_idx; idx < end_idx; idx += 100) { // Step by 100 events, can be adjusted but not too high!
                 tf2::msg::TransformStamped additional_pose = initial_pose;
                 additional_pose.timestamp = events_[idx].timestamp;
-                
+
                 shared_state_->pose_state_.event_stamp = (idx);
                 tf_.get()->setTransform(additional_pose, "tracker");
-                
+
                 // DEBUGGING:
-                //std::cout << "[Tracker::trackerRun] Added additional pose, timestamp=" 
+                //std::cout << "[Tracker::trackerRun] Added additional pose, timestamp="
                 //          << tf2::timeToSec(additional_pose.timestamp) << "s, index=" << idx << std::endl;
-                
+
                 shared_state_->pose_state_.pose = additional_pose;
                 shared_state_->pose_state_.pose_ready = true;
                 shared_state_->pose_state_.pose_cv.notify_one();
@@ -220,21 +220,21 @@ void Tracker::trackerRun(){
 
         // DEBUGGING:
         //std::cout << "[Tracker::trackerRun] idle_ is set ot FALSE, ensuring that trackingThread can run again." << std::endl;
-    
+
     } else {
         std::cout << "[Tracker::trackerRun] first_event_ is false, no initial pose set." << std::endl;
     }
 
     // DEBUGGING:
     std::cout << "[Tracker::trackerRun] Joining event and point cloud threads..." << std::endl;
-    
+
     event_thread.join();
-    
+
     // DEBUGGING:
     std::cout << "[Tracker::trackerRun] event_thread has successfully joined!" << std::endl;
 
     pointcloud_thread.join();
-    
+
     // DEBUGGING:
     std::cout << "[Tracker::trackerRun] pointcloud_thread has successfully joined!\n"
         << "[Tracker::trackerRun] trackerRun completed." << std::endl;
@@ -256,16 +256,16 @@ void Tracker::trackingThread() {
         // std::cout << keypoints_.size() << std::endl;
 
         // DEBUGGING:
-        //std::cout << "[Tracker::trackingThread] Checking conditions: idle_=" << idle_ 
-        //          << ", keypoints_.size()=" << keypoints_.size() 
+        //std::cout << "[Tracker::trackingThread] Checking conditions: idle_=" << idle_
+        //          << ", keypoints_.size()=" << keypoints_.size()
         //          << ", events_.size()=" << events_.size() << std::endl;
 
         if (!idle_ && keypoints_.size() > 0) {
-            std::cout << "[Tracker::trackingThread] Running estimateTrajectory" << std::endl;
+            // std::cout << "[Tracker::trackingThread] Running estimateTrajectory" << std::endl;
             estimateTrajectory();
             next_time = tf2::get_now() + interval;
         } //else {
-          //  std::cout << "[Tracker::trackingThread] Skipped estimateTrajectory: idle_=" << idle_ 
+          //  std::cout << "[Tracker::trackingThread] Skipped estimateTrajectory: idle_=" << idle_
           //            << ", keypoints_.size()=" << keypoints_.size() << std::endl;
         //}
     }
@@ -315,6 +315,7 @@ void Tracker::initialize(const tf2::TimePoint& ts) {
     // std::string tf_debug;
     // tf_debug = tf_->allFramesAsString();
     // std::cout << tf_debug << std::endl;
+    std::cout << "INITILZIE!!!!\n";
     tf2::msg::TransformStamped TF_kf_world = tf_.get()->lookupTransform(bootstrap_frame_id, world_frame_id_, ts);
     // LOG(INFO) << "Completed lookup";
     Eigen::Affine3d T_kf_world(tf2::transformToEigen(TF_kf_world));
@@ -381,7 +382,7 @@ void Tracker::mapCallback() {
     while (true)
     {
         shared_state_->pcl_state_.pcl_cv.wait(lock, [this]{ return shared_state_->pcl_state_.pcl_ready;});
-
+        std::cout << "[mapCallback] Recived MAP From mapper!\n";
         /**
          * map_ and the pcl located in shared_state_ are almost the same.
          * Pcl in shared_state_ have points with a intesity (Point(XYZI)),
@@ -406,10 +407,12 @@ void Tracker::mapCallback() {
         // pcl::PCLPointCloud2 pcl_pc;
         // pcl::toPCLPointCloud2(*shared_state_->pcl_state_.pcl, pcl_pc);
         // pcl::fromPCLPointCloud2(pcl_pc, *map_);
-        // LOG(INFO) << "Received new map: " << map_->size() << " points";
+        // std::cout << "Received new map: " << map_->size() << " points\n";
+        // std::cout << "auto trigger: " << auto_trigger_ << std::endl;
+        // std::cout << min_map_size << std::endl;
 
         if (map_->size() > min_map_size && auto_trigger_) {
-            // LOG(INFO) << "Auto-triggering tracking";
+            std::cout << "Auto-triggering tracking\n";
 
             // initialize(msg->header.stamp);
             initialize(tf2::timeFromSec(shared_state_->pcl_state_.pcl.get()->header.stamp));
@@ -432,13 +435,13 @@ void Tracker::updateMap() {
         return;
     }
 
-    std::cout << keypoints_.size() << std::endl;
+    // std::cout << keypoints_.size() << std::endl;
     T_kf_ref_ = T_kf_ref_ * T_ref_cam_;
     T_ref_cam_ = Eigen::Affine3f::Identity();
     kf_ev_ = cur_ev_;
 
     projectMap();
-    std::cout << keypoints_.size() << std::endl;
+    // std::cout << keypoints_.size() << std::endl;
 
     if (keypoints_.size() < min_n_keypoints) {
         // LOG(WARNING) << "Losing track!";
@@ -533,6 +536,7 @@ void Tracker::publishMapOverlapThread() {
 void Tracker::publishTF() {
     Eigen::Affine3f T_world_cam = T_world_kf_ * T_kf_ref_ * T_ref_cam_;
 
+    // std::lock_guard<std::mutex> lock(events_mutex_);
     tf2::msg::TransformStamped pose_tf;
     pose_tf = tf2::eigenToTransform(T_world_cam.cast<double>());
     pose_tf.timestamp = events_[cur_ev_ + frame_size_].timestamp;
@@ -558,9 +562,9 @@ void Tracker::publishTF() {
         poses_filtered_.push_back(filtered_pose);
 
         {
-            std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
+            // std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
             shared_state_->pose_state_.pose = filtered_pose;
-            std::cout << "new pose!" << std::endl;
+            // std::cout << "new pose!" << std::endl;
             tf_.get()->setTransform(filtered_pose, "tracker");
             shared_state_->pose_state_.pose_ready = true;
             shared_state_->pose_state_.pose_cv.notify_one();
@@ -644,32 +648,32 @@ void Tracker::estimateTrajectory() {
     // nhp_.param("max_event_rate", 8000000),
     // nhp_.param("events_per_kf", 100000);
 
-    // DEBUGGING: 
-    std::cout << "[Tracker::estimateTrajectory] Estimating trajectory, events_.size()=" 
-              << events_.size() << ", cur_ev_=" << cur_ev_ << std::endl;
+    // // DEBUGGING:
+    // std::cout << "[Tracker::estimateTrajectory] Estimating trajectory, events_.size()="
+    //           << events_.size() << ", cur_ev_=" << cur_ev_ << std::endl;
 
-    std::lock_guard<std::mutex> lock(data_mutex_);
+    std::lock_guard<std::mutex> lock(events_mutex_);
 
     while (true) {
         if (cur_ev_ + std::max(step_size_, frame_size_) > events_.size()) {
 
-            // DEBUGGING:
-            std::cout << "[Tracker::estimateTrajectory] Not enough events, cur_ev_=" 
-            << cur_ev_ << ", required=" << (cur_ev_ + std::max(step_size_, frame_size_)) << std::endl;
+            // // DEBUGGING:
+            // std::cout << "[Tracker::estimateTrajectory] Not enough events, cur_ev_="
+            // << cur_ev_ << ", required=" << (cur_ev_ + std::max(step_size_, frame_size_)) << std::endl;
 
             break;
         }
         if (cur_ev_ - kf_ev_ >= events_per_kf) {
-            
-            // DEBUGGING:
-            std::cout << "[Tracker::estimateTrajectory] Updating map, cur_ev_=" << cur_ev_ 
-            << ", kf_ev_=" << kf_ev_ << std::endl;
+
+            // // DEBUGGING:
+            // std::cout << "[Tracker::estimateTrajectory] Updating map, cur_ev_=" << cur_ev_
+            // << ", kf_ev_=" << kf_ev_ << std::endl;
 
             updateMap();
         }
 
         if (idle_) {
-            
+
             // DEBUGGING:
             std::cout << "[Tracker::estimateTrajectory] Idle, skipping" << std::endl;
 
@@ -687,7 +691,7 @@ void Tracker::estimateTrajectory() {
             // LOG(WARNING) << "Event rate below NOISE RATE. Skipping frame.";
 
             // DEBUGGING:
-            std::cout << "[Tracker::estimateTrajectory] Event rate too low: " << event_rate_ 
+            std::cout << "[Tracker::estimateTrajectory] Event rate too low: " << event_rate_
             << ", skipping frame" << std::endl;
 
             cur_ev_ += step_size_;
@@ -697,7 +701,7 @@ void Tracker::estimateTrajectory() {
             // LOG(WARNING) << "Event rate above MAX EVENT RATE. Skipping frame.";
 
             // DEBUGGING:
-            std::cout << "[Tracker::estimateTrajectory] Event rate too high: " << event_rate_ 
+            std::cout << "[Tracker::estimateTrajectory] Event rate too high: " << event_rate_
             << ", skipping frame" << std::endl;
 
             cur_ev_ += step_size_;
@@ -751,7 +755,7 @@ void Tracker::estimateTrajectory() {
         T_ref_cam_ *= SE3::exp(-x_).matrix();
 
         // DEBUGGING:
-        std::cout << "[Tracker::estimateTrajectory] Calling publishTF, cur_ev_=" << cur_ev_ << std::endl;
+        // std::cout << "[Tracker::estimateTrajectory] Calling publishTF, cur_ev_=" << cur_ev_ << std::endl;
 
         publishTF();        cur_ev_ += step_size_;
 
