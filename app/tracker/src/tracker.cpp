@@ -540,6 +540,12 @@ void Tracker::publishTF() {
     // std::lock_guard<std::mutex> lock(events_mutex_);
     tf2::msg::TransformStamped pose_tf;
     pose_tf = tf2::eigenToTransform(T_world_cam.cast<double>());
+    
+    // // DEBUGGING:
+    // std::cout << "[Tracker::publishTF] TIMESTAMP THAT IS PUBLISHED TO TF_: " 
+    // << tf2::timeToSec(events_[cur_ev_ + frame_size_].timestamp) 
+    // << " seconds" << std::endl;
+
     pose_tf.timestamp = events_[cur_ev_ + frame_size_].timestamp;
     pose_tf.frame_id = world_frame_id_;
     // pose_tf.child_frame_id = "dvs_evo_raw";
@@ -567,6 +573,7 @@ void Tracker::publishTF() {
             shared_state_->pose_state_.pose = filtered_pose;
             // std::cout << "new pose!" << std::endl;
             tf_.get()->setTransform(filtered_pose, "tracker");
+            shared_state_->pose_state_.event_stamp = cur_ev_ + frame_size_;
             shared_state_->pose_state_.pose_ready = true;
             shared_state_->pose_state_.pose_cv.notify_one();
         }
@@ -667,8 +674,8 @@ void Tracker::estimateTrajectory() {
         if (cur_ev_ - kf_ev_ >= events_per_kf) {
 
             // // DEBUGGING:
-            // std::cout << "[Tracker::estimateTrajectory] Updating map, cur_ev_=" << cur_ev_
-            // << ", kf_ev_=" << kf_ev_ << std::endl;
+             std::cout << "[Tracker::estimateTrajectory] Updating map, cur_ev_=" << cur_ev_
+             << ", kf_ev_=" << kf_ev_ << std::endl;
 
             updateMap();
         }
@@ -692,8 +699,8 @@ void Tracker::estimateTrajectory() {
             // LOG(WARNING) << "Event rate below NOISE RATE. Skipping frame.";
 
             // DEBUGGING:
-            std::cout << "[Tracker::estimateTrajectory] Event rate too low: " << event_rate_
-            << ", skipping frame" << std::endl;
+            //std::cout << "[Tracker::estimateTrajectory] Event rate too low: " << event_rate_
+            //<< ", skipping frame" << std::endl;
 
             cur_ev_ += step_size_;
             continue;
@@ -702,8 +709,8 @@ void Tracker::estimateTrajectory() {
             // LOG(WARNING) << "Event rate above MAX EVENT RATE. Skipping frame.";
 
             // DEBUGGING:
-            std::cout << "[Tracker::estimateTrajectory] Event rate too high: " << event_rate_
-            << ", skipping frame" << std::endl;
+            //std::cout << "[Tracker::estimateTrajectory] Event rate too high: " << event_rate_
+            //<< ", skipping frame" << std::endl;
 
             cur_ev_ += step_size_;
             continue;

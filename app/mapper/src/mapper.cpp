@@ -70,7 +70,7 @@ void Mapper::mapperRun(){
 		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_1_MOVING.csv",
+			"data/camera_1_LONG.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
@@ -78,7 +78,7 @@ void Mapper::mapperRun(){
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0_MOVING.csv",
+			"data/camera_0_LONG.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
 		);
@@ -276,8 +276,9 @@ void Mapper::mappingLoop()
 
 			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP) {
 				// DEBUGGING: Confirmation that there are not enough events
-				std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << last_tracked_ev_left
-				<< ", right=" << last_tracked_ev_right << ", required=" << NUM_EV_PER_MAP << ")" << std::endl;
+				//std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << last_tracked_ev_left
+				//<< ", right=" << last_tracked_ev_right << ", required=" << NUM_EV_PER_MAP << ")" << std::endl;
+				
 				continue;
 			}
 			current_ts_ = latest_tf_stamp_;
@@ -297,6 +298,11 @@ void Mapper::mappingLoop()
 
 				continue;
 			}
+			
+			// DEBUGGING:
+			std::cout << "[Mapper::mappingLoop] last_tracked_ev_left: " << last_tracked_ev_left << std::endl;
+			std::cout << "[Mapper::mappingLoop] last_tracked_ev_right: " << last_tracked_ev_left << std::endl;
+
 			ev_subset_left_ = std::vector<Event>(
 				shared_state_->events_left_.data.begin()+last_tracked_ev_left-NUM_EV_PER_MAP,
 				shared_state_->events_left_.data.begin()+last_tracked_ev_left
@@ -391,6 +397,8 @@ void Mapper::MappingAtTime(
 		// Debugging:
 		std::cout << "[Mapper::MappingAtTime] Successfully called process_1" << std::endl;
 
+		std::cout << tf_->allFramesAsYAML() << std::endl;
+
 		break;
 
     default:
@@ -415,7 +423,8 @@ void Mapper::MappingAtTime(
 
 	// DEBUGGING:
 	// Save depth and confidence maps to disk using saveDepthMaps
-    std::string output_path = "../../../data/debugoutput/"; // Specify your output directory
+    std::string output_path = "data/debugoutput/"; // Specify your output directory
+	std::cout << "[Mapper::MappingAtTime] Saving depth images with this timestamp: " << tf2::timeToSec(current_ts) << std::endl;
     std::string suffix = "fused_" + std::to_string(tf2::timeToSec(current_ts)); // Unique suffix
 	saveDepthMaps(depth_map, confidence_map, semidense_mask, 
 		dsi_shape.min_depth_, dsi_shape.max_depth_, 

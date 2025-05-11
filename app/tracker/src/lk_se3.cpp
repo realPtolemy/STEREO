@@ -64,6 +64,14 @@ void LKSE3::projectMap() {
         ++n_visible_;
     }
 
+    // DEBUGGING:
+    if (map_local_->size() > 0) {
+        std::cout << "[LKSE3::projectMap] map_local_ contains " << map_local_->size() << " points:" << std::endl;
+        //for (const auto &point : map_local_->points) {
+        //    std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")" << std::endl;
+        //}
+    }
+
     const int k = map_blur_;
     cv::GaussianBlur(img, img, cv::Size(k, k), 0.);
     cv::GaussianBlur(depthmap, depthmap, cv::Size(k, k), 0.);
@@ -194,6 +202,10 @@ void LKSE3::updateTransformation(const int offset, const int N,
 }
 
 void LKSE3::trackFrame() {
+    
+    // DEBUGGING:
+    //std::cout << "[LKSE3::trackFrame] Lucas Kanade algorithm is accessed." << std::endl;
+
     T_cur_ref_ = T_ref_cam_.inverse();
     x_.setZero();
 

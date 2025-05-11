@@ -278,7 +278,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
     // and then votes for the corresponding voxel using bilinear voting.
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::fillVoxelGrid] Beginning process of back-projectiong events into the DSI..." << std::endl;
+    std::cout << "[MapperEMVS::fillVoxelGrid] Beginning process of back-projecting events into the DSI..." << std::endl;
 
     // For efficiency reasons, we split each packet into batches of N events each
     // which allows to better exploit the L1 cache

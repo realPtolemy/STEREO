@@ -109,15 +109,17 @@ void process_1(
     // DEBUGGING:
     std::cout << "[process_1] Time required to evaluate DSI for camera0: " << duration_dsi << " milliseconds" << std::endl;
 
-
-    // LOG(INFO) << "Time to evaluate DSI: " << duration_dsi << " milliseconds";
-    // LOG(INFO) << "Number of events processed: " << events0.size() << " events";
-    // LOG(INFO) << "Number of events processed per second: " << static_cast<float>(events0.size()) / (1000.f * static_cast<float>(duration_dsi)) << " Mev/s";
-    // LOG(INFO) << "Mean square = " << mapper0.dsi_.computeMeanSquare();
-
-    // Right camera: back-project events into the DSI
-    // LOG(INFO) << "Computing DSI for second camera";
-
+    // DEBUGGING: Save visualization of DSI for camera0 (cam0)
+    {
+      cv::Mat depth_map0, confidence_map0, semidense_mask0;
+      mapper0.getDepthMapFromDSI(depth_map0, confidence_map0, semidense_mask0, opts_depth_map);
+      std::string output_path = "data/debugoutput/"; // Specify your output directory
+      std::string suffix = "cam0_" + std::to_string(tf2::timeToSec(ts)); // Unique suffix
+      saveDepthMaps(depth_map0, confidence_map0, semidense_mask0, 
+                    dsi_shape.min_depth_, dsi_shape.max_depth_, 
+                    suffix, output_path);
+    }
+    
     // DEBUGGING:
     std::cout << "[process_1] Beginning evaluation of DSI for camera1" << std::endl;
     t_start_dsi = std::chrono::high_resolution_clock::now();
@@ -136,11 +138,17 @@ void process_1(
     // DEBUGGING:
     std::cout << "[process_1] Time required to evaluate DSI for camera1: " << duration_dsi << " milliseconds" << std::endl;
 
-    // LOG(INFO) << "Time to evaluate DSI: " << duration_dsi << " milliseconds";
-    // LOG(INFO) << "Number of events processed: " << events1.size() << " events";
-    // LOG(INFO) << "Number of events processed per second: " << static_cast<float>(events1.size()) / (1000.f * static_cast<float>(duration_dsi)) << " Mev/s";
-    // LOG(INFO) << "Mean square = " << mapper1.dsi_.computeMeanSquare();
-
+    // DEBUGGING: Save visualization DSI for camera1 (dvs1)
+    {
+      cv::Mat depth_map1, confidence_map1, semidense_mask1;
+      mapper1.getDepthMapFromDSI(depth_map1, confidence_map1, semidense_mask1, opts_depth_map);
+      std::string output_path = "data/debugoutput/"; // Specify your output directory
+      std::string suffix = "dvs1_" + std::to_string(tf2::timeToSec(ts)); // Unique suffix
+      saveDepthMaps(depth_map1, confidence_map1, semidense_mask1, 
+                    dsi_shape.min_depth_, dsi_shape.max_depth_, 
+                    suffix, output_path);
+    }
+ 
 
     if (events2.size()>0){
         // 3rd camera: back-project events into the DSI
