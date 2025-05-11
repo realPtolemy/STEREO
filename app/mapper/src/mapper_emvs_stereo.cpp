@@ -288,7 +288,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
     const float z0 = raw_depths_vec_[0];
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::fillVoxelGrid] Trying to set up parallel threads..." << std::endl;
+    std::cout << "[MapperEMVS::fillVoxelGrid] Setting up parallel threads..." << std::endl;
 
     // Parallelize over the planes of the DSI with OpenMP
     // (each thread will process a different depth plane)
@@ -296,7 +296,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
 #pragma omp parallel for num_threads(7) if (event_locations_z0.size() >= 20000)
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::fillVoxelGrid] Threads are up and running..." << std::endl;
+    //std::cout << "[MapperEMVS::fillVoxelGrid] Threads are up and running..." << std::endl;
 
     for(size_t depth_plane = 0; depth_plane < raw_depths_vec_.size(); ++depth_plane)
     {
