@@ -1,5 +1,6 @@
 #include "mapper/mapper.hpp"
 #include <filesystem>
+#include <mapper/utils.hpp>
 
 Mapper::Mapper(SharedState &shared_state) :
 	shared_state_(&shared_state),
@@ -411,35 +412,14 @@ void Mapper::MappingAtTime(
 		std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map, confidence_map or semidense_mask!" << std::endl;
 	}
 	
-	// if (depth_map.empty() || confidence_map.empty()) {
 
-	// 	// DEBUGGING:
-    //     std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map or confidence_map!" << std::endl;
-
-    //     return;
-    // } else if (semidense_mask.empty()) {
-	// 	std::cerr << "[Mapper::MappingAtTime] Error: Empty semidense_mask!" << std::endl;
-	// } else {
-	// 	std::cout << "[Mapper::MappingAtTime] Successfully retrieved semi-dense depth map from DSI." << std::endl;
-	// }
-
-	// Debug: Print non-zero pixel coordinates in semidense_mask
-    // std::cout << "[Mapper::MappingAtTime] Non-zero pixels in semidense_mask:" << std::endl;
-    // int non_zero_count = 0;
-    // for (int y = 0; y < semidense_mask.rows; ++y) {
-    //     for (int x = 0; x < semidense_mask.cols; ++x) {
-    //         if (semidense_mask.at<uint8_t>(y, x) > 0) {
-    //             std::cout << "Pixel (" << x << ", " << y << ") = " << static_cast<int>(semidense_mask.at<uint8_t>(y, x)) << std::endl;
-    //             non_zero_count++;
-    //         }
-    //     }
-    // // }
-    // std::cout << "[Mapper::MappingAtTime] Total non-zero pixels: " << non_zero_count
-    //           << " (out of " << semidense_mask.rows * semidense_mask.cols << ")" << std::endl;
-
-    // Convert DSI to depth maps using argmax and noise filtering
-    // mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
-    //    mapper0.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
+	// DEBUGGING:
+	// Save depth and confidence maps to disk using saveDepthMaps
+    std::string output_path = "../../../data/debugoutput/"; // Specify your output directory
+    std::string suffix = "fused_" + std::to_string(tf2::timeToSec(current_ts)); // Unique suffix
+	saveDepthMaps(depth_map, confidence_map, semidense_mask, 
+		dsi_shape.min_depth_, dsi_shape.max_depth_, 
+		suffix, output_path);
 
 	std::cout << "[Mapper::MappingAtTime] Attempting to convert semi-dense depth map to point cloud..." << std::endl;
     // Convert semi-dense depth map to point cloud
@@ -456,8 +436,6 @@ void Mapper::MappingAtTime(
 	} else {
         std::cerr << "[Mapper::MappingAtTime] Error: Empty point cloud after getPointcloud" << std::endl;
     }
-
-
 
 	publishMsgs(frame_id);
 }
