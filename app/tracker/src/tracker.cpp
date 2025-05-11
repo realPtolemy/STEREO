@@ -24,6 +24,7 @@ using Transformation = kindr::minimal::QuatTransformation;
 using Quaternion = kindr::minimal::RotationQuaternion;
 
 void Tracker::postCameraLoaded() {
+    std::cout << "[Tracker::postCameraLoaded] Loading camera reference values..." << std::endl;
     width_ = c_.fullResolution().width;
     height_ = c_.fullResolution().height;
     fx_ = c_.fx();
@@ -78,7 +79,6 @@ void Tracker::postCameraLoaded() {
     cam_ref.P_cv(2, 2) = 1.0;
 
     c_ref_ = c_;
-    std::cout << "I AM HERE!" << std::endl;
     reset();
 }
 
@@ -335,6 +335,7 @@ void Tracker::initialize(const tf2::TimePoint& ts) {
 }
 
 void Tracker::reset() {
+    std::cout << "[Tracker::reset] Resetting tracker module..." << std::endl;
     idle_ = true;
 
     events_.clear();

@@ -164,8 +164,8 @@ void process_1(
 
   // 2. Fuse the DSIs
   {
-
     // DEBUGGING:
+    std::cout << "[process_1] Beginning process of fusing the DSIs..." << std::endl;
     //std::cout << "[process_1] mapper0 : Right camera\n" << std::endl;
     //mapper0.dsi_.printDataArray();
 
@@ -178,6 +178,7 @@ void process_1(
 
     // Sum of the two DSIs
     //mapper_fused.dsi_.addTwoGrids(mapper1.dsi_);
+    std::cout << "[process_1] Chosen DSI fusion method: " << fusion_method << std::endl;
 
     std::chrono::high_resolution_clock::time_point t_start_fusion = std::chrono::high_resolution_clock::now();
 #ifdef TIMING_LOOP
@@ -217,7 +218,7 @@ void process_1(
 #endif
     std::chrono::high_resolution_clock::time_point t_end_fusion = std::chrono::high_resolution_clock::now();
     auto t_fusion = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_fusion - t_start_fusion ).count();
-    std::cout << "[process_1] Time recquired to fuse DSIs: " << t_fusion << "ms" << std::endl;
+    std::cout << "[process_1] DSIs have succesfully been fused.\n[process_1] Time recquired to fuse DSIs: " << t_fusion << "ms" << std::endl;
 
     if (events2.size() > 0){
       // ONLY RELEVANT IF A THIRD CAMERA (cam2) IS USED... IGNORE FOR NOW.

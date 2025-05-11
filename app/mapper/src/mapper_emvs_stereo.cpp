@@ -278,7 +278,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
     // and then votes for the corresponding voxel using bilinear voting.
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::fillVoxelGrid] Entered the function..." << std::endl;
+    std::cout << "[MapperEMVS::fillVoxelGrid] Beginning process of back-projectiong events into the DSI..." << std::endl;
 
     // For efficiency reasons, we split each packet into batches of N events each
     // which allows to better exploit the L1 cache
@@ -296,7 +296,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
 #pragma omp parallel for num_threads(7) if (event_locations_z0.size() >= 20000)
 
     // DEBUGGING:
-    //std::cout << "[MapperEMVS::fillVoxelGrid] Threads are up and running..." << std::endl;
+    std::cout << "[MapperEMVS::fillVoxelGrid] Threads are up and running..." << std::endl;
 
     for(size_t depth_plane = 0; depth_plane < raw_depths_vec_.size(); ++depth_plane)
     {
@@ -308,6 +308,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
             // Precompute coefficients for Eq. (15)
             const Eigen::Vector3d& C = camera_centers[packet];
             const float zi = static_cast<float>(raw_depths_vec_[depth_plane]),
+            // This is where the back-projection occurs
                     a = z0 * (zi - C[2]),
                     bx = (z0 - zi) * (C[0] * virtual_cam_.fx() + C[2] * virtual_cam_.cx()),
                     by = (z0 - zi) * (C[1] * virtual_cam_.fy() + C[2] * virtual_cam_.cy()),

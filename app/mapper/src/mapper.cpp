@@ -69,7 +69,7 @@ void Mapper::mapperRun(){
 		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_1_old.csv",
+			"data/camera_1_MOVING.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
@@ -77,7 +77,7 @@ void Mapper::mapperRun(){
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0_old.csv",
+			"data/camera_0_MOVING.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
 		);
@@ -354,7 +354,7 @@ void Mapper::MappingAtTime(
 	// DEBUGGING:
 	std::cout << "[Mapper::MappingAtTime] Event subset sizes: left=" << events_left_.size()
 	<< ", right=" << events_right_.size() << ", tri=" << events_tri_.size() << std::endl;
-	std::cout << "[Mapper::MappingAtTime] Choosing method" << std::endl;
+	std::cout << "[Mapper::MappingAtTime] Choosing method: " << process_method << std::endl;
 
     switch(process_method)
     {
@@ -363,7 +363,7 @@ void Mapper::MappingAtTime(
         // Only fusion across stereo camera, i.e., Alg. 1 of MC-EMVS (Ghosh and Gallego, AISY 2022) is implemented here
 
 		// DEBUGGING:
-		std::cout << "[Mapper::MappingAtTime] Calling process_1" << std::endl;
+		std::cout << "[Mapper::MappingAtTime] Calling process_1 for DSI eval and fusion." << std::endl;
 
         process_1(
 			world_frame_id_,
@@ -388,7 +388,7 @@ void Mapper::MappingAtTime(
 		);
 
 		// Debugging:
-		std::cout << "[Mapper::MappingAtTime] Sucessfully called process_1" << std::endl;
+		std::cout << "[Mapper::MappingAtTime] Successfully called process_1" << std::endl;
 
 		break;
 
@@ -400,20 +400,28 @@ void Mapper::MappingAtTime(
     }
 
 	// DEBUGGING:
-	std::cout << "[Mapper::MappingAtTime] Method chosen" << std::endl;
+	std::cout << "[Mapper::MappingAtTime] Attempting to get semi-dense depth map from DSI..." << std::endl;
 
-	// if(initialized_)
-		// mapper1.dsi_.printDataArray();
     mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
-    if (depth_map.empty() || confidence_map.empty()) {
-
-		// DEBUGGING:
-        std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map or confidence_map!" << std::endl;
-
-        return;
-    } else if (semidense_mask.empty()) {
-		std::cerr << "[Mapper::MappingAtTime] Error: Empty semidense_mask!" << std::endl;
+    
+	// DEBUGGING:
+	if (!depth_map.empty() || !confidence_map.empty() || !semidense_mask.empty()) {
+		std::cout << "[Mapper::MappingAtTime] Successfully retrieved semi-dense depth map from DSI." << std::endl;
+	} else {
+		std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map, confidence_map or semidense_mask!" << std::endl;
 	}
+	
+	// if (depth_map.empty() || confidence_map.empty()) {
+
+	// 	// DEBUGGING:
+    //     std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map or confidence_map!" << std::endl;
+
+    //     return;
+    // } else if (semidense_mask.empty()) {
+	// 	std::cerr << "[Mapper::MappingAtTime] Error: Empty semidense_mask!" << std::endl;
+	// } else {
+	// 	std::cout << "[Mapper::MappingAtTime] Successfully retrieved semi-dense depth map from DSI." << std::endl;
+	// }
 
 	// Debug: Print non-zero pixel coordinates in semidense_mask
     // std::cout << "[Mapper::MappingAtTime] Non-zero pixels in semidense_mask:" << std::endl;
@@ -433,7 +441,7 @@ void Mapper::MappingAtTime(
     // mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
     //    mapper0.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
 
-
+	std::cout << "[Mapper::MappingAtTime] Attempting to convert semi-dense depth map to point cloud..." << std::endl;
     // Convert semi-dense depth map to point cloud
     EMVS::OptionsPointCloud opts_pc;
     opts_pc.radius_search_ = radius_search;
@@ -442,7 +450,10 @@ void Mapper::MappingAtTime(
     //    mapper0.getPointcloud(depth_map, semidense_mask, opts_pc, pc_, T_rv_w_);
 
 	// DEBUGGING:
-	if (pc_->empty()) {
+	std::cout << "[Mapper::MappingAtTime] POINT CLOUD CONTENTS:\n" << pc_ << std::endl;
+	if (!pc_->empty()) {
+		std::cout << "[Mapper::MappingAtTime] Successfully retrieved populated point cloud." << std::endl;
+	} else {
         std::cerr << "[Mapper::MappingAtTime] Error: Empty point cloud after getPointcloud" << std::endl;
     }
 
