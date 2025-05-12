@@ -174,7 +174,8 @@ void Tracker::trackerRun(){
         tf2::msg::TransformStamped initial_pose;
         initial_pose.frame_id = world_frame_id_;
         initial_pose.child_frame_id = "cam0";
-        int temp = events_.size() - 2*(events_.size() - 100000);
+        // int temp = events_.size() - 2*(events_.size() - 100000);
+        int temp = events_.size() - 100000;
         initial_pose.timestamp = events_[temp].timestamp;
 
         std::cout << "[Tracker::trackerRun] Setting initial pose:" << std::endl;
@@ -256,7 +257,7 @@ void Tracker::trackingThread() {
         // std::cout << keypoints_.size() << std::endl;
 
         // DEBUGGING:
-        //std::cout << "[Tracker::trackingThread] Checking conditions: idle_=" << idle_
+        // std::cout << "[Tracker::trackingThread] Checking conditions: idle_=" << idle_
         //          << ", keypoints_.size()=" << keypoints_.size()
         //          << ", events_.size()=" << events_.size() << std::endl;
 
@@ -348,14 +349,16 @@ void Tracker::reset() {
 // in the mapper.
 void Tracker::eventCallback() {
     static const bool discard_events_when_idle = false;
-    std::unique_lock<std::mutex> lock(shared_state_->events_right_.mtx);
+    std::unique_lock<std::mutex> lock_right(shared_state_->events_right_.mtx);
+    // std::unique_lock<std::mutex> lock_left(shared_state_->events_left_.mtx);
     while (true)
     {
         if (discard_events_when_idle && idle_) continue;
         clearEventQueue();
 
         // TODO: Gör det här bättre? Kolla på denna en gång till.
-        shared_state_->events_right_.cv_event.wait(lock, [this]{ return shared_state_->events_right_.event_ready;});
+        shared_state_->events_right_.cv_event.wait(lock_right, [this]{ return shared_state_->events_right_.event_ready;});
+        // shared_state_->events_right_.cv_event.wait(lock_left, [this]{ return shared_state_->events_left_.event_ready;});
         // events_ = shared_state_->events_right_.data;
         // for (const auto& event : shared_state_->events_right_.chunk) {
         //     std::cout << event.x << ", " << event.y << ", " << tf2::displayTimePoint(event.timestamp) << ", " << event.polarity << "\n";
@@ -428,9 +431,9 @@ void Tracker::mapCallback() {
 void Tracker::updateMap() {
     static size_t min_map_size = 0;
     static size_t min_n_keypoints = 0;
-
+    std::cout << "Update map\n";
     // std::cout << keypoints_.size() << std::endl;
-    // std::cout << "map_ size: " << map_->size() << std::endl;
+    std::cout << "map_ size: " << map_->size() << std::endl;
     if (map_->size() <= min_map_size) {
         // LOG(WARNING) << "Unreliable map! Can not update map.";
         return;
@@ -442,7 +445,7 @@ void Tracker::updateMap() {
     kf_ev_ = cur_ev_;
 
     projectMap();
-    // std::cout << keypoints_.size() << std::endl;
+    std::cout << "Keypoint: "<< keypoints_.size() << std::endl;
 
     if (keypoints_.size() < min_n_keypoints) {
         // LOG(WARNING) << "Losing track!";
@@ -540,10 +543,10 @@ void Tracker::publishTF() {
     // std::lock_guard<std::mutex> lock(events_mutex_);
     tf2::msg::TransformStamped pose_tf;
     pose_tf = tf2::eigenToTransform(T_world_cam.cast<double>());
-    
+
     // // DEBUGGING:
-    // std::cout << "[Tracker::publishTF] TIMESTAMP THAT IS PUBLISHED TO TF_: " 
-    // << tf2::timeToSec(events_[cur_ev_ + frame_size_].timestamp) 
+    // std::cout << "[Tracker::publishTF] TIMESTAMP THAT IS PUBLISHED TO TF_: "
+    // << tf2::timeToSec(events_[cur_ev_ + frame_size_].timestamp)
     // << " seconds" << std::endl;
 
     pose_tf.timestamp = events_[cur_ev_ + frame_size_].timestamp;

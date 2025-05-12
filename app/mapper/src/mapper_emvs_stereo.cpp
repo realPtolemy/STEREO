@@ -80,9 +80,6 @@ MapperEMVS::MapperEMVS(const PinholeCameraModel& cam,
 
 bool MapperEMVS::getPoseAt(std::shared_ptr<tf2::BufferCore> tf_, const tf2::TimePoint& t, std::string world_frame_id, std::string frame_id, Transformation& T) {
   std::string* error_msg = new std::string();
-
-  double time = tf2::timeToSec(t);
-
 //   if(time == 0.653799){
 //     std::cout << "Time: " << tf2::timeToSec(t) << std::endl;
 //     std::cout << "World: " << world_frame_id << std::endl;
@@ -106,7 +103,7 @@ bool MapperEMVS::getPoseAt(std::shared_ptr<tf2::BufferCore> tf_, const tf2::Time
 
         // tf::transformTFToKindr(tr, &T);
         Transformation temp(tr.transform.rotation, tr.transform.translation);
-        T = temp;
+        T = std::move(temp);
         return true;
     }
 }
@@ -148,7 +145,7 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
         Transformation T_w_ev; // from event camera to world
         Transformation T_rv_ev; // from event camera to reference viewpoint
         // if(cam_name == "cam0")
-            // std::cout << tf2::timeToSec(frame_ts) << std::endl;
+            std::cout << "Time for camera: "<< cam_name << ", " << tf2::timeToSec(frame_ts) << std::endl;
         // 0.822208
 
         // getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev) queries the transform buffer (tf_) to retrieve the

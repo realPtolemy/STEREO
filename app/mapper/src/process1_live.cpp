@@ -23,7 +23,7 @@
 // #include <glog/logging.h>
 #include <chrono>
 
-// DEBUGGING: 
+// DEBUGGING:
 #include <filesystem>
 //#define TIMING_LOOP
 
@@ -71,6 +71,7 @@ void process_1(
     // LOG(INFO) << "Setting DSI reference at specific timestamp: " << ts;
 
     Transformation T_w_rv, T_w_l, T_w_r;
+    std::cout << "current time at the start of process1: " << tf2::timeToSec(ts) << std::endl;
     try {
       mapper0.getPoseAt(tf_, ts, world_frame_id, right_cam_frame_id, T_w_r);
       mapper1.getPoseAt(tf_, ts, right_cam_frame_id, "dvs1", T_w_l);
@@ -121,11 +122,11 @@ void process_1(
       // cv::Mat depth_map0, confidence_map0, semidense_mask0;
       // mapper0.getDepthMapFromDSI(depth_map0, confidence_map0, semidense_mask0, opts_depth_map);
       // std::string suffix = "cam0_" + std::to_string(tf2::timeToSec(ts)); // Unique suffix
-      // saveDepthMaps(depth_map0, confidence_map0, semidense_mask0, 
-      //               dsi_shape.min_depth_, dsi_shape.max_depth_, 
+      // saveDepthMaps(depth_map0, confidence_map0, semidense_mask0,
+      //               dsi_shape.min_depth_, dsi_shape.max_depth_,
       //               suffix, output_path);
     }
-    
+
     // DEBUGGING:
     std::cout << "[process_1] Beginning evaluation of DSI for camera1" << std::endl;
     t_start_dsi = std::chrono::high_resolution_clock::now();
@@ -153,11 +154,11 @@ void process_1(
       // cv::Mat depth_map1, confidence_map1, semidense_mask1;
       // mapper1.getDepthMapFromDSI(depth_map1, confidence_map1, semidense_mask1, opts_depth_map);
       // std::string suffix = "dvs1_" + std::to_string(tf2::timeToSec(ts)); // Unique suffix
-      // saveDepthMaps(depth_map1, confidence_map1, semidense_mask1, 
-      //               dsi_shape.min_depth_, dsi_shape.max_depth_, 
+      // saveDepthMaps(depth_map1, confidence_map1, semidense_mask1,
+      //               dsi_shape.min_depth_, dsi_shape.max_depth_,
       //               suffix, output_path);
     }
- 
+
 
     if (events2.size()>0){
         // 3rd camera: back-project events into the DSI

@@ -44,7 +44,6 @@ void LKSE3::projectMap() {
         ++n_points;
 
         if (p[0] < 0 || p[1] < 0) continue;
-
         int x = p[0] + .5f, y = p[1] + .5f;
 
         if (x >= s.width || y >= s.height) continue;
@@ -99,7 +98,6 @@ void LKSE3::precomputeReferenceFrame() {
             *grad_y = grad_y_img.ptr<float>(0);
 
     int w = ref_img_.cols, h = ref_img_.rows;
-
     keypoints_.clear();
 
     Vector8 vec = Vector8::Zero();
@@ -112,7 +110,6 @@ void LKSE3::precomputeReferenceFrame() {
             size_t offset = y * w + x;
             float z = depth_ref[offset];
             float pixel_value = ref_img_.at<float>(y, x);
-
             if (pixel_value < .01) continue;
 
             float u = ((float)x - c_ref_.cx()) / c_ref_.fx();
@@ -125,7 +122,7 @@ void LKSE3::precomputeReferenceFrame() {
             v2 << 0., -1. / z, v / z, 1 + v * v, -u * v, -u, 0., 0.;
 
             vec = gx * v1 + gy * v2;
-
+            // std::cout << "PUSHING BACK KEYPOINT!\n";
             keypoints_.push_back(Keypoint(Eigen::Vector3f(u * z, v * z, z),
                                           pixel_value, vec,
                                           vec6 * vec6.transpose()));
@@ -202,7 +199,7 @@ void LKSE3::updateTransformation(const int offset, const int N,
 }
 
 void LKSE3::trackFrame() {
-    
+
     // DEBUGGING:
     //std::cout << "[LKSE3::trackFrame] Lucas Kanade algorithm is accessed." << std::endl;
 

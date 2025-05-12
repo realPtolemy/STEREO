@@ -88,7 +88,7 @@ public:
     const std::string stereo_calibfile_ =
         "calibration/calibrationData/STEREO_both_cameras_2025MAY01.yaml";
 
-    std::shared_ptr<tf2::BufferCore> tf_;
+    std::shared_ptr<tf2::BufferCore> tf_ = std::make_shared<tf2::BufferCore>(tf2::durationFromSec(5));
     pcl_state pcl_state_;
     pose_state pose_state_;
     EventQueue<Event> events_left_;

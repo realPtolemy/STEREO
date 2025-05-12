@@ -66,21 +66,22 @@ void Mapper::mapperRun(){
 	#else
 	std::cout << "[Mapper::mapperRun] READ_EVENT_FROM_AESTREAM disabled, using CSV files..." << std::endl;
 	// google::FlushLogFiles(google::INFO);
-	std::cout << "[Mapper::mapperRun] Creating thread for camera_1.csv..." << std::endl;
-		std::thread camera1_thread_csv(
-			&Mapper::camera_thread_csv,
-			this,
-			"data/camera_1_MOVING.csv",
-			std::ref(camera1_events),
-			std::ref(shared_state_->events_left_)
-		);
 	std::cout << "[Mapper::mapperRun] Creating thread for camera_0.csv..." << std::endl;
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0_MOVING.csv",
+			"data/camera_0.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
+		);
+
+	std::cout << "[Mapper::mapperRun] Creating thread for camera_1.csv..." << std::endl;
+		std::thread camera1_thread_csv(
+			&Mapper::camera_thread_csv,
+			this,
+			"data/camera_1.csv",
+			std::ref(camera1_events),
+			std::ref(shared_state_->events_left_)
 		);
 	std::cout << "[Mapper::mapperRun] CSV threads for camera_0.csv and camera_1.csv created." << std::endl;
 	#endif
@@ -145,7 +146,8 @@ void Mapper::tfCallback(){
 			tf2::msg::TransformStamped T_0_1, T_0_2;
 			T_0_1 = tf2::eigenToTransform(Eigen::Affine3d(mat4_1_0));
 			int temp = shared_state_->pose_state_.event_stamp;
-			T_0_1.timestamp = shared_state_->events_left_.data[temp].timestamp;
+			// T_0_1.timestamp = shared_state_->events_left_.data[temp].timestamp;
+			T_0_1.timestamp = shared_state_->pose_state_.pose.timestamp;
 			// T_0_1.timestamp = tf_stamp_;
 			//std::cout << "TimePoint T_0_1: " << tf2::timeToSec(T_0_1.timestamp) << std::endl;
 			T_0_1.frame_id = frame_id_;
@@ -278,7 +280,7 @@ void Mapper::mappingLoop()
 				// DEBUGGING: Confirmation that there are not enough events
 				//std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << last_tracked_ev_left
 				//<< ", right=" << last_tracked_ev_right << ", required=" << NUM_EV_PER_MAP << ")" << std::endl;
-				
+
 				continue;
 			}
 			current_ts_ = latest_tf_stamp_;
@@ -298,7 +300,7 @@ void Mapper::mappingLoop()
 
 				continue;
 			}
-			
+
 			// DEBUGGING:
 			std::cout << "[Mapper::mappingLoop] last_tracked_ev_left: " << last_tracked_ev_left << std::endl;
 			std::cout << "[Mapper::mappingLoop] last_tracked_ev_right: " << last_tracked_ev_left << std::endl;
@@ -412,22 +414,22 @@ void Mapper::MappingAtTime(
 	std::cout << "[Mapper::MappingAtTime] Attempting to get semi-dense depth map from DSI..." << std::endl;
 
     mapper_fused.getDepthMapFromDSI(depth_map, confidence_map, semidense_mask, opts_depth_map);
-    
+
 	// DEBUGGING:
 	if (!depth_map.empty() || !confidence_map.empty() || !semidense_mask.empty()) {
 		std::cout << "[Mapper::MappingAtTime] Successfully retrieved semi-dense depth map from DSI." << std::endl;
 	} else {
 		std::cerr << "[Mapper::MappingAtTime] Error: Empty depth_map, confidence_map or semidense_mask!" << std::endl;
 	}
-	
+
 
 	// DEBUGGING:
 	// Save depth and confidence maps to disk using saveDepthMaps
     // std::string output_path = "data/debugoutput/"; // Specify your output directory
 	// std::cout << "[Mapper::MappingAtTime] Saving depth images with this timestamp: " << tf2::timeToSec(current_ts) << std::endl;
     // std::string suffix = "fused_" + std::to_string(tf2::timeToSec(current_ts)); // Unique suffix
-	// saveDepthMaps(depth_map, confidence_map, semidense_mask, 
-	// 	dsi_shape.min_depth_, dsi_shape.max_depth_, 
+	// saveDepthMaps(depth_map, confidence_map, semidense_mask,
+	// 	dsi_shape.min_depth_, dsi_shape.max_depth_,
 	// 	suffix, output_path);
 
 	std::cout << "[Mapper::MappingAtTime] Attempting to convert semi-dense depth map to point cloud..." << std::endl;
@@ -557,6 +559,8 @@ void Mapper::camera_thread_csv(const std::string &event_file_path, std::vector<E
 			// Move should empty the vector, camera_events.size() should be 0
 			// but this is safer.
 			camera_events.clear();
+
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
 		}
 	}
   	event_file.close();
