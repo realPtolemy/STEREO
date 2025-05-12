@@ -70,7 +70,7 @@ void Mapper::mapperRun(){
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0.csv",
+			"data/camera_0_LONG.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
 		);
@@ -79,7 +79,7 @@ void Mapper::mapperRun(){
 		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_1.csv",
+			"data/camera_1_LONG.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
@@ -191,145 +191,146 @@ void Mapper::mappingLoop()
 {
     dsi_shape = EMVS::ShapeDSI(dimX, dimY, dimZ, min_depth, max_depth, fov_deg);
 
-	opts_depth_map.max_confidence = max_confidence;
-	opts_depth_map.adaptive_threshold_kernel_size_ = adaptive_threshold_kernel_size;
-	opts_depth_map.adaptive_threshold_c_ = adaptive_threshold_c;
-	opts_depth_map.median_filter_size_ = median_filter_size;
-	opts_depth_map.full_sequence = full_seq;
-	opts_depth_map.save_conf_stats = save_conf_stats;
-	opts_depth_map.save_mono = save_mono;
-	opts_depth_map.rv_pos = rv_pos;
+    opts_depth_map.max_confidence = max_confidence;
+    opts_depth_map.adaptive_threshold_kernel_size_ = adaptive_threshold_kernel_size;
+    opts_depth_map.adaptive_threshold_c_ = adaptive_threshold_c;
+    opts_depth_map.median_filter_size_ = median_filter_size;
+    opts_depth_map.full_sequence = full_seq;
+    opts_depth_map.save_conf_stats = save_conf_stats;
+    opts_depth_map.save_mono = save_mono;
+    opts_depth_map.rv_pos = rv_pos;
 
-	bool map_initialized = false;
+    bool map_initialized = false;
 
-	// TODO: Fix ros::Rate and ros::ok()
     const tf2::Duration interval = tf2::durationFromSec(0.01);
     tf2::TimePoint next_time = tf2::get_now() + interval;
-	std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
+    std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
 
-	std::string error_msg;
-	std::cout << tf2::timeToSec(current_ts_) << std::endl;
-	while (running_){
-        if (!shared_state_->pcl_state_.pcl_listeners){
-			pc_global_->clear();
-		}
+    size_t last_processed_left = 0, last_processed_right = 0;
+    const double max_timestamp_diff = 0.01; // 10ms threshold for left-right sync
 
-        tf2::msg::TransformStamped latest_tf;
-
-		if(waitForTransformSimple(
-			tf_,
-			world_frame_id_,
-			frame_id_,
-			tf2::TimePointZero,
-			tf2::Duration(0),
-			tf2::durationFromSec(0.01))
-		){
-			latest_tf = tf_->lookupTransform(world_frame_id_, frame_id_, tf2::TimePointZero);
-			latest_tf_stamp_ = latest_tf.timestamp;
-			// DEBUGGING: Latest TF-time-stamp
-			//std::cout << "[Mapper::mappingLoop] latest_tf_stamp_=" << tf2::timeToSec(latest_tf_stamp_) << "s" << std::endl;
-		} else {
-			// // LOG(WARNING) << error_msg;
-			// if(map_initialized){
-				// std::cout << "STUCK\n";
-			// }
-			continue;
-		}
-
-        if (auto_trigger_ && initialized_ && !map_initialized && tf2::durationToSec(latest_tf_stamp_ - current_ts_) > init_wait_t_) {
-			// LOG(INFO) << "GENERATING INITIAL MAP AUTOMATICALLY.";
-            state_ = MAPPING;
-			// std::cout << "Mapping" << std::endl;
+    while (running_) {
+        if (!shared_state_->pcl_state_.pcl_listeners) {
+            pc_global_->clear();
         }
 
-        if (state_ != MAPPING){
-			// TODO: Handle this?
-			continue;
-		}
-		std::vector<Event> ev_subset_left_, ev_subset_right_, ev_subset_tri_;
-		int last_tracked_ev_left, last_tracked_ev_right;
-		if (current_ts_ >= latest_tf_stamp_) {
-			continue;
-		}
-		{
-			std::lock_guard<std::mutex> lock(data_mutex_);
-			// Find the first events that's older than the previous saved tf.
-			last_tracked_ev_left = shared_state_->events_left_.data.size() - 1;
-			while (last_tracked_ev_left>0 && shared_state_->events_left_.data[last_tracked_ev_left].timestamp > latest_tf_stamp_){
-				--last_tracked_ev_left;
-			}
-			// The same for the right camera
-			last_tracked_ev_right = shared_state_->events_right_.data.size() - 1;
-			while (last_tracked_ev_right>0 && shared_state_->events_right_.data[last_tracked_ev_right].timestamp > latest_tf_stamp_){
-				--last_tracked_ev_right;
-			}
+        if (state_ != MAPPING) {
+            if (auto_trigger_ && initialized_ && !map_initialized && tf2::durationToSec(tf2::get_now() - current_ts_) > init_wait_t_) {
+                std::cout << "[Mapper::mappingLoop] GENERATING INITIAL MAP AUTOMATICALLY." << std::endl;
+                state_ = MAPPING;
+            } else {
+                continue;
+            }
+        }
 
+        std::vector<Event> ev_subset_left_, ev_subset_right_, ev_subset_tri_;
+        int last_tracked_ev_left, last_tracked_ev_right;
+        tf2::TimePoint batch_ts;
 
-			// DEBUGGING: Log timestamps of last events
-			// std::cout << "[Mapper::mappingLoop] Last event timestamps: left="
-			//           << (last_tracked_ev_left >= 0 ? tf2::timeToSec(shared_state_->events_left_.data[last_tracked_ev_left].timestamp) : -1)
-			//           << "s, right="
-			//           << (last_tracked_ev_right >= 0 ? tf2::timeToSec(shared_state_->events_right_.data[last_tracked_ev_right].timestamp) : -1)
-			//           << "s" << std::endl;
-			// DEBUGGING: Check that there is enough events in both cameras to make a new map
-			// std::cout << "[Mapper::mappingLoop] Event counts: last_tracked_ev_left=" << last_tracked_ev_left
-			// << ", last_tracked_ev_right=" << last_tracked_ev_right
-			// << ", NUM_EV_PER_MAP=" << NUM_EV_PER_MAP << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
 
-			if (last_tracked_ev_left <= NUM_EV_PER_MAP || last_tracked_ev_right <= NUM_EV_PER_MAP) {
-				// DEBUGGING: Confirmation that there are not enough events
-				//std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << last_tracked_ev_left
-				//<< ", right=" << last_tracked_ev_right << ", required=" << NUM_EV_PER_MAP << ")" << std::endl;
+            last_tracked_ev_left = last_processed_left + NUM_EV_PER_MAP;
+            last_tracked_ev_right = last_processed_right + NUM_EV_PER_MAP;
 
-				continue;
-			}
-			current_ts_ = latest_tf_stamp_;
-			double_t duration = tf2::durationToSec(current_ts_ - shared_state_->events_left_.data[last_tracked_ev_left - NUM_EV_PER_MAP].timestamp);
-			// std::cout << "Duration: "<<duration << std::endl;
-			//              ros::Time ev_subset_start_ts = (events_left_.end()-NUM_EV_PER_MAP)->ts;
-			// DEBUGGING
-			std::cout << "[Mapper::mappingLoop] Duration=" << duration << "s, current_ts=" << tf2::timeToSec(current_ts_) << "s" << std::endl;
-			if (duration > max_duration_){
-				// LOG(INFO) << "Looking too far back in the past. skip";
-				std::cout << "Looking too far back in the past. skip" << std::endl;
-				continue;
-			}
-			if (duration < min_duration_){
-				// LOG(INFO) << "Time interval is not big enough. There might be flashing events. Skip.";
-				std::cout << "Time interval is not big enough. There might be flashing events. Skip." << std::endl;
+            // Check if enough events are available
+            if (last_tracked_ev_left >= shared_state_->events_left_.data.size() ||
+                last_tracked_ev_right >= shared_state_->events_right_.data.size()) {
+                std::cout << "[Mapper::mappingLoop] Not enough events yet (left=" << shared_state_->events_left_.data.size()
+                          << ", right=" << shared_state_->events_right_.data.size()
+                          << ", required=" << last_tracked_ev_left << "/" << last_tracked_ev_right << ")" << std::endl;
+                continue;
+            }
 
-				continue;
-			}
+            // Get timestamps of the last events in the batch
+            tf2::TimePoint left_ts = shared_state_->events_left_.data[last_tracked_ev_left].timestamp;
+            tf2::TimePoint right_ts = shared_state_->events_right_.data[last_tracked_ev_right].timestamp;
 
-			// DEBUGGING:
-			std::cout << "[Mapper::mappingLoop] last_tracked_ev_left: " << last_tracked_ev_left << std::endl;
-			std::cout << "[Mapper::mappingLoop] last_tracked_ev_right: " << last_tracked_ev_left << std::endl;
+            // Ensure left and right batches are temporally aligned
+            double ts_diff = tf2::durationToSec(left_ts - right_ts);
+            if (std::abs(ts_diff) > max_timestamp_diff) {
+                std::cout << "[Mapper::mappingLoop] Timestamp mismatch between cameras: " << ts_diff << "s, adjusting..." << std::endl;
+                if (ts_diff > 0) {
+                    // Left camera is ahead, reduce right batch size
+                    while (last_tracked_ev_right > last_processed_right &&
+                           tf2::durationToSec(shared_state_->events_right_.data[last_tracked_ev_right].timestamp - left_ts) > 0) {
+                        --last_tracked_ev_right;
+                    }
+                } else {
+                    // Right camera is ahead, reduce left batch size
+                    while (last_tracked_ev_left > last_processed_left &&
+                           tf2::durationToSec(shared_state_->events_left_.data[last_tracked_ev_left].timestamp - right_ts) > 0) {
+                        --last_tracked_ev_left;
+                    }
+                }
 
-			ev_subset_left_ = std::vector<Event>(
-				shared_state_->events_left_.data.begin()+last_tracked_ev_left-NUM_EV_PER_MAP,
-				shared_state_->events_left_.data.begin()+last_tracked_ev_left
-			);
-			ev_subset_right_ = std::vector<Event>(
-				shared_state_->events_right_.data.begin()+last_tracked_ev_right-NUM_EV_PER_MAP,
-				shared_state_->events_right_.data.begin()+last_tracked_ev_right
-			);
-		}
+                // Recheck if enough events remain
+                if (last_tracked_ev_left - last_processed_left < NUM_EV_PER_MAP ||
+                    last_tracked_ev_right - last_processed_right < NUM_EV_PER_MAP) {
+                    std::cout << "[Mapper::mappingLoop] Not enough synchronized events after adjustment" << std::endl;
+                    continue;
+                }
+            }
 
-		// DEBUGGING
-		std::cout << "Size of left events: " << shared_state_->events_left_.data.size() << std::endl;
-		std::cout << "Size of right events: " << shared_state_->events_right_.data.size() << std::endl;
+            // Use the timestamp of the last event (use left camera as reference)
+            batch_ts = left_ts;
+            current_ts_ = batch_ts;
 
-		std::cout << "MappingAtTime!" << std::endl;
-		MappingAtTime(current_ts_, ev_subset_left_, ev_subset_right_, ev_subset_tri_, frame_id_);
+            // Calculate duration of the batch
+            double_t duration = tf2::durationToSec(
+                shared_state_->events_left_.data[last_tracked_ev_left].timestamp -
+                shared_state_->events_left_.data[last_processed_left].timestamp);
 
-		if (on_demand_)
-			state_ = IDLE;
-		std::cout << "map_initialized value: " << map_initialized << std::endl;
-		std::cout << "auto_copilot_ value: " << auto_copilot_ << std::endl;
-		if (auto_copilot_ && !map_initialized)
-			frame_id_ = regular_frame_id_;
-		map_initialized = true;
-	}
+            std::cout << "[Mapper::mappingLoop] Batch duration=" << duration
+                      << "s, batch_ts=" << tf2::timeToSec(batch_ts) << "s" << std::endl;
+
+            if (duration > max_duration_) {
+                std::cout << "[Mapper::mappingLoop] Looking too far back in the past, skip" << std::endl;
+                last_processed_left = last_tracked_ev_left;
+                last_processed_right = last_tracked_ev_right;
+                continue;
+            }
+            if (duration < min_duration_) {
+                std::cout << "[Mapper::mappingLoop] Time interval too short, possible flashing events, skip" << std::endl;
+                last_processed_left = last_tracked_ev_left;
+                last_processed_right = last_tracked_ev_right;
+                continue;
+            }
+
+            // Create event subsets
+            ev_subset_left_ = std::vector<Event>(
+                shared_state_->events_left_.data.begin() + last_processed_left,
+                shared_state_->events_left_.data.begin() + last_tracked_ev_left + 1
+            );
+            ev_subset_right_ = std::vector<Event>(
+                shared_state_->events_right_.data.begin() + last_processed_right,
+                shared_state_->events_right_.data.begin() + last_tracked_ev_right + 1
+            );
+
+            // Update last processed indices
+            last_processed_left = last_tracked_ev_left + 1;
+            last_processed_right = last_tracked_ev_right + 1;
+        }
+
+        std::cout << "[Mapper::mappingLoop] Processing batch with " << ev_subset_left_.size()
+                  << " left events and " << ev_subset_right_.size() << " right events" << std::endl;
+
+        // Check if pose is available for the batch timestamp
+        if (!waitForTransformSimple(tf_, world_frame_id_, frame_id_, batch_ts, tf2::Duration(0), tf2::durationFromSec(0.01))) {
+            std::cout << "[Mapper::mappingLoop] No pose available for timestamp " << tf2::timeToSec(batch_ts) << ", skipping" << std::endl;
+            continue;
+        }
+
+        MappingAtTime(current_ts_, ev_subset_left_, ev_subset_right_, ev_subset_tri_, frame_id_);
+
+        if (on_demand_) {
+            state_ = IDLE;
+        }
+        if (auto_copilot_ && !map_initialized) {
+            frame_id_ = regular_frame_id_;
+        }
+        map_initialized = true;
+    }
 }
 
 void Mapper::MappingAtTime(
