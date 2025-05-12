@@ -21,6 +21,9 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
+
+
+
 void saveDepthMaps(const cv::Mat& depth_map,
                    const cv::Mat& confidence_map,
                    const cv::Mat& semidense_mask,
@@ -199,4 +202,42 @@ void img_from_events(const std::vector<Event>& events,
         {
             img.at<uchar>(e.y,e.x) = 150;
         }
+}
+
+void saveDSISlices(const Grid3D &dsi, const EMVS::ShapeDSI &dsi_shape,
+                   const std::string &output_path, const std::string &suffix,
+                   tf2::TimePoint ts, int num_slices)
+{
+    // Select a subset of depth planes to visualize (e.g., evenly spaced)
+    int dimZ = dsi_shape.dimZ_;
+    std::vector<int> slice_indices;
+    if (num_slices >= dimZ)
+    {
+        for (int z = 0; z < dimZ; ++z)
+            slice_indices.push_back(z);
+    }
+    else
+    {
+        for (int i = 0; i < num_slices; ++i)
+        {
+            slice_indices.push_back(i * (dimZ - 1) / (num_slices - 1));
+        }
+    }
+
+    // Save each selected slice
+    for (int z : slice_indices)
+    {
+        // Get the slice using Grid3D::getSlice
+        cv::Mat slice = dsi.getSlice(z, 2); // dimIdx=2 for Z-slice
+
+        // Normalize to [0, 255] for 8-bit grayscale
+        cv::Mat slice_8bit;
+        cv::normalize(slice, slice_8bit, 0, 255, cv::NORM_MINMAX, CV_8U);
+
+        // Save the slice
+        std::string filename = output_path + "dsi_slice" + "_" +
+                               suffix + "_" + std::to_string(tf2::timeToSec(ts)) + "_z" + std::to_string(z) + ".png";
+        cv::imwrite(filename, slice_8bit);
+        //std::cout << "[saveDSISlices] Saved DSI slice z=" << z << " at " << filename << std::endl;
+    }
 }

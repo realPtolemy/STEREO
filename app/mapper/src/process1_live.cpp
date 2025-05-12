@@ -23,7 +23,10 @@
 // #include <glog/logging.h>
 #include <chrono>
 
+// DEBUGGING: 
+#include <filesystem>
 //#define TIMING_LOOP
+
 
 // Alg 1: fuse DSI across cameras
 void process_1(
@@ -111,13 +114,16 @@ void process_1(
 
     // DEBUGGING: Save visualization of DSI for camera0 (cam0)
     {
-      cv::Mat depth_map0, confidence_map0, semidense_mask0;
-      mapper0.getDepthMapFromDSI(depth_map0, confidence_map0, semidense_mask0, opts_depth_map);
       std::string output_path = "data/debugoutput/"; // Specify your output directory
-      std::string suffix = "cam0_" + std::to_string(tf2::timeToSec(ts)); // Unique suffix
-      saveDepthMaps(depth_map0, confidence_map0, semidense_mask0, 
-                    dsi_shape.min_depth_, dsi_shape.max_depth_, 
-                    suffix, output_path);
+
+      saveDSISlices(mapper0.dsi_, dsi_shape, output_path, "cam0", ts, 5);
+
+      // cv::Mat depth_map0, confidence_map0, semidense_mask0;
+      // mapper0.getDepthMapFromDSI(depth_map0, confidence_map0, semidense_mask0, opts_depth_map);
+      // std::string suffix = "cam0_" + std::to_string(tf2::timeToSec(ts)); // Unique suffix
+      // saveDepthMaps(depth_map0, confidence_map0, semidense_mask0, 
+      //               dsi_shape.min_depth_, dsi_shape.max_depth_, 
+      //               suffix, output_path);
     }
     
     // DEBUGGING:
@@ -140,13 +146,16 @@ void process_1(
 
     // DEBUGGING: Save visualization DSI for camera1 (dvs1)
     {
-      cv::Mat depth_map1, confidence_map1, semidense_mask1;
-      mapper1.getDepthMapFromDSI(depth_map1, confidence_map1, semidense_mask1, opts_depth_map);
       std::string output_path = "data/debugoutput/"; // Specify your output directory
-      std::string suffix = "dvs1_" + std::to_string(tf2::timeToSec(ts)); // Unique suffix
-      saveDepthMaps(depth_map1, confidence_map1, semidense_mask1, 
-                    dsi_shape.min_depth_, dsi_shape.max_depth_, 
-                    suffix, output_path);
+
+      saveDSISlices(mapper1.dsi_, dsi_shape, output_path, "dvs1", ts, 5);
+
+      // cv::Mat depth_map1, confidence_map1, semidense_mask1;
+      // mapper1.getDepthMapFromDSI(depth_map1, confidence_map1, semidense_mask1, opts_depth_map);
+      // std::string suffix = "dvs1_" + std::to_string(tf2::timeToSec(ts)); // Unique suffix
+      // saveDepthMaps(depth_map1, confidence_map1, semidense_mask1, 
+      //               dsi_shape.min_depth_, dsi_shape.max_depth_, 
+      //               suffix, output_path);
     }
  
 

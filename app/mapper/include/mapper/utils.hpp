@@ -19,7 +19,10 @@
 
 #include <string.h>
 #include "mapper/mapper_emvs_stereo.hpp"
+#include "cartesian3dgrid/cartesian3dgrid.h" // For Grid3D
 #include <opencv2/core.hpp>
+#include <vector>
+#include <tf2/LinearMath/Transform.h> // For tf2::TimePoint
 
 void saveDepthMaps(const cv::Mat& depth_map,
                    const cv::Mat& confidence_map,
@@ -70,3 +73,7 @@ void img_from_events(const std::vector<Event>& events,
                       cv::Mat& img);
 
 void evaluateDepthMap(cv::Mat depth, cv::Mat gt);
+
+void saveDSISlices(const Grid3D& dsi, const EMVS::ShapeDSI& dsi_shape,
+    const std::string& output_path, const std::string& suffix,
+    tf2::TimePoint ts, int num_slices = 5);

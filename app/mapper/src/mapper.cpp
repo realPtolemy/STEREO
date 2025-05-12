@@ -70,7 +70,7 @@ void Mapper::mapperRun(){
 		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_1_LONG.csv",
+			"data/camera_1_MOVING.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
@@ -78,7 +78,7 @@ void Mapper::mapperRun(){
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0_LONG.csv",
+			"data/camera_0_MOVING.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
 		);
@@ -423,12 +423,12 @@ void Mapper::MappingAtTime(
 
 	// DEBUGGING:
 	// Save depth and confidence maps to disk using saveDepthMaps
-    std::string output_path = "data/debugoutput/"; // Specify your output directory
-	std::cout << "[Mapper::MappingAtTime] Saving depth images with this timestamp: " << tf2::timeToSec(current_ts) << std::endl;
-    std::string suffix = "fused_" + std::to_string(tf2::timeToSec(current_ts)); // Unique suffix
-	saveDepthMaps(depth_map, confidence_map, semidense_mask, 
-		dsi_shape.min_depth_, dsi_shape.max_depth_, 
-		suffix, output_path);
+    // std::string output_path = "data/debugoutput/"; // Specify your output directory
+	// std::cout << "[Mapper::MappingAtTime] Saving depth images with this timestamp: " << tf2::timeToSec(current_ts) << std::endl;
+    // std::string suffix = "fused_" + std::to_string(tf2::timeToSec(current_ts)); // Unique suffix
+	// saveDepthMaps(depth_map, confidence_map, semidense_mask, 
+	// 	dsi_shape.min_depth_, dsi_shape.max_depth_, 
+	// 	suffix, output_path);
 
 	std::cout << "[Mapper::MappingAtTime] Attempting to convert semi-dense depth map to point cloud..." << std::endl;
     // Convert semi-dense depth map to point cloud
