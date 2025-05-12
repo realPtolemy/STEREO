@@ -431,9 +431,9 @@ void Tracker::mapCallback() {
 void Tracker::updateMap() {
     static size_t min_map_size = 0;
     static size_t min_n_keypoints = 0;
-    std::cout << "Update map\n";
+    //std::cout << "Update map\n";
     // std::cout << keypoints_.size() << std::endl;
-    std::cout << "map_ size: " << map_->size() << std::endl;
+    //std::cout << "map_ size: " << map_->size() << std::endl;
     if (map_->size() <= min_map_size) {
         // LOG(WARNING) << "Unreliable map! Can not update map.";
         return;
@@ -445,7 +445,7 @@ void Tracker::updateMap() {
     kf_ev_ = cur_ev_;
 
     projectMap();
-    std::cout << "Keypoint: "<< keypoints_.size() << std::endl;
+    //std::cout << "Keypoint: "<< keypoints_.size() << std::endl;
 
     if (keypoints_.size() < min_n_keypoints) {
         // LOG(WARNING) << "Losing track!";
@@ -677,8 +677,8 @@ void Tracker::estimateTrajectory() {
         if (cur_ev_ - kf_ev_ >= events_per_kf) {
 
             // // DEBUGGING:
-             std::cout << "[Tracker::estimateTrajectory] Updating map, cur_ev_=" << cur_ev_
-             << ", kf_ev_=" << kf_ev_ << std::endl;
+            //  std::cout << "[Tracker::estimateTrajectory] Updating map, cur_ev_=" << cur_ev_
+            //  << ", kf_ev_=" << kf_ev_ << std::endl;
 
             updateMap();
         }
@@ -686,7 +686,7 @@ void Tracker::estimateTrajectory() {
         if (idle_) {
 
             // DEBUGGING:
-            std::cout << "[Tracker::estimateTrajectory] Idle, skipping" << std::endl;
+            // std::cout << "[Tracker::estimateTrajectory] Idle, skipping" << std::endl;
 
             break;
         }

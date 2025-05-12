@@ -64,12 +64,12 @@ void LKSE3::projectMap() {
     }
 
     // DEBUGGING:
-    if (map_local_->size() > 0) {
-        std::cout << "[LKSE3::projectMap] map_local_ contains " << map_local_->size() << " points:" << std::endl;
-        //for (const auto &point : map_local_->points) {
-        //    std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")" << std::endl;
-        //}
-    }
+    // if (map_local_->size() > 0) {
+    //     std::cout << "[LKSE3::projectMap] map_local_ contains " << map_local_->size() << " points:" << std::endl;
+    //     for (const auto &point : map_local_->points) {
+    //         std::cout << "Point: (" << point.x << ", " << point.y << ", " << point.z << ")" << std::endl;
+    //     }
+    // }
 
     const int k = map_blur_;
     cv::GaussianBlur(img, img, cv::Size(k, k), 0.);

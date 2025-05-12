@@ -145,7 +145,7 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
         Transformation T_w_ev; // from event camera to world
         Transformation T_rv_ev; // from event camera to reference viewpoint
         // if(cam_name == "cam0")
-            std::cout << "Time for camera: "<< cam_name << ", " << tf2::timeToSec(frame_ts) << std::endl;
+        //    std::cout << "Time for camera: "<< cam_name << ", " << tf2::timeToSec(frame_ts) << std::endl;
         // 0.822208
 
         // getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev) queries the transform buffer (tf_) to retrieve the
@@ -251,14 +251,14 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
     dsi_.resetGrid();
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::evaluateDSI] DSI grid is successfully reset." << std::endl;
+    //std::cout << "[MapperEMVS::evaluateDSI] DSI grid is successfully reset." << std::endl;
     // for(auto& event : event_locations_z0){
     //     std::cout << "EVENT: " << event << std::endl;
     // }
     fillVoxelGrid(event_locations_z0, camera_centers);
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::evaluateDSI] Voxel grid is sucessfully filled." << std::endl;
+    //std::cout << "[MapperEMVS::evaluateDSI] Voxel grid is sucessfully filled." << std::endl;
 
     //if(cam_name == "cam1")
     //    dsi_.printDataArray();
@@ -275,7 +275,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
     // and then votes for the corresponding voxel using bilinear voting.
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::fillVoxelGrid] Beginning process of back-projecting events into the DSI..." << std::endl;
+    //std::cout << "[MapperEMVS::fillVoxelGrid] Beginning process of back-projecting events into the DSI..." << std::endl;
 
     // For efficiency reasons, we split each packet into batches of N events each
     // which allows to better exploit the L1 cache
@@ -285,7 +285,7 @@ void MapperEMVS::fillVoxelGrid(const std::vector<Eigen::Vector4d>& event_locatio
     const float z0 = raw_depths_vec_[0];
 
     // DEBUGGING:
-    std::cout << "[MapperEMVS::fillVoxelGrid] Setting up parallel threads..." << std::endl;
+    //std::cout << "[MapperEMVS::fillVoxelGrid] Setting up parallel threads..." << std::endl;
 
     // Parallelize over the planes of the DSI with OpenMP
     // (each thread will process a different depth plane)

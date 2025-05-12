@@ -58,20 +58,20 @@ void process_1(
   // DEBUGGING:
   if (events0.empty() || events1.empty())
   {
-    std::cerr << "[process_1] Error: Empty event vectors, events0=" << events0.size()
-              << ", events1=" << events1.size() << std::endl;
+    // std::cerr << "[process_1] Error: Empty event vectors, events0=" << events0.size()
+    //           << ", events1=" << events1.size() << std::endl;
     return;
   }
-  std::cout << "[process_1] Number of events: camera0=" << events0.size()
-            << ", camera1=" << events1.size()
-            << ", camera2=" << events2.size() << std::endl;
+  // std::cout << "[process_1] Number of events: camera0=" << events0.size()
+  //           << ", camera1=" << events1.size()
+  //           << ", camera2=" << events2.size() << std::endl;
 
   // 1. Back-project events into the DSI
   {
     // LOG(INFO) << "Setting DSI reference at specific timestamp: " << ts;
 
     Transformation T_w_rv, T_w_l, T_w_r;
-    std::cout << "current time at the start of process1: " << tf2::timeToSec(ts) << std::endl;
+    //std::cout << "current time at the start of process1: " << tf2::timeToSec(ts) << std::endl;
     try {
       mapper0.getPoseAt(tf_, ts, world_frame_id, right_cam_frame_id, T_w_r);
       mapper1.getPoseAt(tf_, ts, right_cam_frame_id, "dvs1", T_w_l);
@@ -89,15 +89,15 @@ void process_1(
     T_rv_w = T_w_rv.inverse();
 
     // DEBUGGING:
-    std::cout << "[process_1] Pose T_w_r: \n" << T_w_r.getTransformationMatrix() << std::endl;
-    std::cout << "[process_1] Pose T_w_l: \n" << T_w_l.getTransformationMatrix() << std::endl;
+    //std::cout << "[process_1] Pose T_w_r: \n" << T_w_r.getTransformationMatrix() << std::endl;
+    //std::cout << "[process_1] Pose T_w_l: \n" << T_w_l.getTransformationMatrix() << std::endl;
 
 
     // Left camera: back-project events into the DSI
     // LOG(INFO) << "Computing DSI for first camera";
 
     // DEBUGGING:
-    std::cout << "[process_1] Beginning evaluation of DSI for camera0" << std::endl;
+    //std::cout << "[process_1] Beginning evaluation of DSI for camera0" << std::endl;
 
     std::chrono::high_resolution_clock::time_point t_start_dsi = std::chrono::high_resolution_clock::now();
 #ifdef TIMING_LOOP
@@ -111,7 +111,7 @@ void process_1(
     auto duration_dsi = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_dsi - t_start_dsi ).count();
 
     // DEBUGGING:
-    std::cout << "[process_1] Time required to evaluate DSI for camera0: " << duration_dsi << " milliseconds" << std::endl;
+    //std::cout << "[process_1] Time required to evaluate DSI for camera0: " << duration_dsi << " milliseconds" << std::endl;
 
     // DEBUGGING: Save visualization of DSI for camera0 (cam0)
     {
@@ -128,7 +128,7 @@ void process_1(
     }
 
     // DEBUGGING:
-    std::cout << "[process_1] Beginning evaluation of DSI for camera1" << std::endl;
+    //std::cout << "[process_1] Beginning evaluation of DSI for camera1" << std::endl;
     t_start_dsi = std::chrono::high_resolution_clock::now();
 
 #ifdef TIMING_LOOP
@@ -143,7 +143,7 @@ void process_1(
     duration_dsi = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_dsi - t_start_dsi ).count();
 
     // DEBUGGING:
-    std::cout << "[process_1] Time required to evaluate DSI for camera1: " << duration_dsi << " milliseconds" << std::endl;
+    //std::cout << "[process_1] Time required to evaluate DSI for camera1: " << duration_dsi << " milliseconds" << std::endl;
 
     // DEBUGGING: Save visualization DSI for camera1 (dvs1)
     {
@@ -196,9 +196,9 @@ void process_1(
 
     // Sum of the two DSIs
     //mapper_fused.dsi_.addTwoGrids(mapper1.dsi_);
-    std::cout << "[process_1] Chosen DSI fusion method: " << fusion_method << std::endl;
+    //std::cout << "[process_1] Chosen DSI fusion method: " << fusion_method << std::endl;
 
-    std::chrono::high_resolution_clock::time_point t_start_fusion = std::chrono::high_resolution_clock::now();
+    //std::chrono::high_resolution_clock::time_point t_start_fusion = std::chrono::high_resolution_clock::now();
 #ifdef TIMING_LOOP
     for (int i=1; i<=nloops; i++){
 #endif
@@ -234,9 +234,9 @@ void process_1(
 #ifdef TIMING_LOOP
       }
 #endif
-    std::chrono::high_resolution_clock::time_point t_end_fusion = std::chrono::high_resolution_clock::now();
-    auto t_fusion = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_fusion - t_start_fusion ).count();
-    std::cout << "[process_1] DSIs have succesfully been fused.\n[process_1] Time recquired to fuse DSIs: " << t_fusion << "ms" << std::endl;
+    //std::chrono::high_resolution_clock::time_point t_end_fusion = std::chrono::high_resolution_clock::now();
+    //auto t_fusion = std::chrono::duration_cast<std::chrono::milliseconds>(t_end_fusion - t_start_fusion ).count();
+    //std::cout << "[process_1] DSIs have succesfully been fused.\n[process_1] Time recquired to fuse DSIs: " << t_fusion << "ms" << std::endl;
 
     if (events2.size() > 0){
       // ONLY RELEVANT IF A THIRD CAMERA (cam2) IS USED... IGNORE FOR NOW.
