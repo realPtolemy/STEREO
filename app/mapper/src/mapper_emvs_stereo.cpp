@@ -457,6 +457,33 @@ void MapperEMVS::precomputeRectifiedPoints()
             precomputed_rectified_points_.col(y * width_ + x) = Eigen::Vector2d(rectified_point.x, rectified_point.y);
         }
     }
+
+    // Center the rectified coordinates
+    // Step 1: Compute the mean position of all rectified points
+    Eigen::Vector2d mean_position = Eigen::Vector2d::Zero();
+    for (int i = 0; i < height_ * width_; ++i)
+    {
+        mean_position += precomputed_rectified_points_.col(i);
+    }
+    mean_position /= (height_ * width_);
+
+    // Step 2: Compute the translation to center the mean at (width/2, height/2)
+    Eigen::Vector2d image_center(width_ / 2.0, height_ / 2.0);
+    Eigen::Vector2d translation = image_center - mean_position;
+
+    // Step 3: Apply the translation to all rectified points
+    for (int i = 0; i < height_ * width_; ++i)
+    {
+        precomputed_rectified_points_.col(i) += translation;
+    }
+
+    // Step 4: Ensure all coordinates remain within image bounds (optional clamping)
+    for (int i = 0; i < height_ * width_; ++i)
+    {
+        precomputed_rectified_points_.col(i).x() = std::max(0.0, std::min(precomputed_rectified_points_.col(i).x(), static_cast<double>(width_ - 1)));
+        precomputed_rectified_points_.col(i).y() = std::max(0.0, std::min(precomputed_rectified_points_.col(i).y(), static_cast<double>(height_ - 1)));
+    }
+
 }
 
 
