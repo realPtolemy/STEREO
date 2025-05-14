@@ -29,6 +29,7 @@ Mapper::Mapper(SharedState &shared_state) :
 
 	min_duration_ = .01;
 	max_duration_ = 1.;
+	// init_wait_t_ = 0.5;
 
 	world_frame_id_ = "world";
 	frame_id_ = "cam0";
@@ -70,7 +71,7 @@ void Mapper::mapperRun(){
 		std::thread camera2_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_0_LONG.csv",
+			"data/camera_0_old.csv",
 			std::ref(camera2_events),
 			std::ref(shared_state_->events_right_)
 		);
@@ -79,7 +80,7 @@ void Mapper::mapperRun(){
 		std::thread camera1_thread_csv(
 			&Mapper::camera_thread_csv,
 			this,
-			"data/camera_1_LONG.csv",
+			"data/camera_1_old.csv",
 			std::ref(camera1_events),
 			std::ref(shared_state_->events_left_)
 		);
@@ -121,53 +122,26 @@ Mapper::~Mapper()
 
 void Mapper::tfCallback(){
 	std::unique_lock<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
+	std::deque<tf2::msg::TransformStamped> local_queue;
 	while (running_)
 	{
-		shared_state_->pose_state_.pose_cv.wait(lock, [this]{ return shared_state_->pose_state_.pose_ready; });
+		shared_state_->pose_state_.pose_cv.wait(lock, [this]{ return !shared_state_->pose_state_.pose_queue_.empty(); });
 		std::chrono::high_resolution_clock::time_point t_start_callback = std::chrono::high_resolution_clock::now();
-		// tf_->setTransform(shared_state_->pose_state_.pose, "mapper");
-		if(shared_state_->pose_state_.pose.child_frame_id == "hand"){
-            tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
-			tf2::msg::TransformStamped T_hand_eye = tf2::eigenToTransform(Eigen::Affine3d(mat4_hand_eye));
-			T_hand_eye.timestamp = tf_stamp_;
-			T_hand_eye.frame_id = "hand";
-			T_hand_eye.child_frame_id = frame_id_;
-			// T_hand_eye.child_frame_id = bootstrap_frame_id_;
-            // Broadcast hand eye transform
-			// TODO: update pose evetying that listens to tf here, that is pose.
-            // broadcaster_.sendTransform(stamped_T_hand_eye);
-		}
-		if (shared_state_->pose_state_.pose.child_frame_id == frame_id_ || shared_state_->pose_state_.pose.child_frame_id == "/"+frame_id_) {
-
-			// THIS IS WHERE THE PROBLEM IS!!!!!! FOR LEFT CAMERA (RIGHT IS OK)
-			//std::cout << "Give second camera a pose!" << std::endl;
-			//tf2::TimePoint tf_stamp_= shared_state_->pose_state_.pose.timestamp;
-			//std::cout << "TimePoint tf_stamp_: " << tf2::timeToSec(tf_stamp_) << std::endl;
-			tf2::msg::TransformStamped T_0_1, T_0_2;
-			T_0_1 = tf2::eigenToTransform(Eigen::Affine3d(mat4_1_0));
-			int temp = shared_state_->pose_state_.event_stamp;
-			// T_0_1.timestamp = shared_state_->events_left_.data[temp].timestamp;
-			T_0_1.timestamp = shared_state_->pose_state_.pose.timestamp;
-			// T_0_1.timestamp = tf_stamp_;
-			//std::cout << "TimePoint T_0_1: " << tf2::timeToSec(T_0_1.timestamp) << std::endl;
-			T_0_1.frame_id = frame_id_;
-			T_0_1.child_frame_id = "dvs1";
-			// std::cout << tf2::timeToSec(tf_stamp_) << std::endl;
-            tf_->setTransform(T_0_1, "mapper");
-			// std::cout << "tf_->allFramesAsYAML:\n" << tf_->allFramesAsYAML() << std::endl;
-			// PROBLEM IS ABOVE!! FOR LEFT CAMERA
-
-			// tf_->lookupTransform("cam0", "dvs1", T_0_1.timestamp);
-
-
-            // if (frame_id_ == bootstrap_frame_id_) {
-            //     // keep bootstrap frame also as regular frame for future use
-            //     shared_state_->pose_state_.pose.child_frame_id = regular_frame_id_;
-            //     tf_->setTransform(shared_state_->pose_state_.pose, "mapper");
-            // }
+		local_queue.clear();
+		local_queue.swap(shared_state_->pose_state_.pose_queue_);
+		lock.unlock();
+		for (const auto& pose : local_queue) {
+			if (pose.child_frame_id == frame_id_ || pose.child_frame_id == "/"+frame_id_) {
+				tf2::msg::TransformStamped T_0_1;
+				T_0_1 = tf2::eigenToTransform(Eigen::Affine3d(mat4_1_0));
+				T_0_1.timestamp = pose.timestamp;
+				T_0_1.frame_id = frame_id_;
+				T_0_1.child_frame_id = "dvs1";
+				tf_->setTransform(T_0_1, "mapper");
+				// std::cout << "\nLeft camera pose:\n" << tf_->allFramesAsYAML(T_0_1.timestamp) << std::endl;
+			}
 		}
 		std::chrono::high_resolution_clock::time_point t_end_callback = std::chrono::high_resolution_clock::now();
-		shared_state_->pose_state_.pose_ready = false;
 	}
 }
 bool Mapper::waitForTransformSimple(
@@ -181,12 +155,12 @@ bool Mapper::waitForTransformSimple(
 	auto start = std::chrono::steady_clock::now();
 	if (buffer->canTransform(target_frame, source_frame, time)) {
 		// DEBUGGING:
-		//std::cout << "[Mapper::waitForTransformSimple] I can transform! :)" << std::endl;
+		// std::cout << "[Mapper::waitForTransformSimple] I can transform! :)" << std::endl;
 		return true;
 	}
 	else{
 		// DEBUGGING:
-		//std::cout << "[Mapper::waitForTransformSimple] I can't transform! :(" << std::endl;
+		// std::cout << "[Mapper::waitForTransformSimple] I can't transform! :(" << std::endl;
 
 		return false;
 	}
@@ -207,7 +181,6 @@ void Mapper::mappingLoop()
 
 	bool map_initialized = false;
 
-	// TODO: Fix ros::Rate and ros::ok()
     const tf2::Duration interval = tf2::durationFromSec(0.01);
     tf2::TimePoint next_time = tf2::get_now() + interval;
 	std::this_thread::sleep_until(next_time + tf2::durationFromSec(0.01));
@@ -251,6 +224,19 @@ void Mapper::mappingLoop()
 			// TODO: Handle this?
 			continue;
 		}
+		std::cout << "Things are working so far!! Latest timestamp extracted: " << tf2::timeToSec(latest_tf_stamp_) << std::endl;
+		{
+			std::lock_guard<std::mutex> lock(data_mutex_);
+			// for(auto& event : shared_state_->events_left_.data){
+			// 	std::cout << "Accumulated time in left camera: " << tf2::timeToSec(event.timestamp) << std::endl;
+			// }
+			int last_tracked_ev_left = shared_state_->events_left_.data.size() - 1;
+			std::cout << "First event in left camera buffer: " << tf2::timeToSec(shared_state_->events_left_.data[0].timestamp) << std::endl;
+			std::cout << "Last event in left camera buffer: " << tf2::timeToSec(shared_state_->events_left_.data[last_tracked_ev_left].timestamp) << std::endl;
+			std::cout << "Last event in left camera buffer: " << tf2::timeToSec(shared_state_->events_left_.data.back().timestamp) << std::endl;
+		}
+
+		break;
 		std::vector<Event> ev_subset_left_, ev_subset_right_, ev_subset_tri_;
 		int last_tracked_ev_left, last_tracked_ev_right;
 		if (current_ts_ >= latest_tf_stamp_) {
@@ -453,7 +439,7 @@ void Mapper::MappingAtTime(
         std::cerr << "[Mapper::MappingAtTime] Error: Empty point cloud after getPointcloud" << std::endl;
     }
 
-	publishMsgs(frame_id);
+	// publishMsgs(frame_id);
 }
 
 void Mapper::publishMsgs(std::string frame_id){

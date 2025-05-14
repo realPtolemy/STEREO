@@ -144,10 +144,11 @@ bool MapperEMVS::evaluateDSI(const std::vector<Event>& events,
 
         Transformation T_w_ev; // from event camera to world
         Transformation T_rv_ev; // from event camera to reference viewpoint
-        // if(cam_name == "cam0")
-        //    std::cout << "Time for camera: "<< cam_name << ", " << tf2::timeToSec(frame_ts) << std::endl;
-        // 0.822208
 
+        if(cam_name == "dvs1"){
+            std::cout << "Time for camera: "<< cam_name << ", " << tf2::timeToSec(frame_ts) << std::endl;
+            std::cout << tf_->allFramesAsYAML(frame_ts) << std::endl;
+        }
         // getPoseAt(tf_, frame_ts, world_frame_id, cam_name, T_w_ev) queries the transform buffer (tf_) to retrieve the
         // cameras pose (T_w_ev, from camera to world frame) at timestamp frame_ts for the camera named cam_name (e.g. cam0 or dvs1)
 

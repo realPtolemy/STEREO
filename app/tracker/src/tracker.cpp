@@ -174,7 +174,6 @@ void Tracker::trackerRun(){
         tf2::msg::TransformStamped initial_pose;
         initial_pose.frame_id = world_frame_id_;
         initial_pose.child_frame_id = "cam0";
-        // int temp = events_.size() - 2*(events_.size() - 100000);
         int temp = events_.size() - 100000;
         initial_pose.timestamp = events_[temp].timestamp;
 
@@ -184,36 +183,36 @@ void Tracker::trackerRun(){
         std::cout << "  Event index used: " << temp << " (Total events: " << events_.size() << ")" << std::endl;
 
         {
-        //    std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx); // PROBABLY REMOVE THIS!!!!!!!!! CREATES ISSUES WITH MUTEX LOCK IN MUTEX LOCK
-            shared_state_->pose_state_.pose = initial_pose;
-            shared_state_->pose_state_.event_stamp = events_.size() - 100000;
-            shared_state_->pose_state_.pose_ready = true;
+           std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx); // PROBABLY REMOVE THIS!!!!!!!!! CREATES ISSUES WITH MUTEX LOCK IN MUTEX LOCK
+            shared_state_->pose_state_.pose_queue_.push_back(initial_pose);
             tf_.get()->setTransform(initial_pose, "tracker");
             std::cout << "[Tracker::trackerRun] Initial pose stored in shared_state and tf buffer, timestamp="
                       << tf2::timeToSec(initial_pose.timestamp) << "s" << std::endl;
-            shared_state_->pose_state_.pose_cv.notify_one();
 
             // Set additional poses to simulate tracker updates
             size_t start_idx = events_.size() -100000;
             std::cout << "start index: " << start_idx << std::endl;
             size_t end_idx = events_.size(); // Process up to approx. 1000000 events
             std::cout << "end index: " << end_idx <<std::endl;
-            for (size_t idx = start_idx; idx < end_idx; idx += 100) { // Step by 100 events, can be adjusted but not too high!
+            for (size_t idx = start_idx; idx < end_idx; idx += 100)
+            { // Step by 100 events, can be adjusted but not too high!
                 tf2::msg::TransformStamped additional_pose = initial_pose;
                 additional_pose.timestamp = events_[idx].timestamp;
 
                 shared_state_->pose_state_.event_stamp = (idx);
                 tf_.get()->setTransform(additional_pose, "tracker");
+                // std::cout << "\nRight camera tf update:\n " << tf_->allFramesAsYAML(additional_pose.timestamp) << std::endl;
 
                 // DEBUGGING:
                 //std::cout << "[Tracker::trackerRun] Added additional pose, timestamp="
                 //          << tf2::timeToSec(additional_pose.timestamp) << "s, index=" << idx << std::endl;
 
-                shared_state_->pose_state_.pose = additional_pose;
-                shared_state_->pose_state_.pose_ready = true;
-                shared_state_->pose_state_.pose_cv.notify_one();
+                shared_state_->pose_state_.pose_queue_.push_back(additional_pose);
             }
+
         }
+        shared_state_->pose_state_.pose_cv.notify_one();
+        // std::this_thread::yield(); //????
         // DEBUGGING:
         std::cout << "[Tracker::trackerRun] Multiple poses have now been sent to shared_state." << std::endl;
 
@@ -573,11 +572,12 @@ void Tracker::publishTF() {
 
         {
             // std::lock_guard<std::mutex> lock(shared_state_->pose_state_.pose_mtx);
-            shared_state_->pose_state_.pose = filtered_pose;
+            // shared_state_->pose_state_.pose = filtered_pose;
+            // TODO: FIX SO THAT THE QUEUE ALSO WORKS HERE
             // std::cout << "new pose!" << std::endl;
             tf_.get()->setTransform(filtered_pose, "tracker");
             shared_state_->pose_state_.event_stamp = cur_ev_ + frame_size_;
-            shared_state_->pose_state_.pose_ready = true;
+            // shared_state_->pose_state_.pose_ready = true;
             shared_state_->pose_state_.pose_cv.notify_one();
         }
 

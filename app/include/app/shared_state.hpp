@@ -66,9 +66,10 @@ struct pose_state
     std::mutex pose_mtx;
     // Behövs condition variable?
     std::condition_variable pose_cv;
-    bool pose_ready = false;
+    // bool pose_ready = false;
     int event_stamp;
-    tf2::msg::TransformStamped pose;
+    // tf2::msg::TransformStamped pose;
+    std::deque<tf2::msg::TransformStamped> pose_queue_;
 };
 
 class SharedState
