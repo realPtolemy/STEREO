@@ -9,12 +9,17 @@ SQUARE_SIZE = 30.0  # Square size in mm
 ANNOTATIONS_SUBDIR = "chessboard_annotations"  # Subdirectory for annotated images
 PARAMETERS_SUBDIR = "parameters"  # Subdirectory for stereo parameters
 
-# Prompt user for input and output directories and .yaml files
+# Prompt user for input and output directories, .yaml files, and baseline camera
 left_input_dir = input("Enter the input directory for left camera images (e.g., left_images): ").strip()
 right_input_dir = input("Enter the input directory for right camera images (e.g., right_images): ").strip()
 output_dir = input("Enter the output directory for results (e.g., calibration_results): ").strip()
-left_yaml = input("Enter the path to left camera .yaml file (e.g., calibration_results/parameters/left.yaml): ").strip()
+left_yaml = input("Enter the path to left camera .yaml file (e.g., calibration_results/parameters purification_results/parameters/left.yaml): ").strip()
 right_yaml = input("Enter the path to right camera .yaml file (e.g., calibration_results/parameters/right.yaml): ").strip()
+baseline_camera = input("Select baseline camera (left or right): ").strip().lower()
+
+# Validate baseline camera input
+if baseline_camera not in ['left', 'right']:
+    raise ValueError("Baseline camera must be 'left' or 'right'.")
 
 # Validate input directories
 if not os.path.isdir(left_input_dir):
@@ -159,24 +164,39 @@ for idx, (left_fname, right_fname) in enumerate(image_pairs):
 if len(objpoints) > 0:
     # Step 8: Stereo calibration using imported intrinsics
     flags = cv2.CALIB_FIX_INTRINSIC  # Fix imported intrinsics
-    ret_stereo, mtx_left, dist_left, mtx_right, dist_right, R, T, E, F = cv2.stereoCalibrate(
-        objpoints,
-        imgpoints_left,
-        imgpoints_right,
-        mtx_left,
-        dist_left,
-        mtx_right,
-        dist_right,
-        image_size,
-        criteria=criteria,
-        flags=flags
-    )
+    if baseline_camera == 'left':
+        ret_stereo, mtx_left, dist_left, mtx_right, dist_right, R, T, E, F = cv2.stereoCalibrate(
+            objpoints,
+            imgpoints_left,
+            imgpoints_right,
+            mtx_left,
+            dist_left,
+            mtx_right,
+            dist_right,
+            image_size,
+            criteria=criteria,
+            flags=flags
+        )
+        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(
+            mtx_left, dist_left, mtx_right, dist_right, image_size, R, T
+        )
+    else:  # baseline_camera == 'right'
+        ret_stereo, mtx_right, dist_right, mtx_left, dist_left, R, T, E, F = cv2.stereoCalibrate(
+            objpoints,
+            imgpoints_right,
+            imgpoints_left,
+            mtx_right,
+            dist_right,
+            mtx_left,
+            dist_left,
+            image_size,
+            criteria=criteria,
+            flags=flags
+        )
+        R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(
+            mtx_right, dist_right, mtx_left, dist_left, image_size, R, T
+        )
     print(f"Stereo reprojection error: {ret_stereo:.3f} pixels")
-    
-    # Step 9: Stereo rectification
-    R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(
-        mtx_left, dist_left, mtx_right, dist_right, image_size, R, T
-    )
     print("Stereo calibration and rectification completed.")
 
     # Save reprojection annotated images
@@ -242,18 +262,32 @@ if len(objpoints) > 0:
     # Save stereo calibration results
     yaml_path = os.path.join(output_dir, PARAMETERS_SUBDIR, "stereo.yaml")
     fs = cv2.FileStorage(yaml_path, cv2.FILE_STORAGE_WRITE)
-    fs.write("camera_matrix_left", mtx_left)
-    fs.write("distortion_coefficients_left", dist_left)
-    fs.write("camera_matrix_right", mtx_right)
-    fs.write("distortion_coefficients_right", dist_right)
-    fs.write("rotation_matrix", R)
-    fs.write("translation_vector", T)
-    fs.write("essential_matrix", E)
-    fs.write("fundamental_matrix", F)
-    fs.write("rectification_transform_left", R1)
-    fs.write("rectification_transform_right", R2)
-    fs.write("projection_matrix_left", P1)
-    fs.write("projection_matrix_right", P2)
+    if baseline_camera == 'left':
+        fs.write("camera_matrix_left", mtx_left)  # Reference camera
+        fs.write("distortion_coefficients_left", dist_left)
+        fs.write("camera_matrix_right", mtx_right)  # Second camera
+        fs.write("distortion_coefficients_right", dist_right)
+        fs.write("rotation_matrix", R)  # Right relative to left
+        fs.write("translation_vector", T)  # Right relative to left
+        fs.write("essential_matrix", E)
+        fs.write("fundamental_matrix", F)
+        fs.write("rectification_transform_left", R1)  # Reference camera
+        fs.write("rectification_transform_right", R2)  # Second camera
+        fs.write("projection_matrix_left", P1)  # Reference camera
+        fs.write("projection_matrix_right", P2)  # Second camera
+    else:  # baseline_camera == 'right'
+        fs.write("camera_matrix_right", mtx_right)  # Reference camera
+        fs.write("distortion_coefficients_right", dist_right)
+        fs.write("camera_matrix_left", mtx_left)  # Second camera
+        fs.write("distortion_coefficients_left", dist_left)
+        fs.write("rotation_matrix", R)  # Left relative to right
+        fs.write("translation_vector", T)  # Left relative to right
+        fs.write("essential_matrix", E)
+        fs.write("fundamental_matrix", F)
+        fs.write("rectification_transform_right", R1)  # Reference camera
+        fs.write("rectification_transform_left", R2)  # Second camera
+        fs.write("projection_matrix_right", P1)  # Reference camera
+        fs.write("projection_matrix_left", P2)  # Second camera
     fs.write("disparity_to_depth_matrix", Q)
     fs.write("image_width", image_size[0])
     fs.write("image_height", image_size[1])
