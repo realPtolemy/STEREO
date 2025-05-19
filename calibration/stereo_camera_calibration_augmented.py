@@ -164,7 +164,7 @@ for idx, (left_fname, right_fname) in enumerate(image_pairs):
 if len(objpoints) > 0:
     # Step 8: Stereo calibration using imported intrinsics
     flags = cv2.CALIB_FIX_INTRINSIC  # Fix imported intrinsics
-    if baseline_camera == 'left':
+    if baseline_camera == 'right':
         ret_stereo, mtx_left, dist_left, mtx_right, dist_right, R, T, E, F = cv2.stereoCalibrate(
             objpoints,
             imgpoints_left,
@@ -262,7 +262,7 @@ if len(objpoints) > 0:
     # Save stereo calibration results
     yaml_path = os.path.join(output_dir, PARAMETERS_SUBDIR, "stereo.yaml")
     fs = cv2.FileStorage(yaml_path, cv2.FILE_STORAGE_WRITE)
-    if baseline_camera == 'left':
+    if baseline_camera == 'right':
         fs.write("camera_matrix_left", mtx_left)  # Reference camera
         fs.write("distortion_coefficients_left", dist_left)
         fs.write("camera_matrix_right", mtx_right)  # Second camera
@@ -275,7 +275,7 @@ if len(objpoints) > 0:
         fs.write("rectification_transform_right", R2)  # Second camera
         fs.write("projection_matrix_left", P1)  # Reference camera
         fs.write("projection_matrix_right", P2)  # Second camera
-    else:  # baseline_camera == 'right'
+    else:  # baseline_camera == 'left'
         fs.write("camera_matrix_right", mtx_right)  # Reference camera
         fs.write("distortion_coefficients_right", dist_right)
         fs.write("camera_matrix_left", mtx_left)  # Second camera
